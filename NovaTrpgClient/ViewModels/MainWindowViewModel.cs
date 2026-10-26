@@ -59,6 +59,12 @@ namespace NovaTrpgClient.ViewModels
         private string _sessionId = "default";
 
         [ObservableProperty]
+        private string _sessionIdInput = "default";
+
+        [ObservableProperty]
+        private string _sessionStatusMessage = "Активна сесія: default";
+
+        [ObservableProperty]
         private PlayerState? _currentPlayerState;
 
         public ObservableCollection<ChatMessage> ChatMessages { get; } = new();
@@ -100,6 +106,43 @@ namespace NovaTrpgClient.ViewModels
         private void ToggleCharacterSheet()
         {
             IsCharacterSheetOpen = !IsCharacterSheetOpen;
+        }
+
+        [RelayCommand]
+        public async Task SwitchSessionAsync()
+        {
+            var target = string.IsNullOrWhiteSpace(SessionIdInput) ? "default" : SessionIdInput.Trim();
+            SessionId = target;
+            SessionIdInput = target;
+
+            ChatMessages.Add(new ChatMessage
+            {
+                Sender = "Система:",
+                Text = $"🔄 Перемикання на ігрову сесію '{SessionId}'...",
+                SenderColor = "#10B981"
+            });
+
+            StatusIndicatorText = $"Завантаження сесії '{SessionId}'...";
+            await LoadInitialStateAsync();
+            SessionStatusMessage = $"Активна сесія: {SessionId}";
+            IsMenuOpen = false;
+        }
+
+        [RelayCommand]
+        public async Task RefreshSessionAsync()
+        {
+            StatusIndicatorText = $"Оновлення даних сесії '{SessionId}'...";
+            await LoadInitialStateAsync();
+            IsMenuOpen = false;
+        }
+
+        [RelayCommand]
+        private void ExitGame()
+        {
+            if (Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop)
+            {
+                desktop.Shutdown();
+            }
         }
 
         [RelayCommand(CanExecute = nameof(CanSend))]
@@ -224,6 +267,13 @@ namespace NovaTrpgClient.ViewModels
                 if (playerState != null)
                 {
                     ApplyPlayerState(playerState);
+                    SessionStatusMessage = $"Активна сесія: {SessionId}";
+                    ChatMessages.Add(new ChatMessage
+                    {
+                        Sender = "Система:",
+                        Text = $"✅ Сесія '{SessionId}' завантажена. Персонаж: {CharacterName} ({LocationText}).",
+                        SenderColor = "#10B981"
+                    });
                 }
                 else
                 {

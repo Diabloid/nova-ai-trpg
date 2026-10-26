@@ -1,13 +1,13 @@
-using Newtonsoft.Json;
+using System.Text.Json.Serialization;
 
 namespace NovaTrpgClient.Models
 {
     public class IntentToken
     {
-        [JsonProperty("type")]
+        [JsonPropertyName("type")]
         public string Type { get; set; } = string.Empty;
 
-        [JsonProperty("content")]
+        [JsonPropertyName("content")]
         public string Content { get; set; } = string.Empty;
     }
 }

@@ -1,6 +1,8 @@
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Platform;
+using Avalonia.VisualTree;
 using AvaloniaEdit.Highlighting;
 using AvaloniaEdit.Highlighting.Xshd;
 using NovaTrpgClient.ViewModels;
@@ -15,6 +17,17 @@ namespace NovaTrpgClient.Views
         {
             InitializeComponent();
             LoadCodeHighlighting();
+
+            // Зняття фокусу з полів вводу при кліку поза їхніми межами
+            this.AddHandler(InputElement.PointerPressedEvent, (s, e) =>
+            {
+                var visual = e.Source as Avalonia.Visual;
+                if (visual?.FindAncestorOfType<TextBox>(includeSelf: true) == null &&
+                    visual?.FindAncestorOfType<AvaloniaEdit.TextEditor>(includeSelf: true) == null)
+                {
+                    this.FocusManager?.Focus(null);
+                }
+            }, RoutingStrategies.Tunnel);
 
             if (ChatInputEditor != null)
             {
@@ -31,6 +44,20 @@ namespace NovaTrpgClient.Views
                     if (this.DataContext is MainWindowViewModel vm && !vm.IsTyping)
                     {
                         vm.UserInput = ChatInputEditor.Text ?? string.Empty;
+                    }
+                };
+            }
+
+            if (SessionInputBox != null)
+            {
+                SessionInputBox.KeyDown += (s, e) =>
+                {
+                    if (e.Key == Key.Enter && this.DataContext is MainWindowViewModel vm)
+                    {
+                        if (vm.SwitchSessionCommand.CanExecute(null))
+                        {
+                            vm.SwitchSessionCommand.Execute(null);
+                        }
                     }
                 };
             }

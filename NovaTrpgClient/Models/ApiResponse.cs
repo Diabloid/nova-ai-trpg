@@ -1,119 +1,120 @@
-using Newtonsoft.Json;
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 
 namespace NovaTrpgClient.Models
 {
     public class PlayerMeta
     {
-        [JsonProperty("name")]
+        [JsonPropertyName("name")]
         public string Name { get; set; } = string.Empty;
 
-        [JsonProperty("background")]
+        [JsonPropertyName("background")]
         public string Background { get; set; } = string.Empty;
 
-        [JsonProperty("location")]
+        [JsonPropertyName("location")]
         public string Location { get; set; } = string.Empty;
 
-        [JsonProperty("appearance")]
+        [JsonPropertyName("appearance")]
         public string Appearance { get; set; } = string.Empty;
     }
 
     public class Injury
     {
-        [JsonProperty("location")]
+        [JsonPropertyName("location")]
         public string Location { get; set; } = string.Empty;
 
-        [JsonProperty("type")]
+        [JsonPropertyName("type")]
         public string Type { get; set; } = string.Empty;
 
-        // Властивість для зворотної сумісності (якщо прийде description або звернення з UI)
-        [JsonProperty("description")]
+        [JsonPropertyName("description")]
+        public string? RawDescription { get; set; }
+
+        [JsonIgnore]
         public string Description
         {
-            get => !string.IsNullOrEmpty(Type) ? Type : _description;
-            set => _description = value;
+            get => !string.IsNullOrEmpty(Type) ? Type : (RawDescription ?? string.Empty);
+            set => Type = value;
         }
-        private string _description = string.Empty;
     }
 
     public class ItemInfo
     {
-        [JsonProperty("name")]
+        [JsonPropertyName("name")]
         public string Name { get; set; } = string.Empty;
 
-        [JsonProperty("desc")]
+        [JsonPropertyName("desc")]
         public string Desc { get; set; } = string.Empty;
     }
 
     public class AbilityInfo
     {
-        [JsonProperty("name")]
+        [JsonPropertyName("name")]
         public string Name { get; set; } = string.Empty;
 
-        [JsonProperty("desc")]
+        [JsonPropertyName("desc")]
         public string Desc { get; set; } = string.Empty;
     }
 
     public class AnatomyAndHealth
     {
-        [JsonProperty("overall_state")]
+        [JsonPropertyName("overall_state")]
         public string OverallState { get; set; } = string.Empty;
 
-        [JsonProperty("injuries")]
+        [JsonPropertyName("injuries")]
         public List<Injury> Injuries { get; set; } = new();
     }
 
     public class StorageAndEquipment
     {
-        [JsonProperty("worn")]
+        [JsonPropertyName("worn")]
         public List<ItemInfo> Worn { get; set; } = new();
 
-        [JsonProperty("containers")]
+        [JsonPropertyName("containers")]
         public Dictionary<string, List<ItemInfo>> Containers { get; set; } = new();
     }
 
     public class PlayerState
     {
-        [JsonProperty("meta")]
+        [JsonPropertyName("meta")]
         public PlayerMeta Meta { get; set; } = new();
 
-        [JsonProperty("anatomy_and_health")]
+        [JsonPropertyName("anatomy_and_health")]
         public AnatomyAndHealth AnatomyAndHealth { get; set; } = new();
 
-        [JsonProperty("storage_and_equipment")]
+        [JsonPropertyName("storage_and_equipment")]
         public StorageAndEquipment StorageAndEquipment { get; set; } = new();
 
-        [JsonProperty("abilities")]
+        [JsonPropertyName("abilities")]
         public List<AbilityInfo> Abilities { get; set; } = new();
     }
 
     public class ActionRequest
     {
-        [JsonProperty("raw_text")]
+        [JsonPropertyName("raw_text")]
         public string RawText { get; set; } = string.Empty;
 
-        [JsonProperty("intents")]
+        [JsonPropertyName("intents")]
         public List<IntentToken> Intents { get; set; } = new();
 
-        [JsonProperty("session_id")]
+        [JsonPropertyName("session_id")]
         public string SessionId { get; set; } = "default";
     }
 
     public class ActionResponse
     {
-        [JsonProperty("status")]
+        [JsonPropertyName("status")]
         public string Status { get; set; } = string.Empty;
 
-        [JsonProperty("story")]
+        [JsonPropertyName("story")]
         public string Story { get; set; } = string.Empty;
 
-        [JsonProperty("raw_llm_state")]
+        [JsonPropertyName("raw_llm_state")]
         public string? RawLlmState { get; set; }
 
-        [JsonProperty("player_state")]
+        [JsonPropertyName("player_state")]
         public PlayerState? PlayerState { get; set; }
 
-        [JsonProperty("error_message")]
+        [JsonPropertyName("error_message")]
         public string? ErrorMessage { get; set; }
     }
 
