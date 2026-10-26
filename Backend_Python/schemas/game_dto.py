@@ -94,6 +94,14 @@ class StorageAndEquipment(BaseModel):
     )
 
 
+class AbilityObject(BaseModel):
+    """Багатий об'єкт здібності/навички персонажа."""
+    model_config = ConfigDict(extra="allow")
+
+    name: str = Field(..., description="Назва здібності")
+    desc: Optional[str] = Field(default="", description="Опис або ефект здібності")
+
+
 class PlayerState(BaseModel):
     """Повний стан персонажа (PlayerState DTO)."""
     model_config = ConfigDict(extra="allow")
@@ -101,9 +109,9 @@ class PlayerState(BaseModel):
     meta: PlayerMeta = Field(default_factory=PlayerMeta)
     anatomy_and_health: AnatomyAndHealth = Field(default_factory=AnatomyAndHealth)
     storage_and_equipment: StorageAndEquipment = Field(default_factory=StorageAndEquipment)
-    abilities: List[str] = Field(
+    abilities: List[Union[AbilityObject, Dict[str, Any], str]] = Field(
         default_factory=list,
-        description="Активні та пасивні навички/здібності персонажа"
+        description="Активні та пасивні навички/здібності персонажа (об'єкти {name, desc} або рядки)"
     )
 
 
