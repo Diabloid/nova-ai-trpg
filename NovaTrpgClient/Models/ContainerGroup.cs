@@ -5,6 +5,6 @@ namespace NovaTrpgClient.Models
     public class ContainerGroup
     {
         public string Name { get; set; } = string.Empty;
-        public List<string> Items { get; set; } = new();
+        public List<ItemInfo> Items { get; set; } = new();
     }
 }

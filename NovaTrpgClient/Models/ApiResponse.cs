@@ -23,8 +23,35 @@ namespace NovaTrpgClient.Models
         [JsonProperty("location")]
         public string Location { get; set; } = string.Empty;
 
+        [JsonProperty("type")]
+        public string Type { get; set; } = string.Empty;
+
+        // Властивість для зворотної сумісності (якщо прийде description або звернення з UI)
         [JsonProperty("description")]
-        public string Description { get; set; } = string.Empty;
+        public string Description
+        {
+            get => !string.IsNullOrEmpty(Type) ? Type : _description;
+            set => _description = value;
+        }
+        private string _description = string.Empty;
+    }
+
+    public class ItemInfo
+    {
+        [JsonProperty("name")]
+        public string Name { get; set; } = string.Empty;
+
+        [JsonProperty("desc")]
+        public string Desc { get; set; } = string.Empty;
+    }
+
+    public class AbilityInfo
+    {
+        [JsonProperty("name")]
+        public string Name { get; set; } = string.Empty;
+
+        [JsonProperty("desc")]
+        public string Desc { get; set; } = string.Empty;
     }
 
     public class AnatomyAndHealth
@@ -39,10 +66,10 @@ namespace NovaTrpgClient.Models
     public class StorageAndEquipment
     {
         [JsonProperty("worn")]
-        public List<string> Worn { get; set; } = new();
+        public List<ItemInfo> Worn { get; set; } = new();
 
         [JsonProperty("containers")]
-        public Dictionary<string, List<string>> Containers { get; set; } = new();
+        public Dictionary<string, List<ItemInfo>> Containers { get; set; } = new();
     }
 
     public class PlayerState
@@ -57,7 +84,7 @@ namespace NovaTrpgClient.Models
         public StorageAndEquipment StorageAndEquipment { get; set; } = new();
 
         [JsonProperty("abilities")]
-        public List<string> Abilities { get; set; } = new();
+        public List<AbilityInfo> Abilities { get; set; } = new();
     }
 
     public class ActionRequest
@@ -67,6 +94,9 @@ namespace NovaTrpgClient.Models
 
         [JsonProperty("intents")]
         public List<IntentToken> Intents { get; set; } = new();
+
+        [JsonProperty("session_id")]
+        public string SessionId { get; set; } = "default";
     }
 
     public class ActionResponse
@@ -84,6 +114,23 @@ namespace NovaTrpgClient.Models
         public PlayerState? PlayerState { get; set; }
 
         [JsonProperty("error_message")]
+        public string? ErrorMessage { get; set; }
+    }
+
+    public enum SseEventType
+    {
+        StoryChunk,
+        StateAnalyzing,
+        Complete,
+        Error
+    }
+
+    public class SseEvent
+    {
+        public SseEventType Type { get; set; }
+        public string? TextChunk { get; set; }
+        public string? StatusMessage { get; set; }
+        public ActionResponse? FinalResponse { get; set; }
         public string? ErrorMessage { get; set; }
     }
 }

@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Net.Http;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace NovaTrpgClient.ViewModels
@@ -52,13 +53,19 @@ namespace NovaTrpgClient.ViewModels
         private string _animatedDots = "";
 
         [ObservableProperty]
+        private string _statusIndicatorText = "Розмірковує над дією";
+
+        [ObservableProperty]
+        private string _sessionId = "default";
+
+        [ObservableProperty]
         private PlayerState? _currentPlayerState;
 
         public ObservableCollection<ChatMessage> ChatMessages { get; } = new();
         public ObservableCollection<Injury> Injuries { get; } = new();
-        public ObservableCollection<string> WornItems { get; } = new();
+        public ObservableCollection<ItemInfo> WornItems { get; } = new();
         public ObservableCollection<ContainerGroup> ContainersList { get; } = new();
-        public ObservableCollection<string> AbilitiesList { get; } = new();
+        public ObservableCollection<AbilityInfo> AbilitiesList { get; } = new();
 
         // Основний конструктор із Dependency Injection
         public MainWindowViewModel(
@@ -114,70 +121,97 @@ namespace NovaTrpgClient.ViewModels
             var intents = _intentParserService.ParseIntents(action);
 
             IsTyping = true;
+            StatusIndicatorText = "Розмірковує над дією";
             _ = AnimateDotsAsync();
+
+            ChatMessage? aiMessage = null;
 
             try
             {
                 var requestBody = new ActionRequest
                 {
                     RawText = displayAction,
-                    Intents = intents
+                    Intents = intents,
+                    SessionId = SessionId
                 };
 
-                var result = await _gameApiService.SendActionAsync(requestBody);
+                var storyBuilder = new StringBuilder();
+                bool hasReceivedChunks = false;
 
-                IsTyping = false;
-
-                if (result?.Status == "success")
+                // Справжній стрімінг у реальному часі через Server-Sent Events (SSE)
+                await foreach (var sse in _gameApiService.StreamActionAsync(requestBody))
                 {
-                    string cleanStory = _textSanitizerService.SanitizeStory(result.Story);
-
-                    var aimessage = new ChatMessage
+                    switch (sse.Type)
                     {
-                        Sender = "Оповідач:",
-                        Text = "",
-                        SenderColor = "#EAB308"
-                    };
-                    ChatMessages.Add(aimessage);
+                        case SseEventType.StoryChunk:
+                            if (!string.IsNullOrEmpty(sse.TextChunk))
+                            {
+                                if (!hasReceivedChunks)
+                                {
+                                    hasReceivedChunks = true;
+                                    aiMessage = new ChatMessage
+                                    {
+                                        Sender = "Оповідач:",
+                                        Text = "",
+                                        SenderColor = "#EAB308"
+                                    };
+                                    ChatMessages.Add(aiMessage);
+                                }
 
-                    string[] words = cleanStory.Split(' ');
-                    for (int i = 0; i < words.Length; i++)
-                    {
-                        aimessage.Text += words[i] + (i < words.Length - 1 ? " " : "");
-                        await Task.Delay(50);
+                                storyBuilder.Append(sse.TextChunk);
+                                if (aiMessage != null)
+                                {
+                                    aiMessage.Text = storyBuilder.ToString();
+                                }
+                            }
+                            break;
+
+                        case SseEventType.StateAnalyzing:
+                            StatusIndicatorText = sse.StatusMessage ?? "Аналізую зміни інвентарю та здоров'я...";
+                            break;
+
+                        case SseEventType.Complete:
+                            if (sse.FinalResponse != null)
+                            {
+                                if (sse.FinalResponse.PlayerState != null)
+                                {
+                                    ApplyPlayerState(sse.FinalResponse.PlayerState);
+                                }
+
+                                if (aiMessage != null && !string.IsNullOrWhiteSpace(sse.FinalResponse.Story))
+                                {
+                                    aiMessage.Text = _textSanitizerService.SanitizeStory(sse.FinalResponse.Story);
+                                }
+                            }
+                            break;
+
+                        case SseEventType.Error:
+                            ChatMessages.Add(new ChatMessage
+                            {
+                                Sender = "Система:",
+                                Text = sse.ErrorMessage ?? "Помилка під час генерації ходу.",
+                                SenderColor = "#EF4444"
+                            });
+                            break;
                     }
-
-                    if (result.PlayerState != null)
-                    {
-                        ApplyPlayerState(result.PlayerState);
-                    }
-                }
-                else
-                {
-                    ChatMessages.Add(new ChatMessage
-                    {
-                        Sender = "Система:",
-                        Text = string.IsNullOrWhiteSpace(result?.ErrorMessage)
-                            ? "Помилка сервера: Невідомий статус."
-                            : $"Помилка сервера: {result.ErrorMessage}",
-                        SenderColor = "#EF4444"
-                    });
                 }
             }
             catch (Exception ex)
             {
-                IsTyping = false;
+                System.Diagnostics.Debug.WriteLine($"[SendAsync Exception]: {ex}");
+                Console.WriteLine($"[SendAsync Exception]: {ex}");
 
                 ChatMessages.Add(new ChatMessage
                 {
                     Sender = "Система:",
-                    Text = $"Помилка підключення: {ex.Message}",
+                    Text = $"Помилка підключення або обробки: {ex.Message}",
                     SenderColor = "#EF4444"
                 });
             }
             finally
             {
                 IsTyping = false;
+                StatusIndicatorText = "Розмірковує над дією";
             }
         }
 
@@ -185,7 +219,7 @@ namespace NovaTrpgClient.ViewModels
         {
             try
             {
-                var playerState = await _gameApiService.GetPlayerStateAsync();
+                var playerState = await _gameApiService.GetPlayerStateAsync(SessionId);
 
                 if (playerState != null)
                 {
@@ -197,11 +231,13 @@ namespace NovaTrpgClient.ViewModels
                     InventoryText = "Сервер повернув порожній стан";
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // Якщо сервер FastAPI ще не запущено на момент відкриття клієнта
-                HpText = "Сервер офлайн";
-                InventoryText = "Очікування підключення...";
+                System.Diagnostics.Debug.WriteLine($"[State Load Exception]: {ex}");
+                Console.WriteLine($"[State Load Exception]: {ex}");
+
+                HpText = "Помилка завантаження";
+                InventoryText = $"Збій підключення/десеріалізації: {ex.Message}";
             }
         }
 
@@ -245,10 +281,11 @@ namespace NovaTrpgClient.ViewModels
 
             // Контейнери (Containers)
             ContainersList.Clear();
-            var allItems = new List<string>();
+            var allItemNames = new List<string>();
+
             if (state.StorageAndEquipment?.Worn != null)
             {
-                allItems.AddRange(state.StorageAndEquipment.Worn);
+                allItemNames.AddRange(state.StorageAndEquipment.Worn.Select(w => w.Name));
             }
 
             if (state.StorageAndEquipment?.Containers != null)
@@ -260,9 +297,10 @@ namespace NovaTrpgClient.ViewModels
                         ContainersList.Add(new ContainerGroup
                         {
                             Name = container.Key,
-                            Items = new List<string>(container.Value)
+                            Items = new List<ItemInfo>(container.Value)
                         });
-                        allItems.AddRange(container.Value);
+
+                        allItemNames.AddRange(container.Value.Select(i => i.Name));
                     }
                 }
             }
@@ -277,7 +315,7 @@ namespace NovaTrpgClient.ViewModels
                 }
             }
 
-            InventoryText = allItems.Any() ? string.Join(", ", allItems) : "порожньо";
+            InventoryText = allItemNames.Any() ? string.Join(", ", allItemNames) : "порожньо";
         }
 
         private async Task AnimateDotsAsync()
