@@ -1,6 +1,6 @@
 import os
 import sys
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, AsyncGenerator
 from openai import AsyncOpenAI
 
 # Безпечне кодування консолі для Windows
@@ -14,7 +14,7 @@ if sys.stdout and hasattr(sys.stdout, "reconfigure"):
 class LLMProviderService:
     """
     Відповідає за виклики ШІ-моделей через OpenAI-сумісний інтерфейс
-    з підтримкою каскадного резервування (Fallback Router) та response_format.
+    з підтримкою каскадного резервування (Fallback Router), response_format та токен-стрімінгу.
     """
     def __init__(self, config: Dict[str, Any]):
         self.config = config
@@ -28,8 +28,7 @@ class LLMProviderService:
         response_format: Optional[Dict[str, Any]] = None
     ) -> str:
         """
-        Каскадний виклик: Провайдер -> Список його моделей -> Наступний провайдер.
-        Підтримує безпечний відкат при відсутності підтримки response_format моделлю.
+        Каскадний синхронний виклик (non-streaming): Провайдер -> Моделі -> Наступний провайдер.
         """
         providers = self.config.get(provider_type, [])
         if not providers:
@@ -63,7 +62,6 @@ class LLMProviderService:
                     print(f"⚠️ Порожня відповідь від {provider.get('name')} ({model})")
                 except Exception as e:
                     err_msg = str(e)
-                    # Якщо модель не підтримує response_format (наприклад, 400 Bad Request)
                     if response_format and ("response_format" in err_msg.lower() or "json_object" in err_msg.lower()):
                         print(f"⚠️ {provider.get('name')} ({model}) не підтримує response_format. Спроба без нього...")
                         try:
@@ -80,3 +78,48 @@ class LLMProviderService:
                     continue
 
         return '{"error": "Усі резервні API-провайдери та їхні моделі недоступні."}'
+
+    async def stream_with_fallback(
+        self,
+        provider_type: str,
+        messages: List[Dict[str, str]],
+        temperature: float,
+        max_tokens: int
+    ) -> AsyncGenerator[str, None]:
+        """
+        Каскадний стрімінг токенів Оповідача (Server-Sent Events / SSE).
+        """
+        providers = self.config.get(provider_type, [])
+        success = False
+
+        for provider in providers:
+            env_key = provider.get("env_key", "")
+            api_key = os.getenv(env_key)
+            if not api_key:
+                continue
+
+            client = AsyncOpenAI(base_url=provider.get("url"), api_key=api_key)
+
+            for model in provider.get("models", []):
+                try:
+                    stream = await client.chat.completions.create(
+                        model=model,
+                        messages=messages,
+                        temperature=temperature,
+                        max_tokens=max_tokens,
+                        stream=True
+                    )
+                    async for chunk in stream:
+                        if chunk.choices and len(chunk.choices) > 0:
+                            delta = chunk.choices[0].delta
+                            if delta and delta.content:
+                                success = True
+                                yield delta.content
+                    if success:
+                        return
+                except Exception as e:
+                    print(f"❌ Стрімінг від {provider.get('name')} ({model}) перервався: {e}. Наступний провайдер...")
+                    continue
+
+        if not success:
+            yield "*(Системне повідомлення): Усі резервні стрімінг-провайдери недоступні.*"

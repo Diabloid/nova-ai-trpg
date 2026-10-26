@@ -8,6 +8,7 @@ from schemas.game_dto import (
     StorageAndEquipment,
     PlayerState,
     ActionResponse,
+    SessionInfo,
 )
 
 __all__ = [
@@ -20,4 +21,5 @@ __all__ = [
     "StorageAndEquipment",
     "PlayerState",
     "ActionResponse",
+    "SessionInfo",
 ]
