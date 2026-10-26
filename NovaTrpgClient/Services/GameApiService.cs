@@ -1,5 +1,3 @@
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using NovaTrpgClient.Models;
 using System;
 using System.Collections.Generic;
@@ -7,6 +5,7 @@ using System.IO;
 using System.Net.Http;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -14,6 +13,11 @@ namespace NovaTrpgClient.Services
 {
     public class GameApiService : IGameApiService
     {
+        private static readonly JsonSerializerOptions JsonOptions = new()
+        {
+            PropertyNameCaseInsensitive = true
+        };
+
         private readonly HttpClient _httpClient;
 
         public GameApiService(HttpClient httpClient)
@@ -31,26 +35,26 @@ namespace NovaTrpgClient.Services
             response.EnsureSuccessStatusCode();
 
             var json = await response.Content.ReadAsStringAsync(cancellationToken);
-            return JsonConvert.DeserializeObject<PlayerState>(json);
+            return JsonSerializer.Deserialize<PlayerState>(json, JsonOptions);
         }
 
         public async Task<ActionResponse?> SendActionAsync(ActionRequest request, CancellationToken cancellationToken = default)
         {
-            var jsonContent = JsonConvert.SerializeObject(request);
+            var jsonContent = JsonSerializer.Serialize(request, JsonOptions);
             using var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
 
             var response = await _httpClient.PostAsync("api/v1/action", content, cancellationToken);
             response.EnsureSuccessStatusCode();
 
             var responseString = await response.Content.ReadAsStringAsync(cancellationToken);
-            return JsonConvert.DeserializeObject<ActionResponse>(responseString);
+            return JsonSerializer.Deserialize<ActionResponse>(responseString, JsonOptions);
         }
 
         public async IAsyncEnumerable<SseEvent> StreamActionAsync(
             ActionRequest request,
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
-            var jsonContent = JsonConvert.SerializeObject(request);
+            var jsonContent = JsonSerializer.Serialize(request, JsonOptions);
             using var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
 
             var requestMessage = new HttpRequestMessage(HttpMethod.Post, "api/v1/action/stream")
@@ -99,27 +103,33 @@ namespace NovaTrpgClient.Services
                         switch (currentEvent)
                         {
                             case "story_chunk":
-                                var chunkObj = JObject.Parse(dataStr);
-                                var chunkText = chunkObj["chunk"]?.ToString() ?? string.Empty;
-                                sseResult = new SseEvent
+                                using (var doc = JsonDocument.Parse(dataStr))
                                 {
-                                    Type = SseEventType.StoryChunk,
-                                    TextChunk = chunkText
-                                };
+                                    var chunkText = doc.RootElement.TryGetProperty("chunk", out var p) ? p.GetString() ?? string.Empty : string.Empty;
+                                    sseResult = new SseEvent
+                                    {
+                                        Type = SseEventType.StoryChunk,
+                                        TextChunk = chunkText
+                                    };
+                                }
                                 break;
 
                             case "state_analyzing":
-                                var statusObj = JObject.Parse(dataStr);
-                                var msg = statusObj["message"]?.ToString() ?? "Аналізую зміни інвентарю та здоров'я...";
-                                sseResult = new SseEvent
+                                using (var doc = JsonDocument.Parse(dataStr))
                                 {
-                                    Type = SseEventType.StateAnalyzing,
-                                    StatusMessage = msg
-                                };
+                                    var msg = doc.RootElement.TryGetProperty("message", out var p)
+                                        ? p.GetString() ?? "Аналізую зміни інвентарю та здоров'я..."
+                                        : "Аналізую зміни інвентарю та здоров'я...";
+                                    sseResult = new SseEvent
+                                    {
+                                        Type = SseEventType.StateAnalyzing,
+                                        StatusMessage = msg
+                                    };
+                                }
                                 break;
 
                             case "complete":
-                                var completeResponse = JsonConvert.DeserializeObject<ActionResponse>(dataStr);
+                                var completeResponse = JsonSerializer.Deserialize<ActionResponse>(dataStr, JsonOptions);
                                 sseResult = new SseEvent
                                 {
                                     Type = SseEventType.Complete,
@@ -128,13 +138,17 @@ namespace NovaTrpgClient.Services
                                 break;
 
                             case "error":
-                                var errorObj = JObject.Parse(dataStr);
-                                var errMsg = errorObj["error_message"]?.ToString() ?? "Помилка стрімінгу";
-                                sseResult = new SseEvent
+                                using (var doc = JsonDocument.Parse(dataStr))
                                 {
-                                    Type = SseEventType.Error,
-                                    ErrorMessage = errMsg
-                                };
+                                    var errMsg = doc.RootElement.TryGetProperty("error_message", out var p)
+                                        ? p.GetString() ?? "Помилка стрімінгу"
+                                        : "Помилка стрімінгу";
+                                    sseResult = new SseEvent
+                                    {
+                                        Type = SseEventType.Error,
+                                        ErrorMessage = errMsg
+                                    };
+                                }
                                 break;
                         }
                     }

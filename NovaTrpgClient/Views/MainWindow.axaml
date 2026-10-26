@@ -184,6 +184,60 @@
 			<Setter Property="BorderBrush" Value="#320808"/>
 		</Style>
 
+		<!-- КНОПКА ДІЇ В МЕНЮ (Завантаження сесії) -->
+		<Style Selector="Button.menuActionBtn">
+			<Setter Property="Background" Value="#222222"/>
+			<Setter Property="Foreground" Value="#E5E7EB"/>
+			<Setter Property="BorderBrush" Value="#333333"/>
+			<Setter Property="BorderThickness" Value="1"/>
+			<Setter Property="CornerRadius" Value="6"/>
+		</Style>
+		<Style Selector="Button.menuActionBtn /template/ ContentPresenter">
+			<Setter Property="Transitions">
+				<Transitions>
+					<BrushTransition Property="Background" Duration="0:0:0.18" Easing="SineEaseOut"/>
+					<BrushTransition Property="BorderBrush" Duration="0:0:0.2" Easing="SineEaseOut"/>
+				</Transitions>
+			</Setter>
+		</Style>
+		<Style Selector="Button.menuActionBtn:pointerover /template/ ContentPresenter">
+			<Setter Property="Background" Value="#2C2C2C"/>
+			<Setter Property="BorderBrush" Value="#5A0010"/>
+		</Style>
+		<Style Selector="Button.menuActionBtn:pressed /template/ ContentPresenter">
+			<Setter Property="Background" Value="#1A1A1A"/>
+			<Setter Property="BorderBrush" Value="#4A000A"/>
+		</Style>
+
+		<!-- ПОЛЕ ВВОДУ СЕСІЇ -->
+		<Style Selector="TextBox.sessionInput">
+			<Setter Property="Background" Value="#141414"/>
+			<Setter Property="BorderBrush" Value="#2A2A2A"/>
+			<Setter Property="Foreground" Value="#E5E7EB"/>
+			<Setter Property="CaretBrush" Value="#E5E7EB"/>
+			<Setter Property="CornerRadius" Value="6"/>
+		</Style>
+		<Style Selector="TextBox.sessionInput /template/ Border#PART_BorderElement">
+			<Setter Property="Transitions">
+				<Transitions>
+					<BrushTransition Property="Background" Duration="0:0:0.18" Easing="SineEaseOut"/>
+					<BrushTransition Property="BorderBrush" Duration="0:0:0.2" Easing="SineEaseOut"/>
+				</Transitions>
+			</Setter>
+		</Style>
+		<Style Selector="TextBox.sessionInput:pointerover /template/ Border#PART_BorderElement">
+			<Setter Property="Background" Value="#1A1A1A"/>
+			<Setter Property="BorderBrush" Value="#444444"/>
+		</Style>
+		<Style Selector="TextBox.sessionInput:focus /template/ Border#PART_BorderElement">
+			<Setter Property="Background" Value="#161616"/>
+			<Setter Property="BorderBrush" Value="#5A0010"/>
+		</Style>
+		<Style Selector="TextBox.sessionInput:focus:pointerover /template/ Border#PART_BorderElement">
+			<Setter Property="Background" Value="#181818"/>
+			<Setter Property="BorderBrush" Value="#6A0010"/>
+		</Style>
+
 		<!-- АНІМАЦІЯ ВИСУВНОЇ ШТОРКИ ПЕРСОНАЖА -->
 		<Style Selector="Border.drawerSheet">
 			<Setter Property="MaxHeight" Value="0"/>
@@ -331,17 +385,48 @@
 		           PaneBackground="#111111"
 		           Background="#121212">
 
-			<!-- БІЧНЕ СИСТЕМНЕ МЕНЮ (Сейви, Налаштування, Вихід) -->
+			<!-- БІЧНЕ СИСТЕМНЕ МЕНЮ (Сейви, Сесії, Вихід) -->
 			<SplitView.Pane>
 				<Border x:Name="MenuPaneContainer" BorderBrush="#2A2A2A" BorderThickness="0,0,1,0" ClipToBounds="True">
 					<!-- Фіксована ширина 210 запобігає зминанню тексту під час анімації розсування -->
-					<StackPanel Width="210" Margin="20,60,20,20" Spacing="10" HorizontalAlignment="Left">
-						<TextBlock Text="СИСТЕМНЕ МЕНЮ" HorizontalAlignment="Center" Foreground="#9CA3AF" FontWeight="Bold" Margin="0,0,0,10" LetterSpacing="1"/>
-						<Button Classes="menuItem" Content="💾 Зберегти гру" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Cursor="Hand"/>
-						<Button Classes="menuItem" Content="📂 Завантажити гру" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Cursor="Hand"/>
-						<Button Classes="menuItem" Content="⚙ Налаштування" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Cursor="Hand"/>
-						<Separator Background="#2A2A2A" Height="1" Margin="0,10"/>
-						<Button Classes="menuExitBtn" Content="🚪 Вихід з гри" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Cursor="Hand"/>
+					<StackPanel Width="210" Margin="20,60,20,20" Spacing="12" HorizontalAlignment="Left">
+						<TextBlock Text="СИСТЕМНЕ МЕНЮ" HorizontalAlignment="Center" Foreground="#9CA3AF" FontWeight="Bold" Margin="0,0,0,4" LetterSpacing="1"/>
+
+						<!-- БЛОК ВИБОРУ/ВВЕДЕННЯ ІГРОВОЇ СЕСІЇ -->
+						<Border Background="#181818" BorderBrush="#2A2A2A" BorderThickness="1" CornerRadius="8" Padding="12">
+							<StackPanel Spacing="8">
+								<TextBlock Text="ІГРОВА СЕСІЯ" Foreground="#9CA3AF" FontSize="11" FontWeight="Bold" LetterSpacing="0.5"/>
+								
+								<TextBox x:Name="SessionInputBox"
+								         Classes="sessionInput"
+								         Text="{Binding SessionIdInput, Mode=TwoWay}"
+								         PlaceholderText="default"
+								         FontSize="12"
+								         Height="32"
+								         Padding="8,4"/>
+
+								<Button Classes="menuActionBtn"
+								        Command="{Binding SwitchSessionCommand}"
+								        Content="📂 Завантажити сесію"
+								        HorizontalAlignment="Stretch"
+								        HorizontalContentAlignment="Center"
+								        FontSize="12"
+								        Padding="8,6"
+								        Cursor="Hand"/>
+
+								<!-- Відображення поточної активної сесії -->
+								<StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center" Margin="0,2,0,0">
+									<TextBlock Text="Активна:" Foreground="#6B7280" FontSize="11"/>
+									<TextBlock Text="{Binding SessionId}" Foreground="#34D399" FontSize="11" FontWeight="SemiBold"/>
+								</StackPanel>
+							</StackPanel>
+						</Border>
+
+						<Button Classes="menuItem" Command="{Binding RefreshSessionCommand}" Content="🔄 Оновити стан" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Cursor="Hand"/>
+						<Button Classes="menuItem" Command="{Binding ToggleCharacterSheetCommand}" Content="📜 Лист персонажа" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Cursor="Hand"/>
+
+						<Separator Background="#2A2A2A" Height="1" Margin="0,4"/>
+						<Button Classes="menuExitBtn" Command="{Binding ExitGameCommand}" Content="🚪 Вихід з гри" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Cursor="Hand"/>
 					</StackPanel>
 				</Border>
 			</SplitView.Pane>
