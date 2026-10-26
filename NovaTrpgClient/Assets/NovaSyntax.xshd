@@ -7,27 +7,27 @@
     <Color name="OOC" foreground="#9CA3AF" />                           <!-- Сірий для позаігрового -->
 
     <RuleSet>
-        <!-- Дії в **зірочках** -->
+        <!-- Дії в **зірочках** із захистом від екранування -->
         <Span color="Action" multiline="true">
-            <Begin>\*\*</Begin>
-            <End>\*\*</End>
+            <Begin>(?&lt;!\\)\*\*</Begin>
+            <End>(?&lt;!\\)\*\*</End>
         </Span>
         
         <!-- Думки в "лапках" -->
         <Span color="Thought" multiline="true">
-            <Begin>\"</Begin>
-            <End>\"</End>
+            <Begin>(?&lt;!\\)&quot;</Begin>
+            <End>(?&lt;!\\)&quot;</End>
         </Span>
         
         <!-- Позаігрове в (дужках) -->
         <Span color="OOC" multiline="true">
-            <Begin>\(</Begin>
-            <End>\)</End>
+            <Begin>(?&lt;!\\)\(</Begin>
+            <End>(?&lt;!\\)\)</End>
         </Span>
         
         <!-- Пряма мова, що починається з дефіса (до кінця рядка) -->
         <Span color="Speech" multiline="false">
-            <Begin>\-</Begin>
+            <Begin>(?&lt;!\\)\-</Begin>
             <End>$</End>
         </Span>
     </RuleSet>

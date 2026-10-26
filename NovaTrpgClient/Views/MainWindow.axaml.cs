@@ -1,10 +1,10 @@
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Platform;
 using AvaloniaEdit.Highlighting;
 using AvaloniaEdit.Highlighting.Xshd;
 using NovaTrpgClient.ViewModels;
-using System.IO;
-using System.Reflection;
+using System;
 using System.Xml;
 
 namespace NovaTrpgClient.Views
@@ -53,7 +53,7 @@ namespace NovaTrpgClient.Views
 
                     vm.ChatMessages.CollectionChanged += (sender, args) =>
                     {
-                        // Виконуємо прокрутку після того, як UI встигне оновитися
+                        // Автоматична прокрутка до останнього повідомлення після рендеру
                         Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                         {
                             var scroll = this.FindControl<ScrollViewer>("ChatScroll");
@@ -68,50 +68,31 @@ namespace NovaTrpgClient.Views
         {
             if (ChatInputEditor == null) return;
 
-            // Завантажуємо правила через вбудований парсер визначень AvaloniaEdit
-            // Це на 100% сумісно з будь-якими версіями бібліотеки
-            var syntaxXml = @"
-            <SyntaxDefinition name='NovaSyntax' xmlns='http://icsharpcode.net/sharpdevelop/syntaxdefinition/2008'>
-                <Color name='Action' foreground='#EAB308' fontWeight='bold' />
-                <Color name='Speech' foreground='#4ADE80' />
-                <Color name='Thought' foreground='#60A5FA' fontStyle='italic' />
-                <Color name='OOC' foreground='#9CA3AF' />
-
-                <RuleSet>
-                    <!-- Зверни увагу на (?&lt;!\\) - це захист від екранування -->
-                    <Span color='Action' multiline='true'>
-                        <Begin>(?&lt;!\\)\*\*</Begin>
-                        <End>(?&lt;!\\)\*\*</End>
-                    </Span>
-                    <Span color='Thought' multiline='true'>
-                        <Begin>(?&lt;!\\)&quot;</Begin>
-                        <End>(?&lt;!\\)&quot;</End>
-                    </Span>
-                    <Span color='OOC' multiline='true'>
-                        <Begin>(?&lt;!\\)\(</Begin>
-                        <End>(?&lt;!\\)\)</End>
-                    </Span>
-                    <Span color='Speech' multiline='false'>
-                        <Begin>(?&lt;!\\)\-</Begin>
-                        <End>$</End>
-                    </Span>
-                </RuleSet>
-            </SyntaxDefinition>";
-
-            using (var reader = new XmlTextReader(new StringReader(syntaxXml)))
+            try
             {
-                ChatInputEditor.SyntaxHighlighting = HighlightingLoader.Load(reader, HighlightingManager.Instance);
+                // Завантажуємо правила підсвітки синтаксису напряму з вбудованого ресурсу Assets/NovaSyntax.xshd
+                var uri = new Uri("avares://NovaTrpgClient/Assets/NovaSyntax.xshd");
+                if (AssetLoader.Exists(uri))
+                {
+                    using var stream = AssetLoader.Open(uri);
+                    using var reader = new XmlTextReader(stream);
+                    ChatInputEditor.SyntaxHighlighting = HighlightingLoader.Load(reader, HighlightingManager.Instance);
+                }
+            }
+            catch (Exception)
+            {
+                // Дозволяємо працювати редактору навіть якщо підсвітка не завантажилася
             }
         }
 
-        // Перехоплюємо подію ДО того, як TextEditor її з'їсть
+        // Перехоплюємо натискання Enter для відправки повідомлення
         private void ChatInputEditor_TunnelKeyDown(object? sender, KeyEventArgs e)
         {
             if (e.Key == Key.Enter)
             {
-                if (e.KeyModifiers == KeyModifiers.Shift) return; // Дозволяємо новий рядок
+                if (e.KeyModifiers == KeyModifiers.Shift) return; // Дозволяємо перенесення рядка через Shift+Enter
 
-                e.Handled = true; // Блокуємо Enter
+                e.Handled = true; // Блокуємо стандартну поведінку Enter
                 
                 if (this.DataContext is MainWindowViewModel vm)
                 {
@@ -135,18 +116,16 @@ namespace NovaTrpgClient.Views
             int offset = ChatInputEditor.CaretOffset;
             string doc = ChatInputEditor.Text;
 
-            // Шукаємо лише не екрановані блоки
+            // Шукаємо лише не екрановані блоки розмітки
             var matches = System.Text.RegularExpressions.Regex.Matches(doc, @"(?<!\\)\*\*.*?(?<!\\)\*\*|(?<!\\)"".*?(?<!\\)""|(?<!\\)\(.*?(?<!\\)\)");
 
             for (int i = matches.Count - 1; i >= 0; i--)
             {
                 var m = matches[i];
-                // Якщо курсор всередині цього форматування
                 if (offset >= m.Index && offset <= m.Index + m.Length)
                 {
                     string inner = doc.Substring(m.Index, m.Length);
 
-                    // Екрануємо символи
                     if (inner.StartsWith("**"))
                         inner = @"\*\*" + inner.Substring(2, inner.Length - 4) + @"\*\*";
                     else if (inner.StartsWith("\""))
