@@ -1,20 +1,22 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using Newtonsoft.Json;
 using NovaTrpgClient.Models;
+using NovaTrpgClient.Services;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Net.Http;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace NovaTrpgClient.ViewModels
 {
-    // Клас ОБОВ'ЯЗКОВО має бути partial, щоб генератор коду міг дописати магію під капотом
+    // Partial-клас для генерації властивостей та команд через CommunityToolkit.Mvvm
     public partial class MainWindowViewModel : ViewModelBase
     {
-        private readonly HttpClient _httpClient;
+        private readonly IGameApiService _gameApiService;
+        private readonly IIntentParserService _intentParserService;
+        private readonly ITextSanitizerService _textSanitizerService;
 
         [ObservableProperty]
         private string _hpText = "Завантаження...";
@@ -29,6 +31,21 @@ namespace NovaTrpgClient.ViewModels
         private bool _isMenuOpen = false;
 
         [ObservableProperty]
+        private bool _isCharacterSheetOpen = false;
+
+        [ObservableProperty]
+        private string _characterName = "Герой";
+
+        [ObservableProperty]
+        private string _locationText = "Невідома локація";
+
+        [ObservableProperty]
+        private string _characterBackground = "";
+
+        [ObservableProperty]
+        private string _characterAppearance = "";
+
+        [ObservableProperty]
         private bool _isTyping = false;
 
         [ObservableProperty]
@@ -38,11 +55,31 @@ namespace NovaTrpgClient.ViewModels
         private PlayerState? _currentPlayerState;
 
         public ObservableCollection<ChatMessage> ChatMessages { get; } = new();
+        public ObservableCollection<Injury> Injuries { get; } = new();
+        public ObservableCollection<string> WornItems { get; } = new();
+        public ObservableCollection<ContainerGroup> ContainersList { get; } = new();
+        public ObservableCollection<string> AbilitiesList { get; } = new();
 
-        public MainWindowViewModel()
+        // Основний конструктор із Dependency Injection
+        public MainWindowViewModel(
+            IGameApiService gameApiService,
+            IIntentParserService intentParserService,
+            ITextSanitizerService textSanitizerService)
         {
-            _httpClient = new HttpClient();
+            _gameApiService = gameApiService ?? throw new ArgumentNullException(nameof(gameApiService));
+            _intentParserService = intentParserService ?? throw new ArgumentNullException(nameof(intentParserService));
+            _textSanitizerService = textSanitizerService ?? throw new ArgumentNullException(nameof(textSanitizerService));
+
             _ = LoadInitialStateAsync();
+        }
+
+        // Конструктор за замовчуванням (для Avalonia XAML Design-Time Previewer)
+        public MainWindowViewModel()
+            : this(
+                new GameApiService(new HttpClient { BaseAddress = new Uri("http://127.0.0.1:8000/") }),
+                new IntentParserService(),
+                new TextSanitizerService())
+        {
         }
 
         private bool CanSend => !IsTyping;
@@ -52,16 +89,20 @@ namespace NovaTrpgClient.ViewModels
             SendCommand.NotifyCanExecuteChanged();
         }
 
-        // Цей атрибут автоматично створить команду SendCommand для нашої кнопки в AXAML
+        [RelayCommand]
+        private void ToggleCharacterSheet()
+        {
+            IsCharacterSheetOpen = !IsCharacterSheetOpen;
+        }
+
         [RelayCommand(CanExecute = nameof(CanSend))]
         private async Task SendAsync()
         {
             if (string.IsNullOrWhiteSpace(UserInput)) return;
 
             string action = UserInput;
+            string displayAction = _intentParserService.CleanDisplayAction(action);
 
-            // Відображаємо в UI чистий текст (прибираючи слеші)
-            string displayAction = action.Replace(@"\*\*", "**").Replace(@"\""", "\"").Replace(@"\(", "(").Replace(@"\)", ")").Replace(@"\-", "-");
             ChatMessages.Add(new ChatMessage
             {
                 Sender = "Ти:",
@@ -70,22 +111,8 @@ namespace NovaTrpgClient.ViewModels
             });
             UserInput = string.Empty;
 
-            var intents = new List<IntentToken>();
+            var intents = _intentParserService.ParseIntents(action);
 
-            // Парсимо наміри, суворо ігноруючи екрановані елементи
-            foreach (System.Text.RegularExpressions.Match m in System.Text.RegularExpressions.Regex.Matches(action, @"(?<!\\)\*\*(.*?)(?<!\\)\*\*"))
-                intents.Add(new IntentToken { Type = "action", Content = m.Groups[1].Value.Trim() });
-
-            foreach (System.Text.RegularExpressions.Match m in System.Text.RegularExpressions.Regex.Matches(action, @"(?<!\\)\""(.*?)(?<!\\)\"""))
-                intents.Add(new IntentToken { Type = "thought", Content = m.Groups[1].Value.Trim() });
-
-            foreach (System.Text.RegularExpressions.Match m in System.Text.RegularExpressions.Regex.Matches(action, @"(?<!\\)\((.*?)(?<!\\)\)"))
-                intents.Add(new IntentToken { Type = "ooc", Content = m.Groups[1].Value.Trim() });
-
-            foreach (System.Text.RegularExpressions.Match m in System.Text.RegularExpressions.Regex.Matches(action, @"(?<!\\)\-(.*)$", System.Text.RegularExpressions.RegexOptions.Multiline))
-                intents.Add(new IntentToken { Type = "speech", Content = m.Groups[1].Value.Trim() });
-
-            // УВІМКНЕННЯ ІНДИКАТОРА ОЧІКУВАННЯ
             IsTyping = true;
             _ = AnimateDotsAsync();
 
@@ -93,52 +120,22 @@ namespace NovaTrpgClient.ViewModels
             {
                 var requestBody = new ActionRequest
                 {
-                    RawText = displayAction, // ШІ отримає історію без слешів
-                    Intents = intents        // ШІ отримає структурований масив намірів
+                    RawText = displayAction,
+                    Intents = intents
                 };
 
-                var content = new StringContent(JsonConvert.SerializeObject(requestBody), Encoding.UTF8, "application/json");
-
-                var response = await _httpClient.PostAsync("http://127.0.0.1:8000/api/v1/action", content);
-
-                response.EnsureSuccessStatusCode();
-
-                var responseString = await response.Content.ReadAsStringAsync();
-                var result = JsonConvert.DeserializeObject<ActionResponse>(responseString);
+                var result = await _gameApiService.SendActionAsync(requestBody);
 
                 IsTyping = false;
 
                 if (result?.Status == "success")
                 {
-                    // 1. Уніфікуємо всі переноси
-                    string cleanStory = result.Story.Replace("\r\n", "\n").Replace("\r", "\n");
+                    string cleanStory = _textSanitizerService.SanitizeStory(result.Story);
 
-                    // 2. ЗШИВАЄМО РОЗІРВАНІ СЛОВА ("Х\n\nолодний" -> "Холодний")
-                    // Якщо між літерою і малою літерою є переноси БЕЗ пробілів - просто видаляємо їх.
-                    cleanStory = System.Text.RegularExpressions.Regex.Replace(cleanStory, @"(?<=\p{L})\n+(?=\p{Ll})", "");
-
-                    // 2.5 ЗШИВАЄМО ВІДІРВАНУ ПУНКТУАЦІЮ ("наверші\n\n." -> "наверші.")
-                    // Якщо між будь-яким символом і розділовим знаком є переноси - видаляємо їх
-                    cleanStory = System.Text.RegularExpressions.Regex.Replace(cleanStory, @"(?<=\S)\n+(?=[.,!?:;])", "");
-
-                    // 3. ЗШИВАЄМО РОЗІРВАНІ РЕЧЕННЯ ("вітер \n\n пронизує" -> "вітер пронизує")
-                    // Всі інші переноси, після яких йде мала літера, замінюємо на один пробіл.
-                    cleanStory = System.Text.RegularExpressions.Regex.Replace(cleanStory, @"\s*\n+\s*(?=\p{Ll})", " ");
-
-                    // 4. Рятуємо справжні абзаци (2+ Ентери перед великою літерою чи діалогом)
-                    cleanStory = System.Text.RegularExpressions.Regex.Replace(cleanStory, @"\n{2,}", "◄PARAGRAPH►");
-
-                    // 5. Будь-які залишкові одинарні переноси міняємо на пробіл
-                    cleanStory = cleanStory.Replace("\n", " ");
-
-                    // 6. Повертаємо красиві абзаци на місце
-                    cleanStory = cleanStory.Replace("◄PARAGRAPH►", "\n\n");
-
-                    // Виводимо текст
                     var aimessage = new ChatMessage
                     {
                         Sender = "Оповідач:",
-                        Text = "", // Починаємо з порожнього тексту
+                        Text = "",
                         SenderColor = "#EAB308"
                     };
                     ChatMessages.Add(aimessage);
@@ -147,7 +144,7 @@ namespace NovaTrpgClient.ViewModels
                     for (int i = 0; i < words.Length; i++)
                     {
                         aimessage.Text += words[i] + (i < words.Length - 1 ? " " : "");
-                        await Task.Delay(50); // 50 мілісекунд на слово
+                        await Task.Delay(50);
                     }
 
                     if (result.PlayerState != null)
@@ -167,7 +164,7 @@ namespace NovaTrpgClient.ViewModels
                     });
                 }
             }
-            catch (System.Exception ex)
+            catch (Exception ex)
             {
                 IsTyping = false;
 
@@ -180,7 +177,6 @@ namespace NovaTrpgClient.ViewModels
             }
             finally
             {
-                // ВИМКНЕННЯ ІНДИКАТОРА ОЧІКУВАННЯ
                 IsTyping = false;
             }
         }
@@ -189,26 +185,19 @@ namespace NovaTrpgClient.ViewModels
         {
             try
             {
-                // Робимо GET запит на наш роут стану
-                var response = await _httpClient.GetAsync("http://127.0.0.1:8000/api/v1/state");
+                var playerState = await _gameApiService.GetPlayerStateAsync();
 
-                if (response.IsSuccessStatusCode)
+                if (playerState != null)
                 {
-                    var json = await response.Content.ReadAsStringAsync();
-                    var playerState = JsonConvert.DeserializeObject<PlayerState>(json);
-
-                    if (playerState != null)
-                    {
-                        ApplyPlayerState(playerState);
-                    }
+                    ApplyPlayerState(playerState);
                 }
                 else
                 {
                     HpText = "Помилка завантаження";
-                    InventoryText = "Сервер повернув код: " + (int)response.StatusCode;
+                    InventoryText = "Сервер повернув порожній стан";
                 }
             }
-            catch (System.Exception)
+            catch (Exception)
             {
                 // Якщо сервер FastAPI ще не запущено на момент відкриття клієнта
                 HpText = "Сервер офлайн";
@@ -220,6 +209,12 @@ namespace NovaTrpgClient.ViewModels
         {
             CurrentPlayerState = state;
 
+            // Метадані персонажа
+            CharacterName = string.IsNullOrWhiteSpace(state.Meta?.Name) ? "Герой" : state.Meta.Name;
+            LocationText = string.IsNullOrWhiteSpace(state.Meta?.Location) ? "Невідома локація" : state.Meta.Location;
+            CharacterBackground = state.Meta?.Background ?? string.Empty;
+            CharacterAppearance = state.Meta?.Appearance ?? string.Empty;
+
             // Здоров'я / Анатомія
             string healthStatus = state.AnatomyAndHealth?.OverallState ?? string.Empty;
             if (string.IsNullOrWhiteSpace(healthStatus))
@@ -228,7 +223,28 @@ namespace NovaTrpgClient.ViewModels
             }
             HpText = healthStatus;
 
-            // Збираємо предмети зі спорядження та всіх контейнерів
+            // Травми
+            Injuries.Clear();
+            if (state.AnatomyAndHealth?.Injuries != null)
+            {
+                foreach (var injury in state.AnatomyAndHealth.Injuries)
+                {
+                    Injuries.Add(injury);
+                }
+            }
+
+            // Спорядження (Worn)
+            WornItems.Clear();
+            if (state.StorageAndEquipment?.Worn != null)
+            {
+                foreach (var item in state.StorageAndEquipment.Worn)
+                {
+                    WornItems.Add(item);
+                }
+            }
+
+            // Контейнери (Containers)
+            ContainersList.Clear();
             var allItems = new List<string>();
             if (state.StorageAndEquipment?.Worn != null)
             {
@@ -241,8 +257,23 @@ namespace NovaTrpgClient.ViewModels
                 {
                     if (container.Value != null)
                     {
+                        ContainersList.Add(new ContainerGroup
+                        {
+                            Name = container.Key,
+                            Items = new List<string>(container.Value)
+                        });
                         allItems.AddRange(container.Value);
                     }
+                }
+            }
+
+            // Здібності
+            AbilitiesList.Clear();
+            if (state.Abilities != null)
+            {
+                foreach (var ability in state.Abilities)
+                {
+                    AbilitiesList.Add(ability);
                 }
             }
 
@@ -254,9 +285,9 @@ namespace NovaTrpgClient.ViewModels
             int count = 0;
             while (IsTyping)
             {
-                AnimatedDots = new string('.', count % 4); // Буде 0, 1, 2, 3 крапки
+                AnimatedDots = new string('.', count % 4);
                 count++;
-                await Task.Delay(400); // Швидкість зміни крапок
+                await Task.Delay(400);
             }
             AnimatedDots = "";
         }
