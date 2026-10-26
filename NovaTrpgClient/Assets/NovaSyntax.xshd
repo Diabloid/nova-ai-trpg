@@ -1,0 +1,34 @@
+<?xml version="1.0"?>
+<SyntaxDefinition name="NovaSyntax" xmlns="http://icsharpcode.net/sharpdevelop/syntaxdefinition/2008">
+    <!-- Палітра кольорів -->
+    <Color name="Action" foreground="#EAB308" fontWeight="bold" />      <!-- Жовтий для дій -->
+    <Color name="Speech" foreground="#4ADE80" />                        <!-- Зелений для слів -->
+    <Color name="Thought" foreground="#60A5FA" fontStyle="italic" />    <!-- Блакитний для думок -->
+    <Color name="OOC" foreground="#9CA3AF" />                           <!-- Сірий для позаігрового -->
+
+    <RuleSet>
+        <!-- Дії в **зірочках** -->
+        <Span color="Action" multiline="true">
+            <Begin>\*\*</Begin>
+            <End>\*\*</End>
+        </Span>
+        
+        <!-- Думки в "лапках" -->
+        <Span color="Thought" multiline="true">
+            <Begin>\"</Begin>
+            <End>\"</End>
+        </Span>
+        
+        <!-- Позаігрове в (дужках) -->
+        <Span color="OOC" multiline="true">
+            <Begin>\(</Begin>
+            <End>\)</End>
+        </Span>
+        
+        <!-- Пряма мова, що починається з дефіса (до кінця рядка) -->
+        <Span color="Speech" multiline="false">
+            <Begin>\-</Begin>
+            <End>$</End>
+        </Span>
+    </RuleSet>
+</SyntaxDefinition>
