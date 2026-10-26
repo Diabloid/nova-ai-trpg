@@ -1,0 +1,39 @@
+{
+  "story": [
+    {
+      "name": "Odirouter",
+      "url": "https://api.odirouter.ai/v1",
+      "env_key": "ODIROUTER_API_KEY",
+      "models": [
+        "free-gemini-2.5-flash"
+      ]
+    }
+  ],
+  "state": [
+    {
+      "name": "Odirouter",
+      "url": "https://api.odirouter.ai/v1",
+      "env_key": "ODIROUTER_API_KEY",
+      "models": [
+        "free-gemini-2.5-flash"
+      ]
+    },
+    {
+      "name": "VyceAI",
+      "url": "https://vyceai.com/v1",
+      "env_key": "VYCE_API_KEY",
+      "models": [
+        "deepseek-v4-flash",
+        "llama-3.1-8b"
+      ]
+    },
+    {
+      "name": "Dahl Inference",
+      "url": "https://inference.dahl.global/v1",
+      "env_key": "DAHL_API_KEY",
+      "models": [
+        "deepseek-ai/DeepSeek-V4-Flash-0731"
+      ]
+    }
+  ]
+}
