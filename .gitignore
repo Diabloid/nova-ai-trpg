@@ -216,12 +216,14 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
-
+.vs/
+**/.vs/
 
 # .NET / C#
-**/bin/
-**/obj/
+[Bb]in/
+[Oo]bj/
 *.user
 *.suo
-*.userosscache
-*.sln.docstates
+NovaTrpgClient/bin/
+NovaTrpgClient/obj/
+NovaTrpgClient/.vs/
