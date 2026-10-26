@@ -12,17 +12,53 @@
         WindowState="Maximized"
         ExtendClientAreaToDecorationsHint="True">
 
+	<Window.Resources>
+		<SolidColorBrush x:Key="ScrollBarThumbFill" Color="#262626"/>
+		<SolidColorBrush x:Key="ScrollBarThumbFillPointerOver" Color="#383838"/>
+		<SolidColorBrush x:Key="ScrollBarThumbFillPressed" Color="#444444"/>
+	</Window.Resources>
+
 	<Window.Styles>
-		<Style Selector="ScrollBar">
+		<!-- МІНІМАЛІСТИЧНИЙ УЛЬТРА-ТОНКИЙ СКРОЛБАР (4px, БЕЗ СТРІЛОК) -->
+		<Style Selector="ScrollBar:vertical">
 			<Setter Property="AllowAutoHide" Value="False"/>
-			<Setter Property="Width" Value="8"/>
+			<Setter Property="Width" Value="4"/>
+			<Setter Property="MinWidth" Value="4"/>
+			<Setter Property="MaxWidth" Value="4"/>
 		</Style>
-		<Style Selector="ScrollBar /template/ Thumb">
-			<Setter Property="Background" Value="#333333"/>
-			<Setter Property="CornerRadius" Value="4"/>
+		<Style Selector="ScrollBar:vertical /template/ Track">
+			<Setter Property="Width" Value="4"/>
+			<Setter Property="MinWidth" Value="4"/>
+			<Setter Property="MaxWidth" Value="4"/>
 		</Style>
-		<Style Selector="ScrollBar /template/ Thumb:pointerover">
-			<Setter Property="Background" Value="#555555"/>
+		<Style Selector="ScrollBar:vertical /template/ Thumb">
+			<Setter Property="Width" Value="4"/>
+			<Setter Property="MinWidth" Value="4"/>
+			<Setter Property="MaxWidth" Value="4"/>
+			<Setter Property="Background" Value="#262626"/>
+			<Setter Property="CornerRadius" Value="2"/>
+			<Setter Property="Transitions">
+				<Transitions>
+					<BrushTransition Property="Background" Duration="0:0:0.15"/>
+				</Transitions>
+			</Setter>
+		</Style>
+		<Style Selector="ScrollBar:vertical:pointerover /template/ Thumb">
+			<Setter Property="Background" Value="#383838"/>
+		</Style>
+		<Style Selector="ScrollBar:vertical /template/ Thumb:pointerover">
+			<Setter Property="Background" Value="#383838"/>
+		</Style>
+		<Style Selector="ScrollBar:vertical:pressed /template/ Thumb">
+			<Setter Property="Background" Value="#444444"/>
+		</Style>
+		<Style Selector="ScrollBar:vertical /template/ Thumb:pressed">
+			<Setter Property="Background" Value="#444444"/>
+		</Style>
+		<Style Selector="ScrollBar:vertical /template/ RepeatButton">
+			<Setter Property="IsVisible" Value="False"/>
+			<Setter Property="Height" Value="0"/>
+			<Setter Property="Width" Value="0"/>
 		</Style>
 
 		<!-- ЕФЕКТИ ПОЛЯ ВВОДУ -->
@@ -340,10 +376,7 @@
 									</StackPanel>
 
 									<!-- Індикатор шторки зі стрілочкою -->
-									<StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-										<TextBlock Text="{Binding InventoryText}" Foreground="#9CA3AF" FontStyle="Italic" FontSize="13" VerticalAlignment="Center" MaxWidth="250" TextTrimming="CharacterEllipsis"/>
-										<TextBlock Classes="chevron" Classes.open="{Binding IsCharacterSheetOpen}" Text="▼" Foreground="#9CA3AF" FontSize="11" VerticalAlignment="Center" Margin="6,0,0,0"/>
-									</StackPanel>
+									<TextBlock Grid.Column="2" Classes="chevron" Classes.open="{Binding IsCharacterSheetOpen}" Text="▼" Foreground="#9CA3AF" FontSize="12" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="10,0,0,0"/>
 								</Grid>
 							</Button>
 						</Grid>
@@ -355,70 +388,90 @@
 						        Background="#161616" CornerRadius="10" Padding="16" BorderBrush="#333333">
 							<Grid ColumnDefinitions="*, *, *">
 								<!-- Колонка 1: Анатомія та Травми -->
-								<Border Grid.Column="0" Background="#1C1C1C" CornerRadius="8" Padding="12" Margin="0,0,8,0" BorderBrush="#2A2A2A" BorderThickness="1">
-									<StackPanel Spacing="8">
-										<TextBlock Text="🩸 ТРАВМИ ТА АНАТОМІЯ" FontWeight="Bold" Foreground="#EF4444" FontSize="12" LetterSpacing="0.5"/>
-										<TextBlock Text="{Binding CharacterAppearance}" Foreground="#9CA3AF" FontSize="12" TextWrapping="Wrap" FontStyle="Italic"/>
-										<ItemsControl ItemsSource="{Binding Injuries}">
-											<ItemsControl.ItemTemplate>
-												<DataTemplate>
-													<Border Background="#261214" CornerRadius="6" Padding="8,6" Margin="0,4,0,0" BorderBrush="#5A151B" BorderThickness="1">
-														<StackPanel>
-															<TextBlock Text="{Binding Location}" FontWeight="Bold" Foreground="#FCA5A5" FontSize="12"/>
-															<TextBlock Text="{Binding Description}" Foreground="#E5E7EB" FontSize="11" TextWrapping="Wrap"/>
-														</StackPanel>
-													</Border>
-												</DataTemplate>
-											</ItemsControl.ItemTemplate>
-										</ItemsControl>
-										<TextBlock Text="Немає активних травм" Foreground="#6B7280" FontSize="12" FontStyle="Italic"
-										           IsVisible="{Binding !Injuries.Count}"/>
-									</StackPanel>
+								<Border Grid.Column="0" Background="#1C1C1C" CornerRadius="8" Padding="12" Margin="0,0,8,0" BorderBrush="#2A2A2A" BorderThickness="1" MaxHeight="340">
+									<Grid RowDefinitions="Auto, *">
+										<StackPanel Grid.Row="0" Spacing="6" Margin="0,0,0,8">
+											<TextBlock Text="🩸 ТРАВМИ ТА АНАТОМІЯ" FontWeight="Bold" Foreground="#EF4444" FontSize="12" LetterSpacing="0.5"/>
+											<TextBlock Text="{Binding CharacterAppearance}" Foreground="#9CA3AF" FontSize="11" TextWrapping="Wrap" FontStyle="Italic"/>
+										</StackPanel>
+										<ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,10,0">
+											<StackPanel Spacing="4">
+												<ItemsControl ItemsSource="{Binding Injuries}">
+													<ItemsControl.ItemTemplate>
+														<DataTemplate>
+															<Border Background="#261214" CornerRadius="6" Padding="8,6" Margin="0,0,0,6" BorderBrush="#5A151B" BorderThickness="1">
+																<StackPanel>
+																	<TextBlock Text="{Binding Location}" FontWeight="Bold" Foreground="#FCA5A5" FontSize="12"/>
+																	<TextBlock Text="{Binding Description}" Foreground="#E5E7EB" FontSize="11" TextWrapping="Wrap"/>
+																</StackPanel>
+															</Border>
+														</DataTemplate>
+													</ItemsControl.ItemTemplate>
+												</ItemsControl>
+												<TextBlock Text="Немає активних травм" Foreground="#6B7280" FontSize="12" FontStyle="Italic"
+												           IsVisible="{Binding !Injuries.Count}"/>
+											</StackPanel>
+										</ScrollViewer>
+									</Grid>
 								</Border>
 
 								<!-- Колонка 2: Екіпірування (Worn) -->
-								<Border Grid.Column="1" Background="#1C1C1C" CornerRadius="8" Padding="12" Margin="4,0,4,0" BorderBrush="#2A2A2A" BorderThickness="1">
-									<StackPanel Spacing="8">
-										<TextBlock Text="🛡 ЕКІПІРУВАННЯ (WORN)" FontWeight="Bold" Foreground="#60A5FA" FontSize="12" LetterSpacing="0.5"/>
-										<ItemsControl ItemsSource="{Binding WornItems}">
-											<ItemsControl.ItemTemplate>
-												<DataTemplate>
-													<Border Background="#131E2B" CornerRadius="6" Padding="8,4" Margin="0,3,0,0">
-														<TextBlock Text="{Binding}" Foreground="#93C5FD" FontSize="12"/>
-													</Border>
-												</DataTemplate>
-											</ItemsControl.ItemTemplate>
-										</ItemsControl>
-										<TextBlock Text="Нічого не одягнено" Foreground="#6B7280" FontSize="12" FontStyle="Italic"
-										           IsVisible="{Binding !WornItems.Count}"/>
-									</StackPanel>
+								<Border Grid.Column="1" Background="#1C1C1C" CornerRadius="8" Padding="12" Margin="4,0,4,0" BorderBrush="#2A2A2A" BorderThickness="1" MaxHeight="340">
+									<Grid RowDefinitions="Auto, *">
+										<TextBlock Grid.Row="0" Text="🛡 ЕКІПІРУВАННЯ (WORN)" FontWeight="Bold" Foreground="#60A5FA" FontSize="12" LetterSpacing="0.5" Margin="0,0,0,8"/>
+										<ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,10,0">
+											<StackPanel Spacing="4">
+												<ItemsControl ItemsSource="{Binding WornItems}">
+													<ItemsControl.ItemTemplate>
+														<DataTemplate>
+															<Border Background="#131E2B" CornerRadius="6" Padding="8,5" Margin="0,0,0,6" BorderBrush="#1E3A5F" BorderThickness="1" ToolTip.Tip="{Binding Desc}">
+																<StackPanel>
+																	<TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="#93C5FD" FontSize="12"/>
+																	<TextBlock Text="{Binding Desc}" Foreground="#6B7280" FontSize="11" TextWrapping="Wrap" Margin="0,2,0,0"/>
+																</StackPanel>
+															</Border>
+														</DataTemplate>
+													</ItemsControl.ItemTemplate>
+												</ItemsControl>
+												<TextBlock Text="Нічого не одягнено" Foreground="#6B7280" FontSize="12" FontStyle="Italic"
+												           IsVisible="{Binding !WornItems.Count}"/>
+											</StackPanel>
+										</ScrollViewer>
+									</Grid>
 								</Border>
 
 								<!-- Колонка 3: Контейнери та Інвентар -->
-								<Border Grid.Column="2" Background="#1C1C1C" CornerRadius="8" Padding="12" Margin="8,0,0,0" BorderBrush="#2A2A2A" BorderThickness="1">
-									<StackPanel Spacing="8">
-										<TextBlock Text="🎒 КОНТЕЙНЕРИ ТА РЮКЗАК" FontWeight="Bold" Foreground="#34D399" FontSize="12" LetterSpacing="0.5"/>
-										<ItemsControl ItemsSource="{Binding ContainersList}">
-											<ItemsControl.ItemTemplate>
-												<DataTemplate>
-													<Border Background="#0F241C" CornerRadius="6" Padding="8,6" Margin="0,4,0,0" BorderBrush="#144231" BorderThickness="1">
-														<StackPanel Spacing="2">
-															<TextBlock Text="{Binding Name}" FontWeight="Bold" Foreground="#6EE7B7" FontSize="12"/>
-															<ItemsControl ItemsSource="{Binding Items}">
-																<ItemsControl.ItemTemplate>
-																	<DataTemplate>
-																		<TextBlock Text="{Binding, StringFormat='• {0}'}" Foreground="#D1FAE5" FontSize="11" Margin="6,1,0,0"/>
-																	</DataTemplate>
-																</ItemsControl.ItemTemplate>
-															</ItemsControl>
-														</StackPanel>
-													</Border>
-												</DataTemplate>
-											</ItemsControl.ItemTemplate>
-										</ItemsControl>
-										<TextBlock Text="Контейнери порожні" Foreground="#6B7280" FontSize="12" FontStyle="Italic"
-										           IsVisible="{Binding !ContainersList.Count}"/>
-									</StackPanel>
+								<Border Grid.Column="2" Background="#1C1C1C" CornerRadius="8" Padding="12" Margin="8,0,0,0" BorderBrush="#2A2A2A" BorderThickness="1" MaxHeight="340">
+									<Grid RowDefinitions="Auto, *">
+										<TextBlock Grid.Row="0" Text="🎒 КОНТЕЙНЕРИ ТА РЮКЗАК" FontWeight="Bold" Foreground="#34D399" FontSize="12" LetterSpacing="0.5" Margin="0,0,0,8"/>
+										<ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,10,0">
+											<StackPanel Spacing="4">
+												<ItemsControl ItemsSource="{Binding ContainersList}">
+													<ItemsControl.ItemTemplate>
+														<DataTemplate>
+															<Border Background="#0F241C" CornerRadius="6" Padding="8,6" Margin="0,0,0,6" BorderBrush="#144231" BorderThickness="1">
+																<StackPanel Spacing="3">
+																	<TextBlock Text="{Binding Name}" FontWeight="Bold" Foreground="#6EE7B7" FontSize="12"/>
+																	<ItemsControl ItemsSource="{Binding Items}">
+																		<ItemsControl.ItemTemplate>
+																			<DataTemplate>
+																				<StackPanel Margin="6,2,0,0" ToolTip.Tip="{Binding Desc}">
+																					<TextBlock Text="{Binding Name, StringFormat='• {0}'}" Foreground="#D1FAE5" FontSize="11" FontWeight="Medium"/>
+																					<TextBlock Text="{Binding Desc}" Foreground="#86EFAC" Opacity="0.75" FontSize="10" Margin="10,1,0,2" TextWrapping="Wrap"/>
+																				</StackPanel>
+																			</DataTemplate>
+																		</ItemsControl.ItemTemplate>
+																	</ItemsControl>
+																</StackPanel>
+															</Border>
+														</DataTemplate>
+													</ItemsControl.ItemTemplate>
+												</ItemsControl>
+												<TextBlock Text="Контейнери порожні" Foreground="#6B7280" FontSize="12" FontStyle="Italic"
+												           IsVisible="{Binding !ContainersList.Count}"/>
+											</StackPanel>
+										</ScrollViewer>
+									</Grid>
 								</Border>
 							</Grid>
 						</Border>
@@ -439,11 +492,11 @@
 									</ItemsControl.ItemTemplate>
 								</ItemsControl>
 
-								<!-- ІНДИКАТОР ОЧІКУВАННЯ -->
+								<!-- ІНДИКАТОР ОЧІКУВАННЯ ТА СТАНУ ПАЙПЛАЙНУ -->
 								<StackPanel IsVisible="{Binding IsTyping}" Margin="0,0,0,24" Orientation="Vertical" Spacing="4">
 									<TextBlock Text="Оповідач:" FontWeight="Bold" Foreground="#EAB308" FontSize="15"/>
 									<StackPanel Orientation="Horizontal">
-										<TextBlock Text="Розмірковує над дією" FontStyle="Italic" Foreground="#9CA3AF" FontSize="15"/>
+										<TextBlock Text="{Binding StatusIndicatorText}" FontStyle="Italic" Foreground="#9CA3AF" FontSize="15"/>
 										<TextBlock Text="{Binding AnimatedDots}" FontStyle="Italic" Foreground="#9CA3AF" FontSize="15" Width="20"/>
 									</StackPanel>
 								</StackPanel>
