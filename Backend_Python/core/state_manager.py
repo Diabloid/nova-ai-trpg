@@ -2,6 +2,7 @@ import json
 import os
 import sys
 from typing import Dict, Any, Optional
+from core.state_parser import StateDelta
 
 # Безпечне кодування консолі для Windows
 if sys.stdout and hasattr(sys.stdout, "reconfigure"):
@@ -15,12 +16,15 @@ if sys.stderr and hasattr(sys.stderr, "reconfigure"):
     except Exception:
         pass
 
-from core.state_parser import StateDelta
-
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULT_SAVE_PATH = os.path.join(BASE_DIR, "data", "saves", "savegame.json")
 
+
 class GameState:
+    """
+    Керує станом персонажа, персистентністю та застосуванням змін від Аналізатора.
+    Зберігає та повертає повноцінну багату модель даних (об'єкти предметів {name, desc} та травм {location, type}).
+    """
     def __init__(self, save_path: Optional[str] = None):
         self.save_path = save_path or DEFAULT_SAVE_PATH
         self.data: Dict[str, Any] = {}
@@ -32,40 +36,65 @@ class GameState:
             "meta": {
                 "name": "Мандрівник",
                 "background": "Шукач пригод",
-                "location": "Невідомий ліс"
+                "location": "Невідомий ліс",
+                "appearance": "Пошарпаний плащ, уважний погляд"
             },
             "anatomy_and_health": {
                 "overall_state": "Повний сил, але змерзлий",
                 "injuries": []
             },
             "storage_and_equipment": {
-                "worn": [],
+                "worn": [
+                    {
+                        "name": "Простий одяг мандрівника",
+                        "desc": "Зручний лляний одяг, що не сковує рухів."
+                    },
+                    {
+                        "name": "Шкіряні чоботи",
+                        "desc": "Міцне взуття для переходів бездоріжжям."
+                    }
+                ],
                 "containers": {
-                    "Кишені": []
+                    "Кишені": [
+                        {
+                            "name": "Кресало",
+                            "desc": "Для розведення вогнища."
+                        },
+                        {
+                            "name": "Мідна монета (5 шт)",
+                            "desc": "Дрібні гроші на їжу."
+                        }
+                    ]
                 }
             },
-            "abilities": []
+            "abilities": [
+                "Базове виживання",
+                "Гостре чуття"
+            ]
         }
         self.save()
 
     def load(self):
+        """Завантажує збереження з файлу."""
         if os.path.exists(self.save_path):
             try:
                 with open(self.save_path, "r", encoding="utf-8") as f:
                     self.data = json.load(f)
-                print(f"✅ Збереження успішно завантажено з {self.save_path}")
+                print(f"✅ [GameState] Збереження завантажено з {self.save_path}")
             except json.JSONDecodeError:
-                print("⚠️ Помилка читання файлу збереження. Створюю базовий стан.")
+                print("⚠️ [GameState] Помилка читання файлу збереження. Створюю базовий стан.")
                 self._init_default_state()
         else:
             self._init_default_state()
 
     def save(self):
+        """Зберігає поточний стан у JSON."""
         os.makedirs(os.path.dirname(self.save_path), exist_ok=True)
         with open(self.save_path, "w", encoding="utf-8") as f:
             json.dump(self.data, f, ensure_ascii=False, indent=4)
 
     def get_current_state(self) -> dict:
+        """Повертає повний стан персонажа без спотворень чи примусового сплощення."""
         return self.data
 
     def update_from_llm(self, llm_json_str: str) -> dict:
@@ -73,7 +102,7 @@ class GameState:
         try:
             delta = StateDelta.model_validate_json(llm_json_str)
         except Exception as e:
-            print(f"❌ Помилка парсингу дельти: {e}\nСирий JSON: {llm_json_str}")
+            print(f"❌ [GameState] Помилка парсингу дельти: {e}\nСирий JSON: {llm_json_str}")
             return self.get_current_state()
 
         # 1. Оновлення Мети (Локації та ЗОВНІШНОСТІ)
@@ -113,7 +142,7 @@ class GameState:
                 
                 found = False
                 for existing_item in target_list:
-                    if existing_item.get("name") == item.item_name:
+                    if isinstance(existing_item, dict) and existing_item.get("name") == item.item_name:
                         existing_item["desc"] = item.item_desc
                         found = True
                         break
@@ -122,11 +151,17 @@ class GameState:
             
             elif item.action == "remove":
                 # ГЛОБАЛЬНЕ ВИДАЛЕННЯ: знищуємо предмет всюди, ігноруючи назву контейнера від ШІ
-                storage["worn"] = [i for i in storage.get("worn", []) if i.get("name") != item.item_name]
+                storage["worn"] = [
+                    i for i in storage.get("worn", [])
+                    if (i.get("name") if isinstance(i, dict) else str(i)) != item.item_name
+                ]
                 for c_name in list(containers.keys()):
-                    containers[c_name] = [i for i in containers[c_name] if i.get("name") != item.item_name]
+                    containers[c_name] = [
+                        i for i in containers[c_name]
+                        if (i.get("name") if isinstance(i, dict) else str(i)) != item.item_name
+                    ]
 
-        # 4. ОЧИЩЕННЯ: безжально видаляємо всі порожні контейнери (зникнуть порожні "Кишені")
+        # 4. ОЧИЩЕННЯ: видаляємо всі порожні контейнери
         storage["containers"] = {k: v for k, v in storage.get("containers", {}).items() if len(v) > 0}
 
         self.save()

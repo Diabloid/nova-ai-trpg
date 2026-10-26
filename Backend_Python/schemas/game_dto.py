@@ -1,4 +1,4 @@
-from typing import List, Dict, Any, Optional, Union, Literal
+from typing import List, Dict, Any, Optional, Union
 from pydantic import BaseModel, Field, ConfigDict
 
 
@@ -19,7 +19,7 @@ class IntentItem(BaseModel):
 
 
 class ActionRequest(BaseModel):
-    """Контракт вхідного запиту дії гравця (POST /api/v1/action)."""
+    """Контракт вхідного запиту дії гравця (POST /api/v1/action та POST /api/v1/action/stream)."""
     model_config = ConfigDict(extra="allow")
 
     raw_text: str = Field(
@@ -32,6 +32,11 @@ class ActionRequest(BaseModel):
         description="Список розпізнаних намірів для фільтрації Аналізатором",
         examples=[[{"type": "action", "content": "Дістаю ключ із рюкзака та відмикаю старі двері"}]]
     )
+    session_id: Optional[str] = Field(
+        default="default",
+        description="Ідентифікатор ігрової сесії/слота збереження. За замовчуванням: 'default'",
+        examples=["default"]
+    )
 
 
 class PlayerMeta(BaseModel):
@@ -41,7 +46,7 @@ class PlayerMeta(BaseModel):
     name: str = Field(default="Мандрівник", description="Ім'я персонажа")
     background: Optional[str] = Field(default="Шукач пригод", description="Передісторія / архетип")
     location: Optional[str] = Field(default="Невідомий ліс", description="Поточна локація персонажа")
-    appearance: Optional[str] = Field(default=None, description="Опис зовнішності персонажа")
+    appearance: Optional[str] = Field(default=None, description="Опис зовної зовнішності")
 
 
 class InjuryItem(BaseModel):
@@ -49,8 +54,8 @@ class InjuryItem(BaseModel):
     model_config = ConfigDict(extra="allow")
 
     location: str = Field(..., description="Частина тіла (наприклад: 'Ліве передпліччя', 'Спина')")
-    description: Optional[str] = Field(default=None, description="Опис поранення")
-    type: Optional[str] = Field(default=None, description="Тип ушкодження (наприклад: 'Поріз', 'Опік')")
+    type: Optional[str] = Field(default=None, description="Медичний опис або тип ушкодження")
+    description: Optional[str] = Field(default=None, description="Додатковий опис поранення")
 
 
 class AnatomyAndHealth(BaseModel):
@@ -68,7 +73,7 @@ class AnatomyAndHealth(BaseModel):
 
 
 class ItemObject(BaseModel):
-    """Структурований опис предмета."""
+    """Багатий об'єкт предмета інвентарю/екіпірування."""
     model_config = ConfigDict(extra="allow")
 
     name: str = Field(..., description="Назва предмета")
@@ -76,16 +81,16 @@ class ItemObject(BaseModel):
 
 
 class StorageAndEquipment(BaseModel):
-    """Екіпірування та ієрархічні контейнери (замість плоского inventory)."""
+    """Екіпірування та ієрархічні контейнери з багатими об'єктами предметів."""
     model_config = ConfigDict(extra="allow")
 
     worn: List[Union[ItemObject, Dict[str, Any], str]] = Field(
         default_factory=list,
-        description="Одяг та надіті елементи броні"
+        description="Одяг та надіті елементи броні (об'єкти {name, desc} або рядки)"
     )
     containers: Dict[str, List[Union[ItemObject, Dict[str, Any], str]]] = Field(
         default_factory=dict,
-        description="Словник контейнерів (рюкзак, кишені, торби) та їхній вміст"
+        description="Словник контейнерів (рюкзак, кишені) та списки предметів"
     )
 
 
@@ -128,3 +133,13 @@ class ActionResponse(BaseModel):
         default=None,
         description="Опис помилки у разі невдалого виконання пайплайну"
     )
+
+
+class SessionInfo(BaseModel):
+    """Інформація про збережену ігрову сесію."""
+    model_config = ConfigDict(extra="allow")
+
+    session_id: str
+    character_name: str
+    location: str
+    path: str

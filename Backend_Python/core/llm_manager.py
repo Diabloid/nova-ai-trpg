@@ -1,7 +1,7 @@
 import os
 import sys
 import json
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, AsyncGenerator
 from dotenv import load_dotenv
 
 # Безпечне кодування консолі для Windows
@@ -24,17 +24,17 @@ from core.services.prompt_service import PromptService
 from core.services.history_service import HistoryService
 from core.services.narrator_service import NarratorService
 from core.services.state_analyzer_service import StateAnalyzerService
+from core.session_manager import SessionManager
 
 
 class LLMController:
     """
     Фасад (Facade Pattern) та оркестратор підсистеми ШІ-генерації:
-    об'єднує спеціалізовані сервіси (PromptService, HistoryService, NarratorService, StateAnalyzerService)
-    та забезпечує транзакційність ігрового циклу.
+    об'єднує спеціалізовані сервіси (PromptService, HistoryService, NarratorService, StateAnalyzerService),
+    підтримує мультисесійність через SessionManager та токен-стрімінг для SSE.
     """
     def __init__(self):
         self.base_dir = BASE_DIR
-        self.history_file = os.path.join(self.base_dir, "data", "saves", "history.json")
         self.prompts_dir = os.path.join(self.base_dir, "data", "prompts")
         self.lore_dir = os.path.join(self.base_dir, "data", "lore")
         
@@ -47,25 +47,32 @@ class LLMController:
             print(f"❌ КРИТИЧНА ПОМИЛКА: Файл {config_path} не знайдено!")
             self.config = {"story": [], "state": []}
 
-        # 1. Ініціалізація сервісів
+        # 1. Спільні сервіси провайдерів, промптів та сесій
         self.provider_service = LLMProviderService(self.config)
         self.prompt_service = PromptService(self.prompts_dir, self.lore_dir)
-        self.history_service = HistoryService(self.history_file)
-        self.narrator_service = NarratorService(self.provider_service, self.prompt_service, self.history_service)
+        self.session_manager = SessionManager(os.path.join(self.base_dir, "data", "saves"))
         self.analyzer_service = StateAnalyzerService(self.provider_service, self.prompt_service)
 
-    # Властивості для зворотної сумісності
+    def _get_history(self, session_id: str = "default") -> HistoryService:
+        _, hist = self.session_manager.get_session(session_id)
+        return hist
+
+    def get_game_state(self, session_id: str = "default"):
+        state, _ = self.session_manager.get_session(session_id)
+        return state
+
+    # Властивості для зворотної сумісності (з дефолтної сесії)
     @property
     def summary(self) -> str:
-        return self.history_service.summary
+        return self._get_history("default").summary
 
     @summary.setter
     def summary(self, val: str):
-        self.history_service.summary = val
+        self._get_history("default").summary = val
 
     @property
     def recent_messages(self) -> List[Dict[str, str]]:
-        return self.history_service.recent_messages
+        return self._get_history("default").recent_messages
 
     @property
     def _cached_lore(self) -> str:
@@ -75,26 +82,49 @@ class LLMController:
     def _lore_file_count(self) -> int:
         return self.prompt_service.lore_file_count
 
-    # Транзакційні методи управління ходом
-    def stage_turn(self, raw_text: str, story_text: str):
-        """Підготовлює хід для збереження після валідації стану."""
-        self.history_service.stage_turn(raw_text, story_text)
+    # Транзакційні методи управління ходом (з підтримкою session_id)
+    def stage_turn(self, raw_text: str, story_text: str, session_id: str = "default"):
+        """Підготовлює хід у буфері відповідної сесії."""
+        hist = self._get_history(session_id)
+        hist.stage_turn(raw_text, story_text)
 
-    async def commit_staged_turn(self):
-        """Фіксує хід в історії та зберігає на диск (Commit)."""
-        await self.history_service.commit_staged_turn(
+    async def commit_staged_turn(self, session_id: str = "default"):
+        """Фіксує хід в історії сесії та зберігає на диск (Commit)."""
+        hist = self._get_history(session_id)
+        await hist.commit_staged_turn(
             llm_provider=self.provider_service,
             prompt_service=self.prompt_service
         )
 
-    def rollback_staged_turn(self):
-        """Відкочує підготовлений хід у разі збою на етапі аналізу чи запису (Rollback)."""
-        self.history_service.rollback_staged_turn()
+    def rollback_staged_turn(self, session_id: str = "default"):
+        """Відкочує підготовлений хід відповідної сесії (Rollback)."""
+        hist = self._get_history(session_id)
+        hist.rollback_staged_turn()
 
-    # Генерація Оповідача
-    async def generate_story(self, raw_text: str, player_state: str) -> str:
-        """1-й крок пайплайну: генерація реакції Оповідача."""
-        return await self.narrator_service.generate_story(raw_text, player_state)
+    # Генерація Оповідача (Non-streaming)
+    async def generate_story(self, raw_text: str, player_state: str, session_id: str = "default") -> str:
+        """1-й крок пайплайну: генерація повної реакції Оповідача."""
+        hist = self._get_history(session_id)
+        narrator = NarratorService(self.provider_service, self.prompt_service, hist)
+        return await narrator.generate_story(raw_text, player_state)
+
+    # Генерація Оповідача (Streaming SSE)
+    async def stream_story(
+        self,
+        raw_text: str,
+        player_state: str,
+        session_id: str = "default"
+    ) -> AsyncGenerator[str, None]:
+        """Стрімінг реакції Оповідача токен за токеном (Server-Sent Events)."""
+        hist = self._get_history(session_id)
+        narrator = NarratorService(self.provider_service, self.prompt_service, hist)
+        async for chunk in narrator.stream_story(
+            raw_text,
+            player_state,
+            recent_messages=hist.recent_messages,
+            summary_text=hist.summary
+        ):
+            yield chunk
 
     # Генерація Аналізатора стану
     async def generate_state_json(self, intents: list, story_text: str, player_state: str) -> str:
@@ -102,7 +132,7 @@ class LLMController:
         json_str, _ = await self.analyzer_service.analyze_state_changes(intents, story_text, player_state)
         return json_str
 
-    # Гаряче оновлення
+    # Гаряче оновлення лору та промптів
     def reload_lore(self):
         self.prompt_service.reload_lore()
 
