@@ -1,0 +1,130 @@
+import os
+import sys
+import json
+from typing import List, Dict, Optional, Any
+
+# Безпечне кодування консолі для Windows
+if sys.stdout and hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
+
+class HistoryService:
+    """
+    Відповідає за управління історією діалогу (recent_messages),
+    сумаризацію (summary), збереження на диск та транзакційність ходів (Stage / Commit / Rollback).
+    """
+    def __init__(self, history_file_path: str):
+        self.history_file_path = history_file_path
+        self.summary: str = ""
+        self.recent_messages: List[Dict[str, str]] = []
+        self._staged_turn: Optional[Dict[str, str]] = None
+
+        self.load()
+
+    def load(self):
+        """Завантажує історію з файлу."""
+        if os.path.exists(self.history_file_path):
+            try:
+                with open(self.history_file_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    self.summary = data.get("summary", "")
+                    self.recent_messages = data.get("recent_messages", [])
+                print(f"✅ [HistoryService] Завантажено: {len(self.recent_messages)} повідомлень, переказ: {'Є' if self.summary else 'Немає'}")
+            except Exception as e:
+                print(f"⚠️ [HistoryService] Помилка читання історії: {e}")
+        else:
+            self.summary = ""
+            self.recent_messages = []
+
+    def save(self):
+        """Зберігає поточний стан історії на диск."""
+        os.makedirs(os.path.dirname(self.history_file_path), exist_ok=True)
+        with open(self.history_file_path, "w", encoding="utf-8") as f:
+            json.dump({
+                "summary": self.summary,
+                "recent_messages": self.recent_messages
+            }, f, ensure_ascii=False, indent=4)
+
+    # ==========================================
+    # Транзакційний механізм (Stage / Commit / Rollback)
+    # ==========================================
+
+    def stage_turn(self, user_content: str, assistant_content: str):
+        """
+        Тимчасово фіксує хід (stage) в оперативній пам'яті.
+        Повідомлення НЕ потрапляють в офіційну історію і НЕ пишуться на диск,
+        доки не завершиться успішна валідація стану Аналізатором.
+        """
+        self._staged_turn = {
+            "user": user_content,
+            "assistant": assistant_content
+        }
+        print("📝 [HistoryService] Хід підготовлено (Staged), очікується валідація стану.")
+
+    def rollback_staged_turn(self):
+        """
+        Скасовує підготовлений хід (Rollback) у разі помилки Аналізатора або бази даних.
+        Історія залишається чистою та синхронізованою зі станом.
+        """
+        if self._staged_turn:
+            print("↩️ [HistoryService] Відкат транзакції: підготовлений хід відкинуто, історія збережена без змін.")
+            self._staged_turn = None
+        else:
+            print("ℹ️ [HistoryService] Немає підготовленого ходу для відкату.")
+
+    async def commit_staged_turn(self, llm_provider=None, prompt_service=None):
+        """
+        Підтверджує хід (Commit). Записує повідомлення в recent_messages,
+        запускає компресію за потреби та скидає стан на диск.
+        """
+        if not self._staged_turn:
+            print("⚠️ [HistoryService] Спроба виконати commit без підготовленого ходу.")
+            return
+
+        self.recent_messages.append({"role": "user", "content": self._staged_turn["user"]})
+        self.recent_messages.append({"role": "assistant", "content": self._staged_turn["assistant"]})
+        self._staged_turn = None
+
+        if llm_provider and prompt_service:
+            await self._compress_history_if_needed(llm_provider, prompt_service)
+
+        self.save()
+        print("💾 [HistoryService] Хід зафіксовано (Committed) та збережено на диск.")
+
+    async def _compress_history_if_needed(self, llm_provider, prompt_service):
+        """Архіватор історії: стискає перші 6 повідомлень, якщо історія > 20."""
+        MAX_MESSAGES = 20
+        COMPRESS_COUNT = 6
+
+        if len(self.recent_messages) > MAX_MESSAGES:
+            print("🔄 [HistoryService] Запуск ШІ-Архіватора для компресії діалогу...")
+            to_compress = self.recent_messages[:COMPRESS_COUNT]
+            archivist_system = prompt_service.build_summary_system_prompt()
+            chat_to_summarize = "\n".join([f"{m['role'].upper()}: {m['content']}" for m in to_compress])
+
+            user_prompt = (
+                f"ПОТОЧНИЙ ПЕРЕКАЗ:\n{self.summary if self.summary else 'Ще немає.'}\n\n"
+                f"НОВІ ПОДІЇ ДЛЯ ДОДАВАННЯ:\n{chat_to_summarize}"
+            )
+
+            messages = [
+                {"role": "system", "content": archivist_system},
+                {"role": "user", "content": user_prompt}
+            ]
+
+            new_summary = await llm_provider.execute_with_fallback(
+                "story",
+                messages,
+                temperature=0.3,
+                max_tokens=600
+            )
+
+            if "error" not in new_summary.lower():
+                self.summary = new_summary.strip()
+                self.recent_messages = self.recent_messages[COMPRESS_COUNT:]
+                print("✅ [HistoryService] Історію успішно стиснуто!")
+            else:
+                print("⚠️ [HistoryService] Помилка архіватора, компресію відкладено.")

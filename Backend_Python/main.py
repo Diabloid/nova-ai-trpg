@@ -35,7 +35,7 @@ logger = logging.getLogger("nova-backend")
 app = FastAPI(
     title="NOVA AI TRPG Engine API",
     version="1.0.0",
-    description="Офіційний бекенд дипломного проєкту NOVA AI TRPG. Реалізує суворо послідовний пайплайн Оповідач -> Аналізатор -> Стан."
+    description="Офіційний бекенд дипломного проєкту NOVA AI TRPG. Реалізує суворо послідовний пайплайн Оповідач -> Аналізатор -> Стан з транзакційним відкатом."
 )
 
 llm_controller = LLMController()
@@ -48,8 +48,8 @@ game_state = GameState()
     status_code=status.HTTP_200_OK,
     summary="Виконання ігрового кроку гравця",
     description=(
-        "Приймає дію гравця з розпарсеними намірами (ActionRequest), виконує послідовну генерацію "
-        "Оповідача, аналіз змін стану та повертає фінальний результат (ActionResponse) згідно з API_CONTRACT.md."
+        "Приймає дію гравця з розпарсеними намірами (ActionRequest), виконує транзакційний "
+        "послідовний пайплайн Оповідач -> Аналізатор -> Стан -> Commit і повертає ActionResponse."
     )
 )
 async def process_action(request: ActionRequest) -> ActionResponse:
@@ -65,11 +65,39 @@ async def process_action(request: ActionRequest) -> ActionResponse:
         # 1. Послідовний крок 1: Оповідач (GM) генерує реакцію світу на основі лору та контексту
         story_text = await llm_controller.generate_story(raw_text, context_str)
         
+        # Перевірка на помилку генерації Оповідача
+        if story_text.startswith("*(Системне повідомлення)"):
+            return ActionResponse(
+                status="error",
+                story=story_text,
+                raw_llm_state=None,
+                player_state=current_state_dict,
+                error_message="Оповідач повернув помилку API або спрацював фільтр цензури."
+            )
+
+        # ТРАНЗАКЦІЙНІСТЬ (Крок A): Підготовлюємо хід, але НЕ записуємо в історію до перевірки стану
+        llm_controller.stage_turn(raw_text, story_text)
+        
         # 2. Послідовний крок 2: Аналізатор оцінює ТІЛЬКИ наслідки фізичних дій та опису Оповідача
         state_json_str = await llm_controller.generate_state_json(intents, story_text, context_str)
         
+        # Якщо Аналізатор повернув помилку JSON
+        if '{"error"' in state_json_str:
+            logger.warning(f"⚠️ Аналізатор повернув помилку: {state_json_str}. Виконуємо відкат ходу (Rollback)...")
+            llm_controller.rollback_staged_turn()
+            return ActionResponse(
+                status="error",
+                story=story_text,
+                raw_llm_state=state_json_str,
+                player_state=current_state_dict,
+                error_message="Аналізатор не зміг виділити валідні зміни стану. Відкат історії виконано."
+            )
+
         # 3. Послідовний крок 3: Оновлення збереженого стану персонажа
         new_state = game_state.update_from_llm(state_json_str)
+        
+        # ТРАНЗАКЦІЙНІСТЬ (Крок B): Стан успішно оновлено — фіксуємо хід в історії (Commit)
+        await llm_controller.commit_staged_turn()
         
         return ActionResponse(
             status="success",
@@ -79,7 +107,8 @@ async def process_action(request: ActionRequest) -> ActionResponse:
             error_message=None
         )
     except Exception as e:
-        logger.error(f"❌ Помилка обробки кроку гравця: {e}", exc_info=True)
+        logger.error(f"❌ Непередбачена помилка: {e}. Виконуємо відкат історії (Rollback)...", exc_info=True)
+        llm_controller.rollback_staged_turn()
         return ActionResponse(
             status="error",
             story="Сталася внутрішня помилка сервера при обробці дії.",
