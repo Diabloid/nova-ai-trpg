@@ -22,6 +22,9 @@
                     <SolidColorBrush x:Key="ButtonForeground" Color="#D1D5DB"/>
                     <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#F3F4F6"/>
                     <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#E5E7EB"/>
+                    <!-- ФІРМОВЕ ВИДІЛЕННЯ ТЕКСТУ (ГЛИБОКИЙ РУБІН З ЧІТКИМ БІЛИМ ТЕКСТОМ) -->
+                    <SolidColorBrush x:Key="TextControlSelectionHighlightBrush" Color="#6A0014"/>
+                    <SolidColorBrush x:Key="HighlightBrush" Color="#6A0014"/>
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Default">
                     <SolidColorBrush x:Key="ButtonBackground" Color="Transparent"/>
@@ -33,6 +36,8 @@
                     <SolidColorBrush x:Key="ButtonForeground" Color="#D1D5DB"/>
                     <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#F3F4F6"/>
                     <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#E5E7EB"/>
+                    <SolidColorBrush x:Key="TextControlSelectionHighlightBrush" Color="#6A0014"/>
+                    <SolidColorBrush x:Key="HighlightBrush" Color="#6A0014"/>
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
         </ResourceDictionary>
@@ -41,5 +46,11 @@
     <Application.Styles>
         <FluentTheme />
 		<StyleInclude Source="avares://AvaloniaEdit/Themes/Fluent/AvaloniaEdit.xaml" />
+
+        <!-- ФІРМОВИЙ СТИЛЬ ВИДІЛЕННЯ ТЕКСТУ ДЛЯ ВСІХ ТЕКСТОВИХ ПОЛІВ -->
+        <Style Selector="TextBox">
+            <Setter Property="SelectionBrush" Value="#6A0014"/>
+            <Setter Property="SelectionForegroundBrush" Value="#FFFFFF"/>
+        </Style>
     </Application.Styles>
 </Application>

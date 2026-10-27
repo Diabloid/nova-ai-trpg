@@ -48,6 +48,11 @@ namespace NovaTrpgClient.Views
                 };
             }
 
+            if (WizardInputBox != null)
+            {
+                WizardInputBox.AddHandler(InputElement.KeyDownEvent, WizardInputBox_TunnelKeyDown, Avalonia.Interactivity.RoutingStrategies.Tunnel);
+            }
+
 
 
             this.DataContextChanged += (s, e) =>
@@ -72,6 +77,16 @@ namespace NovaTrpgClient.Views
                         Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                         {
                             var scroll = this.FindControl<ScrollViewer>("ChatScroll");
+                            scroll?.ScrollToEnd();
+                        }, Avalonia.Threading.DispatcherPriority.Loaded);
+                    };
+
+                    vm.WizardMessages.CollectionChanged += (sender, args) =>
+                    {
+                        // Автоматична прокрутка діалогу Творця Долі
+                        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                        {
+                            var scroll = this.FindControl<ScrollViewer>("WizardScroll");
                             scroll?.ScrollToEnd();
                         }, Avalonia.Threading.DispatcherPriority.Loaded);
                     };
@@ -118,6 +133,30 @@ namespace NovaTrpgClient.Views
                         if (vm.SendCommand.CanExecute(null))
                         {
                             vm.SendCommand.Execute(null);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Перехоплюємо натискання Enter у полі діалогу з Творцем Долі на стадії Tunnel
+        private void WizardInputBox_TunnelKeyDown(object? sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter)
+            {
+                if (e.KeyModifiers.HasFlag(KeyModifiers.Shift)) return; // Shift+Enter вставляє перенесення рядка
+
+                e.Handled = true; // Блокуємо стандартне перенесення рядка в TextBox
+
+                if (sender is TextBox tb && this.DataContext is MainWindowViewModel vm)
+                {
+                    var text = tb.Text?.Trim();
+                    if (!string.IsNullOrWhiteSpace(text) && !vm.IsWizardTyping)
+                    {
+                        vm.WizardInput = text;
+                        if (vm.SendWizardMessageCommand.CanExecute(null))
+                        {
+                            vm.SendWizardMessageCommand.Execute(null);
                         }
                     }
                 }

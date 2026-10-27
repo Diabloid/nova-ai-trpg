@@ -1,6 +1,6 @@
 # 📱 NOVA AI TRPG — Завдання розробки Client (Фаза 2.6: Live Preview в Character Wizard)
 
-**Статус:** У роботі (Затверджено Ванею)  
+**Статус:** Виконано (Готово до рев'ю)  
 **Версія клієнту:** 1.3.0  
 **Директорія:** `NovaTrpgClient/`
 
@@ -9,7 +9,7 @@
 ## 1. Завдання в роботі (Фаза 2.6)
 
 ### 🧙‍♂️ 1.1. Інтеграція Live Preview у Character Wizard
-- [ ] Оновити виклики `GameApiService.SendCharacterDialogMessageAsync`:
+- [x] Оновити виклики `GameApiService.SendCharacterDialogMessageAsync`:
   - Додати передачу `includeDraft: bool`.
   - Відправляти `includeDraft = true` при отриманні відповідей від Творця Долі (або по кнопці/таймеру оновлення прев'ю).
   - При отриманні `draft_state != null` у відповіді автоматично оновлювати праву панель перегляду характеристик, передісторії та здібностей героя в реальному часі.

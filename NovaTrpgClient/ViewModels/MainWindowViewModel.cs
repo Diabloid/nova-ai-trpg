@@ -107,6 +107,9 @@ namespace NovaTrpgClient.ViewModels
         [ObservableProperty]
         private string _wizardStatusText = "Творець Долі слухає...";
 
+        [ObservableProperty]
+        private string _wizardAnimatedDots = "";
+
         public ObservableCollection<ChatMessage> WizardMessages { get; } = new();
 
         [ObservableProperty]
@@ -117,6 +120,19 @@ namespace NovaTrpgClient.ViewModels
 
         [ObservableProperty]
         private string _wizardCharAppearance = "";
+
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(HasWizardLocation))]
+        private string _wizardCharLocation = "";
+        public bool HasWizardLocation => !string.IsNullOrWhiteSpace(WizardCharLocation);
+
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(HasWizardHealth))]
+        private string _wizardCharHealth = "";
+        public bool HasWizardHealth => !string.IsNullOrWhiteSpace(WizardCharHealth);
+
+        public ObservableCollection<AbilityInfo> WizardAbilities { get; } = new();
+        public ObservableCollection<ItemInfo> WizardEquipment { get; } = new();
 
         // Модальні вікна (Створення/редагування персонажа, створення кампанії)
         [ObservableProperty]
@@ -511,6 +527,10 @@ namespace NovaTrpgClient.ViewModels
             WizardCharName = "";
             WizardCharBackground = "";
             WizardCharAppearance = "";
+            WizardCharLocation = "";
+            WizardCharHealth = "";
+            WizardAbilities.Clear();
+            WizardEquipment.Clear();
             WizardInput = "";
             WizardStatusText = "Творець Долі слухає...";
 
@@ -545,12 +565,19 @@ namespace NovaTrpgClient.ViewModels
             });
 
             IsWizardTyping = true;
-            WizardStatusText = "Творець Долі розмірковує...";
+            WizardStatusText = "Творець Долі розмірковує";
+            _ = AnimateWizardDotsAsync();
 
             try
             {
-                var history = WizardMessages.Select(m => $"{m.Sender} {m.Text}").ToList();
-                var reply = await _gameApiService.SendCharacterDialogAsync(userText, history);
+                var history = WizardMessages.Select(m => new CharacterDialogHistoryItem
+                {
+                    Role = m.Sender.Contains("Творець Долі") ? "narrator" : "player",
+                    Content = m.Text
+                }).ToList();
+
+                var dialogResponse = await _gameApiService.SendCharacterDialogMessageAsync(userText, history, includeDraft: true);
+                var reply = dialogResponse?.Reply;
 
                 if (string.IsNullOrWhiteSpace(reply))
                 {
@@ -564,18 +591,77 @@ namespace NovaTrpgClient.ViewModels
                     SenderColor = "#C084FC"
                 });
 
-                // Базове автовизначення імені якщо ще не вказано
-                if (string.IsNullOrWhiteSpace(WizardCharName))
+                // Автоматичне оновлення правої панелі Live Preview при отриманні draft_state (API v1.3.0)
+                if (dialogResponse?.DraftState != null)
                 {
-                    var words = userText.Split(new[] { ' ', ',', '.', '!' }, StringSplitOptions.RemoveEmptyEntries);
-                    if (words.Length > 0 && words[0].Length >= 3 && char.IsUpper(words[0][0]))
+                    var draft = dialogResponse.DraftState;
+                    if (!string.IsNullOrWhiteSpace(draft.Meta?.Name))
                     {
-                        WizardCharName = words[0];
+                        WizardCharName = draft.Meta.Name;
+                    }
+                    if (!string.IsNullOrWhiteSpace(draft.Meta?.Background))
+                    {
+                        WizardCharBackground = draft.Meta.Background;
+                    }
+                    if (!string.IsNullOrWhiteSpace(draft.Meta?.Appearance))
+                    {
+                        WizardCharAppearance = draft.Meta.Appearance;
+                    }
+                    if (!string.IsNullOrWhiteSpace(draft.Meta?.Location))
+                    {
+                        WizardCharLocation = draft.Meta.Location;
+                    }
+                    if (!string.IsNullOrWhiteSpace(draft.AnatomyAndHealth?.OverallState))
+                    {
+                        WizardCharHealth = draft.AnatomyAndHealth.OverallState;
+                    }
+
+                    WizardAbilities.Clear();
+                    if (draft.Abilities != null)
+                    {
+                        foreach (var ab in draft.Abilities)
+                        {
+                            WizardAbilities.Add(ab);
+                        }
+                    }
+
+                    WizardEquipment.Clear();
+                    if (draft.StorageAndEquipment?.Worn != null)
+                    {
+                        foreach (var w in draft.StorageAndEquipment.Worn)
+                        {
+                            WizardEquipment.Add(w);
+                        }
+                    }
+                    if (draft.StorageAndEquipment?.Containers != null)
+                    {
+                        foreach (var kvp in draft.StorageAndEquipment.Containers)
+                        {
+                            if (kvp.Value != null)
+                            {
+                                foreach (var item in kvp.Value)
+                                {
+                                    WizardEquipment.Add(item);
+                                }
+                            }
+                        }
                     }
                 }
-                if (string.IsNullOrWhiteSpace(WizardCharBackground))
+                else
                 {
-                    WizardCharBackground = userText;
+                    // Базове автовизначення імені якщо draft_state відсутній
+                    if (string.IsNullOrWhiteSpace(WizardCharName))
+                    {
+                        var words = userText.Split(new[] { ' ', ',', '.', '!' }, StringSplitOptions.RemoveEmptyEntries);
+                        if (words.Length > 0 && words[0].Length >= 3 && char.IsUpper(words[0][0]))
+                        {
+                            WizardCharName = words[0];
+                        }
+                    }
+                    if (string.IsNullOrWhiteSpace(WizardCharBackground))
+                    {
+                        WizardCharBackground = userText;
+                    }
                 }
             }
             catch (Exception ex)
@@ -600,7 +686,8 @@ namespace NovaTrpgClient.ViewModels
             if (WizardMessages.Count == 0 || IsWizardTyping) return;
 
             IsWizardTyping = true;
-            WizardStatusText = "Генерація фінального листа персонажа...";
+            WizardStatusText = "Генерація фінального листа персонажа";
+            _ = AnimateWizardDotsAsync();
 
             try
             {
@@ -1065,11 +1152,23 @@ namespace NovaTrpgClient.ViewModels
             int count = 0;
             while (IsTyping)
             {
-                AnimatedDots = new string('.', count % 4);
+                AnimatedDots = new string('.', (count % 3) + 1);
                 count++;
                 await Task.Delay(400);
             }
             AnimatedDots = "";
+        }
+
+        private async Task AnimateWizardDotsAsync()
+        {
+            int count = 0;
+            while (IsWizardTyping)
+            {
+                WizardAnimatedDots = new string('.', (count % 3) + 1);
+                count++;
+                await Task.Delay(400);
+            }
+            WizardAnimatedDots = "";
         }
     }
 }
