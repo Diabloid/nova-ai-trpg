@@ -48,9 +48,15 @@ class NarratorService:
         messages.append({"role": "user", "content": raw_text})
         return messages
 
-    async def generate_story(self, raw_text: str, player_state_str: str) -> str:
+    async def generate_story(
+        self,
+        raw_text: str,
+        player_state_str: str,
+        recent_messages: Optional[List[Dict[str, str]]] = None,
+        summary_text: Optional[str] = None
+    ) -> str:
         """Повна генерація тексту (Non-streaming)."""
-        messages = self._build_messages(raw_text, player_state_str)
+        messages = self._build_messages(raw_text, player_state_str, recent_messages, summary_text)
 
         raw_response = await self.provider_service.execute_with_fallback(
             provider_type="story",
