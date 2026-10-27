@@ -694,54 +694,37 @@ namespace NovaTrpgClient.ViewModels
                 var summary = string.Join("\n", WizardMessages.Select(m => $"{m.Sender} {m.Text}"));
                 var playerState = await _gameApiService.FinalizeCharacterAsync(summary);
 
-                var finalName = !string.IsNullOrWhiteSpace(WizardCharName)
-                    ? WizardCharName.Trim()
-                    : playerState?.Meta?.Name ?? "Новий Герой";
-
-                var finalBg = !string.IsNullOrWhiteSpace(WizardCharBackground)
-                    ? WizardCharBackground.Trim()
-                    : playerState?.Meta?.Background ?? "Герой, народжений у діалозі з Творцем Долі";
-
-                var finalApp = !string.IsNullOrWhiteSpace(WizardCharAppearance)
-                    ? WizardCharAppearance.Trim()
-                    : playerState?.Meta?.Appearance ?? "Мандрівне вбрання";
-
+                // 1. Обробка помилки при фіналізації: якщо бекенд повернув 503/null
                 if (playerState == null || playerState.Meta == null)
                 {
-                    playerState = new PlayerState
+                    WizardMessages.Add(new ChatMessage
                     {
-                        Meta = new PlayerMeta
-                        {
-                            Name = finalName,
-                            Background = finalBg,
-                            Appearance = finalApp
-                        }
-                    };
-                }
-                else
-                {
-                    playerState.Meta.Name = finalName;
-                    playerState.Meta.Background = finalBg;
-                    playerState.Meta.Appearance = finalApp;
+                        Sender = "Система:",
+                        Text = "⚠️ ШІ тимчасово перевантажений або ліміт запитів вичерпано, зачекайте 15–20 секунд і спробуйте знову.",
+                        SenderColor = "#EF4444"
+                    });
+                    return; // Залишаємо користувача у майстрі створення персонажа
                 }
 
-                // Зберігаємо заготовку героя
-                var createdSummary = await _gameApiService.CreateCharacterAsync(playerState);
-                if (createdSummary != null)
-                {
-                    await InitializeHierarchyAsync();
+                // 2. Усунення дублювання: бекенд у /character/finalize вже зберіг героя в базі
+                await InitializeHierarchyAsync();
 
-                    var selected = Characters.FirstOrDefault(c => c.CharId == createdSummary.CharId);
-                    if (selected != null)
-                    {
-                        await SelectCharacterAsync(selected);
-                    }
+                var targetCharName = !string.IsNullOrWhiteSpace(WizardCharName)
+                    ? WizardCharName.Trim()
+                    : playerState.Meta.Name;
+
+                var selected = Characters.FirstOrDefault(c => c.Name.Equals(targetCharName, StringComparison.OrdinalIgnoreCase))
+                            ?? Characters.LastOrDefault();
+
+                if (selected != null)
+                {
+                    await SelectCharacterAsync(selected);
 
                     // Автоматично створюємо першу кампанію зі вступним постом
-                    var firstCamp = await _gameApiService.CreateCampaignAsync(createdSummary.CharId, $"Пригода {createdSummary.Name} #1");
+                    var firstCamp = await _gameApiService.CreateCampaignAsync(selected.CharId, $"Пригода {selected.Name} #1");
                     if (firstCamp != null)
                     {
-                        await LoadCampaignsForCharacterAsync(createdSummary.CharId, autoSelectFirstCampaign: false);
+                        await LoadCampaignsForCharacterAsync(selected.CharId, autoSelectFirstCampaign: false);
                         var campObj = Campaigns.FirstOrDefault(c => c.CampaignId == firstCamp.CampaignId) ?? firstCamp;
                         await SelectCampaignAsync(campObj);
                     }
@@ -753,7 +736,7 @@ namespace NovaTrpgClient.ViewModels
                     WizardMessages.Add(new ChatMessage
                     {
                         Sender = "Система:",
-                        Text = "⚠️ Не вдалося зберегти персонажа на сервері.",
+                        Text = "⚠️ Не вдалося знайти збереженого персонажа у списку.",
                         SenderColor = "#EF4444"
                     });
                 }
@@ -770,6 +753,7 @@ namespace NovaTrpgClient.ViewModels
             finally
             {
                 IsWizardTyping = false;
+                WizardStatusText = "Творець Долі чекає на відповідь";
             }
         }
 
