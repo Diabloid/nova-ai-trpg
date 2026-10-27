@@ -70,19 +70,34 @@ namespace NovaTrpgClient.Models
         public bool IsPinned { get; set; }
     }
 
+    public class CharacterDialogHistoryItem
+    {
+        [JsonPropertyName("role")]
+        public string Role { get; set; } = string.Empty;
+
+        [JsonPropertyName("content")]
+        public string Content { get; set; } = string.Empty;
+    }
+
     public class CharacterDialogRequest
     {
         [JsonPropertyName("message")]
         public string Message { get; set; } = string.Empty;
 
         [JsonPropertyName("history")]
-        public List<string> History { get; set; } = new();
+        public List<CharacterDialogHistoryItem> History { get; set; } = new();
+
+        [JsonPropertyName("include_draft")]
+        public bool IncludeDraft { get; set; } = true;
     }
 
     public class CharacterDialogResponse
     {
         [JsonPropertyName("reply")]
         public string Reply { get; set; } = string.Empty;
+
+        [JsonPropertyName("draft_state")]
+        public PlayerState? DraftState { get; set; }
     }
 
     public class CharacterFinalizeRequest

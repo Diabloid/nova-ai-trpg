@@ -360,11 +360,16 @@ namespace NovaTrpgClient.Services
             }
         }
 
-        public async Task<string?> SendCharacterDialogAsync(string message, List<string> history, CancellationToken cancellationToken = default)
+        public async Task<CharacterDialogResponse?> SendCharacterDialogMessageAsync(string message, List<CharacterDialogHistoryItem> history, bool includeDraft = true, CancellationToken cancellationToken = default)
         {
             try
             {
-                var req = new CharacterDialogRequest { Message = message, History = history };
+                var req = new CharacterDialogRequest
+                {
+                    Message = message,
+                    History = history,
+                    IncludeDraft = includeDraft
+                };
                 var jsonContent = JsonSerializer.Serialize(req, JsonOptions);
                 using var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
 
@@ -372,14 +377,18 @@ namespace NovaTrpgClient.Services
                 if (!response.IsSuccessStatusCode) return null;
 
                 var json = await response.Content.ReadAsStringAsync(cancellationToken);
-                var result = JsonSerializer.Deserialize<CharacterDialogResponse>(json, JsonOptions);
-                return result?.Reply;
+                return JsonSerializer.Deserialize<CharacterDialogResponse>(json, JsonOptions);
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[SendCharacterDialogAsync error]: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[SendCharacterDialogMessageAsync error]: {ex.Message}");
                 return null;
             }
+        }
+
+        public Task<CharacterDialogResponse?> SendCharacterDialogAsync(string message, List<CharacterDialogHistoryItem> history, bool includeDraft = true, CancellationToken cancellationToken = default)
+        {
+            return SendCharacterDialogMessageAsync(message, history, includeDraft, cancellationToken);
         }
 
         public async Task<PlayerState?> FinalizeCharacterAsync(string dialogSummary, CancellationToken cancellationToken = default)
