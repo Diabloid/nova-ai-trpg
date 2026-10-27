@@ -1,5 +1,5 @@
 # 📜 NOVA AI TRPG — Єдиний контракт взаємодії (API & Game Step Contract)
-**Версія контракту:** 1.2.1 (Розділення буфера LLM та повного журналу чату)  
+**Версія контракту:** 1.3.0 (Додано еластичний драфт для Live Preview створення героя)  
 **Статус:** Обов'язковий до дотримання чатами **Backend** та **Client**.
 
 ---
@@ -30,95 +30,50 @@ $$\text{Гравець} \longrightarrow \text{Оповідач (GM)} \longrighta
 
 ---
 
-## 3. Моделі даних (DTO / Schemas)
+## 3. Створення персонажа з AI: Еластичний Драфт (Live Preview)
 
-### 3.1. Інформація про персонажа (`CharacterSummary`)
+Для підтримки живої панелі перегляду (Live Preview) під час діалогу створення персонажа клієнт може надсилати запит із прапорцем `include_draft`:
+
+### 3.1. Запит кроку діалогу (`CharacterDialogRequest`)
 ```json
 {
-  "char_id": "ayven_mage",
-  "name": "Айвен",
-  "background": "Найманець, маг вогню та вітру 3-го кола",
-  "appearance": "22-річний юнак з довгим рудим волоссям.",
-  "created_at": "2026-10-27T18:00:00Z"
+  "message": "Хочу бути магом вогню, колишнім найманцем на ім'я Каелан",
+  "history": [
+    { "role": "player", "content": "Привіт, хочу створити персонажа" },
+    { "role": "narrator", "content": "Вітаю, душе. Яким шляхом ти бажаєш піти?" }
+  ],
+  "include_draft": true
 }
 ```
+*Якщо `include_draft == false` (за замовчуванням) — бекенд повертає лише текст репліки Творця Долі за 1–2 секунди.*  
+*Якщо `include_draft == true` — бекенд додатково формує актуальну чернетку `draft_state` для правої панелі Live Preview клієнта.*
 
-### 3.2. Інформація про кампанію (`CampaignSummary`)
+### 3.2. Відповідь кроку діалогу (`CharacterDialogResponse`)
 ```json
 {
-  "campaign_id": "ayven_chapel_run_1",
-  "char_id": "ayven_mage",
-  "title": "Дослідження занедбаної каплиці",
-  "current_location": "Вулиця покинутого селища",
-  "is_pinned": false,
-  "created_at": "2026-10-27T18:10:00Z",
-  "last_played": "2026-10-27T18:30:00Z"
-}
-```
-
-### 3.3. Елемент повного журналу повідомлень (`HistoryMessage`)
-```json
-{
-  "role": "player | narrator | system",
-  "text": "Текст повідомлення...",
-  "timestamp": "2026-10-27T18:31:00Z"
-}
-```
-
-### 3.4. Повна модель стану гравця (`PlayerState`)
-```json
-{
-  "meta": {
-    "name": "Айвен",
-    "background": "Найманець, маг вогню",
-    "location": "Вулиця покинутого селища",
-    "appearance": "22-річний юнак."
-  },
-  "anatomy_and_health": {
-    "overall_state": "Ефірне Ядро виснажене. М'язовий біль.",
-    "injuries": [
+  "reply": "Вогонь — небезпечний супутник, Каелане... Які чари ти опанував першими?",
+  "draft_state": {
+    "meta": {
+      "name": "Каелан",
+      "background": "Колишній найманець, маг вогню",
+      "location": "Невідомий ліс",
+      "appearance": ""
+    },
+    "anatomy_and_health": {
+      "overall_state": "Повний сил",
+      "injuries": []
+    },
+    "storage_and_equipment": {
+      "worn": [],
+      "containers": {}
+    },
+    "abilities": [
       {
-        "location": "Спина",
-        "type": "Множинні порізи від скла."
+        "name": "Магія вогню (початкова)",
+        "desc": "Концентрація іскор та малого полум'я."
       }
     ]
-  },
-  "storage_and_equipment": {
-    "worn": [
-      {
-        "name": "Мантія мага",
-        "desc": "Легка тканина."
-      }
-    ],
-    "containers": {
-      "Шкіряний рюкзак": [
-        {
-          "name": "Мале зілля зцілення",
-          "desc": "Флакон із червоною рідиною."
-        }
-      ]
-    }
-  },
-  "abilities": [
-    {
-      "name": "Магія вогню 1-го кола",
-      "desc": "Створення спрямованого полум'я."
-    }
-  ]
-}
-```
-
-### 3.5. Запит дії в кампанії (`ActionRequest`)
-```json
-{
-  "raw_text": "Дістаю ключ із рюкзака та відмикаю старі двері",
-  "intents": [
-    {
-      "type": "action",
-      "content": "Дістаю ключ із рюкзака та відмикаю старі двері"
-    }
-  ],
-  "session_id": "ayven_chapel_run_1"
+  }
 }
 ```
 
@@ -131,20 +86,20 @@ $$\text{Гравець} \longrightarrow \text{Оповідач (GM)} \longrighta
 | :--- | :--- | :--- | :--- | :--- |
 | `GET` | `/api/v1/characters` | Список усіх заготовок героїв | Відсутній | `List<CharacterSummary>` |
 | `GET` | `/api/v1/characters/{char_id}` | Повний лист персонажа | Відсутній | `PlayerState` |
-| `POST` | `/api/v1/characters` | Створити заготовку персонажа | `PlayerState` | `CharacterSummary` |
+| `POST` | `/api/v1/characters` | Створити заготовку персонажа вручну | `PlayerState` | `CharacterSummary` |
 | `PUT` | `/api/v1/characters/{char_id}` | Редагувати заготовку героя | `PlayerState` | `PlayerState` |
 | `DELETE` | `/api/v1/characters/{char_id}` | Видалити заготовку персонажа | Відсутній | `{"status": "deleted"}` |
 
-### 4.2. Створення персонажа з AI
+### 4.2. Створення персонажа з AI (Character Wizard)
 | Метод | URL | Опис | Request | Response |
 | :--- | :--- | :--- | :--- | :--- |
-| `POST` | `/api/v1/character/dialog` | Діалог створення героя з Творцем Долі | `{"message": "...", "history": [...]}` | `{"reply": "..."}` |
-| `POST` | `/api/v1/character/finalize` | Згенерувати фінальний лист героя | `{"dialog_summary": "..."}` | `PlayerState` |
+| `POST` | `/api/v1/character/dialog` | Діалог створення героя з Live Preview | `CharacterDialogRequest` | `CharacterDialogResponse` |
+| `POST` | `/api/v1/character/finalize` | Згенерувати фінальний лист героя та зберегти на диск | `{"dialog_summary": "..."}` | `PlayerState` |
 
 ### 4.3. Кампанії (Campaigns)
 | Метод | URL | Опис | Request | Response |
 | :--- | :--- | :--- | :--- | :--- |
-| `GET` | `/api/v1/characters/{char_id}/campaigns` | Список кампаній персонажа (сортування: закріплені нагорі) | Відсутній | `List<CampaignSummary>` |
+| `GET` | `/api/v1/characters/{char_id}/campaigns` | Список кампаній персонажа (закріплені вгорі) | Відсутній | `List<CampaignSummary>` |
 | `POST` | `/api/v1/characters/{char_id}/campaigns` | Створити нову кампанію + **автогенерація вступного посту** | `{"title": "..."}` | `CampaignSummary` |
 | `GET` | `/api/v1/campaigns/{campaign_id}/history` | **Повний журнал повідомлень із `chat_log.json`** | Відсутній | `List<HistoryMessage>` |
 | `PATCH` | `/api/v1/campaigns/{campaign_id}/pin` | Закріпити / відкріпити кампанію (`is_pinned`) | `{"is_pinned": bool}` | `CampaignSummary` |
