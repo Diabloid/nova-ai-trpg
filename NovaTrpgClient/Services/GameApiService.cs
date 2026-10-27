@@ -27,15 +27,23 @@ namespace NovaTrpgClient.Services
 
         public async Task<PlayerState?> GetPlayerStateAsync(string sessionId = "default", CancellationToken cancellationToken = default)
         {
-            var url = string.IsNullOrWhiteSpace(sessionId) || sessionId == "default"
-                ? "api/v1/state"
-                : $"api/v1/state?session_id={Uri.EscapeDataString(sessionId)}";
+            try
+            {
+                var url = string.IsNullOrWhiteSpace(sessionId) || sessionId == "default"
+                    ? "api/v1/state"
+                    : $"api/v1/state?session_id={Uri.EscapeDataString(sessionId)}";
 
-            var response = await _httpClient.GetAsync(url, cancellationToken);
-            response.EnsureSuccessStatusCode();
+                var response = await _httpClient.GetAsync(url, cancellationToken);
+                response.EnsureSuccessStatusCode();
 
-            var json = await response.Content.ReadAsStringAsync(cancellationToken);
-            return JsonSerializer.Deserialize<PlayerState>(json, JsonOptions);
+                var json = await response.Content.ReadAsStringAsync(cancellationToken);
+                return JsonSerializer.Deserialize<PlayerState>(json, JsonOptions);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[GetPlayerStateAsync error]: {ex.Message}");
+                return null;
+            }
         }
 
         public async Task<ActionResponse?> SendActionAsync(ActionRequest request, CancellationToken cancellationToken = default)
@@ -166,6 +174,232 @@ namespace NovaTrpgClient.Services
                         yield return sseResult;
                     }
                 }
+            }
+        }
+
+        public async Task<List<CharacterSummary>> GetCharactersAsync(CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var response = await _httpClient.GetAsync("api/v1/characters", cancellationToken);
+                if (!response.IsSuccessStatusCode) return new List<CharacterSummary>();
+
+                var json = await response.Content.ReadAsStringAsync(cancellationToken);
+                return JsonSerializer.Deserialize<List<CharacterSummary>>(json, JsonOptions) ?? new List<CharacterSummary>();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[GetCharactersAsync error]: {ex.Message}");
+                return new List<CharacterSummary>();
+            }
+        }
+
+        public async Task<PlayerState?> GetCharacterDetailsAsync(string charId, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var response = await _httpClient.GetAsync($"api/v1/characters/{Uri.EscapeDataString(charId)}", cancellationToken);
+                if (!response.IsSuccessStatusCode) return null;
+
+                var json = await response.Content.ReadAsStringAsync(cancellationToken);
+                return JsonSerializer.Deserialize<PlayerState>(json, JsonOptions);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[GetCharacterDetailsAsync error]: {ex.Message}");
+                return null;
+            }
+        }
+
+        public async Task<CharacterSummary?> CreateCharacterAsync(PlayerState character, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var jsonContent = JsonSerializer.Serialize(character, JsonOptions);
+                using var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+
+                var response = await _httpClient.PostAsync("api/v1/characters", content, cancellationToken);
+                if (!response.IsSuccessStatusCode) return null;
+
+                var json = await response.Content.ReadAsStringAsync(cancellationToken);
+                return JsonSerializer.Deserialize<CharacterSummary>(json, JsonOptions);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[CreateCharacterAsync error]: {ex.Message}");
+                return null;
+            }
+        }
+
+        public async Task<PlayerState?> UpdateCharacterAsync(string charId, PlayerState character, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var jsonContent = JsonSerializer.Serialize(character, JsonOptions);
+                using var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+
+                var response = await _httpClient.PutAsync($"api/v1/characters/{Uri.EscapeDataString(charId)}", content, cancellationToken);
+                if (!response.IsSuccessStatusCode) return null;
+
+                var json = await response.Content.ReadAsStringAsync(cancellationToken);
+                return JsonSerializer.Deserialize<PlayerState>(json, JsonOptions);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[UpdateCharacterAsync error]: {ex.Message}");
+                return null;
+            }
+        }
+
+        public async Task<bool> DeleteCharacterAsync(string charId, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var response = await _httpClient.DeleteAsync($"api/v1/characters/{Uri.EscapeDataString(charId)}", cancellationToken);
+                return response.IsSuccessStatusCode;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[DeleteCharacterAsync error]: {ex.Message}");
+                return false;
+            }
+        }
+
+        public async Task<List<CampaignSummary>> GetCampaignsAsync(string charId, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var response = await _httpClient.GetAsync($"api/v1/characters/{Uri.EscapeDataString(charId)}/campaigns", cancellationToken);
+                if (!response.IsSuccessStatusCode) return new List<CampaignSummary>();
+
+                var json = await response.Content.ReadAsStringAsync(cancellationToken);
+                return JsonSerializer.Deserialize<List<CampaignSummary>>(json, JsonOptions) ?? new List<CampaignSummary>();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[GetCampaignsAsync error]: {ex.Message}");
+                return new List<CampaignSummary>();
+            }
+        }
+
+        public async Task<CampaignSummary?> CreateCampaignAsync(string charId, string title, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var req = new CreateCampaignRequest { Title = title };
+                var jsonContent = JsonSerializer.Serialize(req, JsonOptions);
+                using var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+
+                var response = await _httpClient.PostAsync($"api/v1/characters/{Uri.EscapeDataString(charId)}/campaigns", content, cancellationToken);
+                if (!response.IsSuccessStatusCode) return null;
+
+                var json = await response.Content.ReadAsStringAsync(cancellationToken);
+                return JsonSerializer.Deserialize<CampaignSummary>(json, JsonOptions);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[CreateCampaignAsync error]: {ex.Message}");
+                return null;
+            }
+        }
+
+        public async Task<List<HistoryMessage>> GetCampaignHistoryAsync(string campaignId, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var response = await _httpClient.GetAsync($"api/v1/campaigns/{Uri.EscapeDataString(campaignId)}/history", cancellationToken);
+                if (!response.IsSuccessStatusCode) return new List<HistoryMessage>();
+
+                var json = await response.Content.ReadAsStringAsync(cancellationToken);
+                return JsonSerializer.Deserialize<List<HistoryMessage>>(json, JsonOptions) ?? new List<HistoryMessage>();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[GetCampaignHistoryAsync error]: {ex.Message}");
+                return new List<HistoryMessage>();
+            }
+        }
+
+        public async Task<CampaignSummary?> PinCampaignAsync(string campaignId, bool isPinned, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var req = new PinCampaignRequest { IsPinned = isPinned };
+                var jsonContent = JsonSerializer.Serialize(req, JsonOptions);
+                using var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+
+                var requestMessage = new HttpRequestMessage(HttpMethod.Patch, $"api/v1/campaigns/{Uri.EscapeDataString(campaignId)}/pin")
+                {
+                    Content = content
+                };
+
+                var response = await _httpClient.SendAsync(requestMessage, cancellationToken);
+                if (!response.IsSuccessStatusCode) return null;
+
+                var json = await response.Content.ReadAsStringAsync(cancellationToken);
+                return JsonSerializer.Deserialize<CampaignSummary>(json, JsonOptions);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[PinCampaignAsync error]: {ex.Message}");
+                return null;
+            }
+        }
+
+        public async Task<bool> DeleteCampaignAsync(string campaignId, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var response = await _httpClient.DeleteAsync($"api/v1/campaigns/{Uri.EscapeDataString(campaignId)}", cancellationToken);
+                return response.IsSuccessStatusCode;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[DeleteCampaignAsync error]: {ex.Message}");
+                return false;
+            }
+        }
+
+        public async Task<string?> SendCharacterDialogAsync(string message, List<string> history, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var req = new CharacterDialogRequest { Message = message, History = history };
+                var jsonContent = JsonSerializer.Serialize(req, JsonOptions);
+                using var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+
+                var response = await _httpClient.PostAsync("api/v1/character/dialog", content, cancellationToken);
+                if (!response.IsSuccessStatusCode) return null;
+
+                var json = await response.Content.ReadAsStringAsync(cancellationToken);
+                var result = JsonSerializer.Deserialize<CharacterDialogResponse>(json, JsonOptions);
+                return result?.Reply;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[SendCharacterDialogAsync error]: {ex.Message}");
+                return null;
+            }
+        }
+
+        public async Task<PlayerState?> FinalizeCharacterAsync(string dialogSummary, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var req = new CharacterFinalizeRequest { DialogSummary = dialogSummary };
+                var jsonContent = JsonSerializer.Serialize(req, JsonOptions);
+                using var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+
+                var response = await _httpClient.PostAsync("api/v1/character/finalize", content, cancellationToken);
+                if (!response.IsSuccessStatusCode) return null;
+
+                var json = await response.Content.ReadAsStringAsync(cancellationToken);
+                return JsonSerializer.Deserialize<PlayerState>(json, JsonOptions);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[FinalizeCharacterAsync error]: {ex.Message}");
+                return null;
             }
         }
     }

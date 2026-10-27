@@ -48,19 +48,7 @@ namespace NovaTrpgClient.Views
                 };
             }
 
-            if (SessionInputBox != null)
-            {
-                SessionInputBox.KeyDown += (s, e) =>
-                {
-                    if (e.Key == Key.Enter && this.DataContext is MainWindowViewModel vm)
-                    {
-                        if (vm.SwitchSessionCommand.CanExecute(null))
-                        {
-                            vm.SwitchSessionCommand.Execute(null);
-                        }
-                    }
-                };
-            }
+
 
             this.DataContextChanged += (s, e) =>
             {

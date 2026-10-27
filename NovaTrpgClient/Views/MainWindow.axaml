@@ -4,10 +4,10 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:avedit="clr-namespace:AvaloniaEdit;assembly=AvaloniaEdit"
-        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+        mc:Ignorable="d" d:DesignWidth="1000" d:DesignHeight="700"
         x:Class="NovaTrpgClient.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
-        Title="NOVA AI TRPG" MinWidth="800" MinHeight="600"
+        Title="NOVA AI TRPG" MinWidth="850" MinHeight="600"
         Background="#121212"
         WindowState="Maximized"
         ExtendClientAreaToDecorationsHint="True">
@@ -16,9 +16,32 @@
 		<SolidColorBrush x:Key="ScrollBarThumbFill" Color="#262626"/>
 		<SolidColorBrush x:Key="ScrollBarThumbFillPointerOver" Color="#383838"/>
 		<SolidColorBrush x:Key="ScrollBarThumbFillPressed" Color="#444444"/>
+		<!-- ГЛОБАЛЬНЕ ПЕРЕВИЗНАЧЕННЯ ДЕФОЛТНИХ БЛІКІВ КНОПОК FLUENTTHEME -->
+		<SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#222222"/>
+		<SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#1A1A1A"/>
+		<SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="#383838"/>
+		<SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="#383838"/>
+		<SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#F3F4F6"/>
+		<SolidColorBrush x:Key="ButtonForegroundPressed" Color="#FFFFFF"/>
 	</Window.Resources>
 
 	<Window.Styles>
+		<!-- 1.1 КАСТОМНІ СТИЛІ СИСТЕМНИХ КНОПОК ВІКНА (CaptionButtons) -->
+		<Style Selector="Window /template/ Button#PART_CloseButton:pointerover /template/ ContentPresenter">
+			<Setter Property="Background">
+				<LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+					<GradientStop Color="#6A0010" Offset="0.0"/>
+					<GradientStop Color="#3A0008" Offset="1.0"/>
+				</LinearGradientBrush>
+			</Setter>
+		</Style>
+		<Style Selector="Window /template/ Button#PART_MinimizeButton:pointerover /template/ ContentPresenter">
+			<Setter Property="Background" Value="#222222"/>
+		</Style>
+		<Style Selector="Window /template/ Button#PART_RestoreButton:pointerover /template/ ContentPresenter">
+			<Setter Property="Background" Value="#222222"/>
+		</Style>
+
 		<!-- МІНІМАЛІСТИЧНИЙ УЛЬТРА-ТОНКИЙ СКРОЛБАР (4px, БЕЗ СТРІЛОК) -->
 		<Style Selector="ScrollBar:vertical">
 			<Setter Property="AllowAutoHide" Value="False"/>
@@ -61,14 +84,17 @@
 			<Setter Property="Width" Value="0"/>
 		</Style>
 
-		<!-- ЕФЕКТИ ПОЛЯ ВВОДУ -->
+		<!-- 1.1 ЕФЕКТИ ГОЛОВНОГО ПОЛЯ ВВОДУ (ChatInputEditor) -->
 		<Style Selector="Border.inputBox">
 			<Setter Property="BorderBrush" Value="#333333"/>
 			<Setter Property="Transitions">
 				<Transitions>
-					<BrushTransition Property="BorderBrush" Duration="0:0:0.3"/>
+					<BrushTransition Property="BorderBrush" Duration="0:0:0.25"/>
 				</Transitions>
 			</Setter>
+		</Style>
+		<Style Selector="Border.inputBox:pointerover">
+			<Setter Property="BorderBrush" Value="#444444"/>
 		</Style>
 		<Style Selector="Border.inputBox:focus-within">
 			<Setter Property="BorderBrush" Value="#5A0010"/>
@@ -105,7 +131,7 @@
 			<Setter Property="Background" Value="#2A0005"/>
 		</Style>
 
-		<!-- КАРТКА ПЕРСОНАЖА (ВЕРХНЯ ПАНЕЛЬ) -->
+		<!-- КАРТКА ПЕРСОНАЖА (ВЕРХНЯ ПАНЕЛЬ СТАНУ) -->
 		<Style Selector="Button.characterCard">
 			<Setter Property="Background" Value="#1A1A1A"/>
 			<Setter Property="BorderBrush" Value="#2A2A2A"/>
@@ -114,7 +140,6 @@
 			<Setter Property="Padding" Value="20,10"/>
 		</Style>
 		<Style Selector="Button.characterCard /template/ ContentPresenter">
-			<!-- Плавна анімація кольорів при наведенні та натисканні без різких стрибків -->
 			<Setter Property="Transitions">
 				<Transitions>
 					<BrushTransition Property="Background" Duration="0:0:0.18" Easing="SineEaseOut"/>
@@ -127,21 +152,27 @@
 			<Setter Property="BorderBrush" Value="#4A1218"/>
 		</Style>
 		<Style Selector="Button.characterCard:pressed /template/ ContentPresenter">
-			<!-- М'яке, благородне притемнення без "провалу" в чорний колір -->
 			<Setter Property="Background" Value="#161616"/>
 			<Setter Property="BorderBrush" Value="#5A0010"/>
 		</Style>
 
-		<!-- ПУНКТИ СИСТЕМНОГО МЕНЮ -->
-		<Style Selector="Button.menuItem">
-			<Setter Property="Background" Value="#1A1A1A"/>
-			<Setter Property="Foreground" Value="#E5E7EB"/>
-			<Setter Property="BorderBrush" Value="#2A2A2A"/>
+		<!-- ГОЛОВНА КНОПКА СТВОРЕННЯ ГЕРОЯ В МЕНЮ -->
+		<Style Selector="Button.primaryCreateBtn">
+			<Setter Property="Background">
+				<LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+					<GradientStop Color="#3E0B12" Offset="0.0"/>
+					<GradientStop Color="#240509" Offset="1.0"/>
+				</LinearGradientBrush>
+			</Setter>
+			<Setter Property="Foreground" Value="#F3F4F6"/>
+			<Setter Property="BorderBrush" Value="#5A0010"/>
 			<Setter Property="BorderThickness" Value="1"/>
 			<Setter Property="CornerRadius" Value="8"/>
-			<Setter Property="Padding" Value="16,12"/>
+			<Setter Property="Padding" Value="14,10"/>
+			<Setter Property="FontWeight" Value="SemiBold"/>
+			<Setter Property="FontSize" Value="12"/>
 		</Style>
-		<Style Selector="Button.menuItem /template/ ContentPresenter">
+		<Style Selector="Button.primaryCreateBtn /template/ ContentPresenter">
 			<Setter Property="Transitions">
 				<Transitions>
 					<BrushTransition Property="Background" Duration="0:0:0.18" Easing="SineEaseOut"/>
@@ -149,93 +180,389 @@
 				</Transitions>
 			</Setter>
 		</Style>
-		<Style Selector="Button.menuItem:pointerover /template/ ContentPresenter">
-			<Setter Property="Background" Value="#222222"/>
-			<Setter Property="BorderBrush" Value="#353535"/>
+		<Style Selector="Button.primaryCreateBtn:pointerover /template/ ContentPresenter">
+			<Setter Property="Background">
+				<LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+					<GradientStop Color="#5A0E1A" Offset="0.0"/>
+					<GradientStop Color="#36080E" Offset="1.0"/>
+				</LinearGradientBrush>
+			</Setter>
+			<Setter Property="BorderBrush" Value="#7E0018"/>
 		</Style>
-		<Style Selector="Button.menuItem:pressed /template/ ContentPresenter">
+		<Style Selector="Button.primaryCreateBtn:pressed /template/ ContentPresenter">
+			<Setter Property="Background" Value="#2A050A"/>
+			<Setter Property="BorderBrush" Value="#5A0010"/>
+		</Style>
+
+		<!-- МАЛА КНОПКА ДІЇ (Нова кампанія) -->
+		<Style Selector="Button.actionSmallBtn">
+			<Setter Property="Background" Value="#1A1A1A"/>
+			<Setter Property="Foreground" Value="#10B981"/>
+			<Setter Property="BorderBrush" Value="#1E3A2F"/>
+			<Setter Property="BorderThickness" Value="1"/>
+			<Setter Property="CornerRadius" Value="6"/>
+			<Setter Property="Padding" Value="8,4"/>
+			<Setter Property="FontSize" Value="11"/>
+			<Setter Property="FontWeight" Value="SemiBold"/>
+		</Style>
+		<Style Selector="Button.actionSmallBtn /template/ ContentPresenter">
+			<Setter Property="Transitions">
+				<Transitions>
+					<BrushTransition Property="Background" Duration="0:0:0.15"/>
+					<BrushTransition Property="BorderBrush" Duration="0:0:0.15"/>
+				</Transitions>
+			</Setter>
+		</Style>
+		<Style Selector="Button.actionSmallBtn:pointerover /template/ ContentPresenter">
+			<Setter Property="Background" Value="#152B22"/>
+			<Setter Property="BorderBrush" Value="#10B981"/>
+		</Style>
+		<Style Selector="Button.actionSmallBtn:pressed /template/ ContentPresenter">
+			<Setter Property="Background" Value="#102018"/>
+		</Style>
+
+		<!-- ВЕКТОРНІ ІКОНКИ ДІЙ (Редагувати, Видалити, Закріпити, Змінити) - 100% БЕЗ БЛІКІВ ТА БЕЗ БІЛОГО КОЛЬОРУ -->
+		<Style Selector="Button.iconActionBtn">
+			<Setter Property="Background" Value="Transparent"/>
+			<Setter Property="Foreground" Value="#888888"/>
+			<Setter Property="BorderThickness" Value="0"/>
+			<Setter Property="CornerRadius" Value="4"/>
+			<Setter Property="Width" Value="26"/>
+			<Setter Property="Height" Value="26"/>
+			<Setter Property="Padding" Value="0"/>
+			<Setter Property="Cursor" Value="Hand"/>
+			<Setter Property="Template">
+				<ControlTemplate>
+					<Border x:Name="PART_IconBorder"
+					        Background="{TemplateBinding Background}"
+					        CornerRadius="{TemplateBinding CornerRadius}"
+					        BorderThickness="0"
+					        HorizontalAlignment="Stretch"
+					        VerticalAlignment="Stretch">
+						<ContentPresenter Content="{TemplateBinding Content}"
+						                  ContentTemplate="{TemplateBinding ContentTemplate}"
+						                  HorizontalAlignment="Center"
+						                  VerticalAlignment="Center"/>
+					</Border>
+				</ControlTemplate>
+			</Setter>
+		</Style>
+		<Style Selector="Button.iconActionBtn:pointerover /template/ Border#PART_IconBorder">
+			<Setter Property="Background" Value="#252525"/>
+		</Style>
+		<Style Selector="Button.iconActionBtn:pointerover">
+			<Setter Property="Foreground" Value="#D1D5DB"/>
+		</Style>
+		<Style Selector="Button.iconActionBtn:pressed /template/ Border#PART_IconBorder">
+			<Setter Property="Background" Value="#1E1E1E"/>
+		</Style>
+		<Style Selector="Button.iconActionBtn:pressed">
+			<Setter Property="Foreground" Value="#9CA3AF"/>
+		</Style>
+		<Style Selector="Button.iconActionBtn.danger:pointerover /template/ Border#PART_IconBorder">
+			<Setter Property="Background" Value="#331010"/>
+		</Style>
+		<Style Selector="Button.iconActionBtn.danger:pointerover">
+			<Setter Property="Foreground" Value="#EF4444"/>
+		</Style>
+		<Style Selector="Button.iconActionBtn.danger:pressed /template/ Border#PART_IconBorder">
+			<Setter Property="Background" Value="#220B0B"/>
+		</Style>
+		<Style Selector="Button.iconActionBtn.pinned">
+			<Setter Property="Foreground" Value="#EF4444"/>
+		</Style>
+		<Style Selector="Button.iconActionBtn.pinned:pointerover /template/ Border#PART_IconBorder">
+			<Setter Property="Background" Value="#2E1014"/>
+		</Style>
+		<Style Selector="Button.iconActionBtn.pinned:pointerover">
+			<Setter Property="Foreground" Value="#F87171"/>
+		</Style>
+		<Style Selector="Button.iconActionBtn.pinned:pressed /template/ Border#PART_IconBorder">
+			<Setter Property="Background" Value="#1E0B0E"/>
+		</Style>
+		<Style Selector="Button.iconActionBtn.pinned:pressed">
+			<Setter Property="Foreground" Value="#DC2626"/>
+		</Style>
+
+		<!-- 3. ІНЛАЙН-ШТОРКА ВИБОРУ ГЕРОЯ (ПЛАВНИЙ ВИЇЗД, БЕЗ СІРОЇ РАМКИ ОС) -->
+		<Style Selector="Border.heroSelectorDrawer">
+			<Setter Property="MaxHeight" Value="0"/>
+			<Setter Property="Opacity" Value="0"/>
+			<Setter Property="IsHitTestVisible" Value="False"/>
+			<Setter Property="ClipToBounds" Value="True"/>
+			<Setter Property="Transitions">
+				<Transitions>
+					<DoubleTransition Property="MaxHeight" Duration="0:0:0.3" Easing="CubicEaseOut"/>
+					<DoubleTransition Property="Opacity" Duration="0:0:0.2" Easing="SineEaseOut"/>
+				</Transitions>
+			</Setter>
+		</Style>
+		<Style Selector="Border.heroSelectorDrawer.open">
+			<Setter Property="MaxHeight" Value="220"/>
+			<Setter Property="Opacity" Value="1"/>
+			<Setter Property="IsHitTestVisible" Value="True"/>
+		</Style>
+
+		<!-- ПУНКТИ ШТОРОК (ВИБІР ГЕРОЯ ТА МЕНЮ АКАУНТА): МИТТЄВИЙ ХОВЕР БЕЗ ЗАТРИМКИ, БЕЗ ПОДВІЙНОГО ПІДСВІЧУВАННЯ, БЕЗ БІЛОГО -->
+		<Style Selector="Button.drawerMenuItem">
+			<Setter Property="Background" Value="Transparent"/>
+			<Setter Property="BorderThickness" Value="0"/>
+			<Setter Property="CornerRadius" Value="6"/>
+			<Setter Property="Padding" Value="10,8"/>
+			<Setter Property="HorizontalAlignment" Value="Stretch"/>
+			<Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+			<Setter Property="Cursor" Value="Hand"/>
+			<Setter Property="Template">
+				<ControlTemplate>
+					<Border x:Name="PART_RootBorder"
+					        Background="{TemplateBinding Background}"
+					        CornerRadius="{TemplateBinding CornerRadius}"
+					        Padding="{TemplateBinding Padding}"
+					        HorizontalAlignment="Stretch"
+					        VerticalAlignment="Stretch">
+						<ContentPresenter Content="{TemplateBinding Content}"
+						                  ContentTemplate="{TemplateBinding ContentTemplate}"
+						                  HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+						                  VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+					</Border>
+				</ControlTemplate>
+			</Setter>
+		</Style>
+		<Style Selector="Button.drawerMenuItem:pointerover /template/ Border#PART_RootBorder">
+			<Setter Property="Background" Value="#222222"/>
+		</Style>
+		<Style Selector="Button.drawerMenuItem:pressed /template/ Border#PART_RootBorder">
+			<Setter Property="Background" Value="#1A1A1A"/>
+		</Style>
+
+		<!-- 7 & 8 КАРТКА КАМПАНІЇ (ЦІЛІСНЕ НАВЕДЕННЯ, ЗОЛОТИЙ АКЦЕНТ ЗАКРІПЛЕННЯ) -->
+		<Style Selector="Border.campaignCard">
+			<Setter Property="Background" Value="#141414"/>
+			<Setter Property="BorderBrush" Value="#252525"/>
+			<Setter Property="BorderThickness" Value="1"/>
+			<Setter Property="CornerRadius" Value="7"/>
+			<Setter Property="Padding" Value="0"/>
+			<Setter Property="ClipToBounds" Value="True"/>
+			<Setter Property="Transitions">
+				<Transitions>
+					<BrushTransition Property="Background" Duration="0:0:0.18" Easing="SineEaseOut"/>
+					<BrushTransition Property="BorderBrush" Duration="0:0:0.18" Easing="SineEaseOut"/>
+				</Transitions>
+			</Setter>
+		</Style>
+		<Style Selector="Border.campaignCard:pointerover">
+			<Setter Property="Background" Value="#1C1C1C"/>
+			<Setter Property="BorderBrush" Value="#383838"/>
+		</Style>
+		<Style Selector="Border.campaignCard.pinned">
+			<Setter Property="Background" Value="#180C0E"/>
+			<Setter Property="BorderBrush" Value="#7E0018"/>
+			<Setter Property="BorderThickness" Value="3,1,1,1"/>
+		</Style>
+		<Style Selector="Border.campaignCard.pinned:pointerover">
+			<Setter Property="Background" Value="#220F12"/>
+			<Setter Property="BorderBrush" Value="#9E0022"/>
+		</Style>
+
+		<!-- 1. ТІЛО КАМПАНІЇ: СУЦІЛЬНА КЛІКАБЕЛЬНІСТЬ ЗЛІВА ВІД РИСКИ (ПОВНИЙ СТРЕТЧ І ПРОЗОРИЙ BORDER) -->
+		<Style Selector="Button.campaignBodyBtn">
+			<Setter Property="Background" Value="Transparent"/>
+			<Setter Property="BorderThickness" Value="0"/>
+			<Setter Property="Padding" Value="10,8"/>
+			<Setter Property="Cursor" Value="Hand"/>
+			<Setter Property="HorizontalAlignment" Value="Stretch"/>
+			<Setter Property="VerticalAlignment" Value="Stretch"/>
+			<Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+			<Setter Property="VerticalContentAlignment" Value="Center"/>
+			<Setter Property="Template">
+				<ControlTemplate>
+					<Border Background="Transparent"
+					        Padding="{TemplateBinding Padding}"
+					        HorizontalAlignment="Stretch"
+					        VerticalAlignment="Stretch">
+						<ContentPresenter Content="{TemplateBinding Content}"
+						                  ContentTemplate="{TemplateBinding ContentTemplate}"
+						                  HorizontalAlignment="Stretch"
+						                  VerticalAlignment="Center"/>
+					</Border>
+				</ControlTemplate>
+			</Setter>
+		</Style>
+
+		<!-- 2 & 3 КАРТКА АКАУНТА: ВЛАСНИЙ ШАБЛОН БЕЗ ДЕФОЛТНИХ БЛІКІВ FLUENTTHEME -->
+		<Style Selector="Button.accountCardBtn">
 			<Setter Property="Background" Value="#161616"/>
 			<Setter Property="BorderBrush" Value="#262626"/>
-		</Style>
-
-		<!-- КНОПКА ВИХОДУ З ГРИ -->
-		<Style Selector="Button.menuExitBtn">
-			<Setter Property="Background" Value="#2A1010"/>
-			<Setter Property="Foreground" Value="#FCA5A5"/>
-			<Setter Property="BorderBrush" Value="#3D1515"/>
 			<Setter Property="BorderThickness" Value="1"/>
-			<Setter Property="CornerRadius" Value="8"/>
-			<Setter Property="Padding" Value="16,12"/>
+			<Setter Property="CornerRadius" Value="10"/>
+			<Setter Property="Padding" Value="12,10"/>
+			<Setter Property="HorizontalAlignment" Value="Stretch"/>
+			<Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+			<Setter Property="Cursor" Value="Hand"/>
+			<Setter Property="Template">
+				<ControlTemplate>
+					<Border x:Name="PART_CardBorder"
+					        Background="{TemplateBinding Background}"
+					        BorderBrush="{TemplateBinding BorderBrush}"
+					        BorderThickness="{TemplateBinding BorderThickness}"
+					        CornerRadius="{TemplateBinding CornerRadius}"
+					        Padding="{TemplateBinding Padding}">
+						<ContentPresenter Content="{TemplateBinding Content}"
+						                  ContentTemplate="{TemplateBinding ContentTemplate}"
+						                  HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+						                  VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+					</Border>
+				</ControlTemplate>
+			</Setter>
 		</Style>
-		<Style Selector="Button.menuExitBtn /template/ ContentPresenter">
+		<Style Selector="Button.accountCardBtn /template/ Border#PART_CardBorder">
 			<Setter Property="Transitions">
 				<Transitions>
 					<BrushTransition Property="Background" Duration="0:0:0.18" Easing="SineEaseOut"/>
-					<BrushTransition Property="BorderBrush" Duration="0:0:0.2" Easing="SineEaseOut"/>
+					<BrushTransition Property="BorderBrush" Duration="0:0:0.22" Easing="SineEaseOut"/>
 				</Transitions>
 			</Setter>
 		</Style>
-		<Style Selector="Button.menuExitBtn:pointerover /template/ ContentPresenter">
-			<Setter Property="Background" Value="#3D1212"/>
-			<Setter Property="BorderBrush" Value="#5C1818"/>
+		<Style Selector="Button.accountCardBtn:pointerover /template/ Border#PART_CardBorder">
+			<Setter Property="Background" Value="#1E1E1E"/>
+			<Setter Property="BorderBrush" Value="#4A1218"/>
 		</Style>
-		<Style Selector="Button.menuExitBtn:pressed /template/ ContentPresenter">
-			<Setter Property="Background" Value="#200A0A"/>
-			<Setter Property="BorderBrush" Value="#320808"/>
+		<!-- 3. При натисканні спокійний темний тон, жодного білого спалаху -->
+		<Style Selector="Button.accountCardBtn:pressed /template/ Border#PART_CardBorder">
+			<Setter Property="Background" Value="#1A1A1A"/>
+			<Setter Property="BorderBrush" Value="#4A1218"/>
 		</Style>
 
-		<!-- КНОПКА ДІЇ В МЕНЮ (Завантаження сесії) -->
-		<Style Selector="Button.menuActionBtn">
-			<Setter Property="Background" Value="#222222"/>
-			<Setter Property="Foreground" Value="#E5E7EB"/>
-			<Setter Property="BorderBrush" Value="#333333"/>
+		<!-- 1 & 2 ПЛАВНЕ ВИЇЖДЖАЮЧЕ МЕНЮ АКАУНТА (РІВНО ПО ШИРИНІ КАРТКИ, БЕЗ СТИКІВ З КРАЯМИ) -->
+		<Style Selector="Border.accountDrawer">
+			<Setter Property="MaxHeight" Value="0"/>
+			<Setter Property="Opacity" Value="0"/>
+			<Setter Property="IsHitTestVisible" Value="False"/>
+			<Setter Property="ClipToBounds" Value="True"/>
+			<Setter Property="Transitions">
+				<Transitions>
+					<DoubleTransition Property="MaxHeight" Duration="0:0:0.35" Easing="CubicEaseOut"/>
+					<DoubleTransition Property="Opacity" Duration="0:0:0.25" Easing="SineEaseOut"/>
+				</Transitions>
+			</Setter>
+		</Style>
+		<Style Selector="Border.accountDrawer.open">
+			<Setter Property="MaxHeight" Value="110"/>
+			<Setter Property="Opacity" Value="1"/>
+			<Setter Property="IsHitTestVisible" Value="True"/>
+		</Style>
+
+		<!-- 1.2 СТИЛІ EXPANDER ДЛЯ КОНТЕЙНЕРІВ ІНВЕНТАРЮ: 100% СТРЕТЧ, ЄДИНЕ НАВЕДЕННЯ, СТИЛЬ ПІД СИНІ/ЧЕРВОНІ КАРТКИ -->
+		<Style Selector="Expander">
+			<Setter Property="HorizontalAlignment" Value="Stretch"/>
+			<Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+			<Setter Property="Background" Value="#0E1E17"/>
+			<Setter Property="BorderBrush" Value="#1A3D2F"/>
 			<Setter Property="BorderThickness" Value="1"/>
 			<Setter Property="CornerRadius" Value="6"/>
-		</Style>
-		<Style Selector="Button.menuActionBtn /template/ ContentPresenter">
+			<Setter Property="Padding" Value="0"/>
+			<Setter Property="Margin" Value="0,0,0,6"/>
+			<Setter Property="ClipToBounds" Value="True"/>
 			<Setter Property="Transitions">
 				<Transitions>
 					<BrushTransition Property="Background" Duration="0:0:0.18" Easing="SineEaseOut"/>
-					<BrushTransition Property="BorderBrush" Duration="0:0:0.2" Easing="SineEaseOut"/>
+					<BrushTransition Property="BorderBrush" Duration="0:0:0.18" Easing="SineEaseOut"/>
 				</Transitions>
 			</Setter>
-		</Style>
-		<Style Selector="Button.menuActionBtn:pointerover /template/ ContentPresenter">
-			<Setter Property="Background" Value="#2C2C2C"/>
-			<Setter Property="BorderBrush" Value="#5A0010"/>
-		</Style>
-		<Style Selector="Button.menuActionBtn:pressed /template/ ContentPresenter">
-			<Setter Property="Background" Value="#1A1A1A"/>
-			<Setter Property="BorderBrush" Value="#4A000A"/>
+			<Setter Property="Template">
+				<ControlTemplate>
+					<Border x:Name="ExpanderRoot"
+					        Background="{TemplateBinding Background}"
+					        BorderBrush="{TemplateBinding BorderBrush}"
+					        BorderThickness="{TemplateBinding BorderThickness}"
+					        CornerRadius="{TemplateBinding CornerRadius}"
+					        ClipToBounds="True">
+						<StackPanel>
+							<!-- Заголовок контейнера (на всю ширину, без відокремлених ховер-блоків) -->
+							<ToggleButton x:Name="PART_headerButton"
+							              IsChecked="{TemplateBinding IsExpanded, Mode=TwoWay}"
+							              Content="{TemplateBinding Header}"
+							              ContentTemplate="{TemplateBinding HeaderTemplate}"
+							              Background="Transparent"
+							              BorderThickness="0"
+							              Padding="10,8"
+							              HorizontalAlignment="Stretch"
+							              HorizontalContentAlignment="Stretch"
+							              Cursor="Hand">
+								<ToggleButton.Template>
+									<ControlTemplate>
+										<Border Background="Transparent" Padding="{TemplateBinding Padding}">
+											<Grid ColumnDefinitions="*, Auto">
+												<ContentPresenter Grid.Column="0"
+												                  Content="{TemplateBinding Content}"
+												                  ContentTemplate="{TemplateBinding ContentTemplate}"
+												                  VerticalAlignment="Center"/>
+												<!-- Векторна стрілочка, що плавно обертається -->
+												<PathIcon Grid.Column="1"
+												          Data="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"
+												          Width="11" Height="11"
+												          Foreground="#34D399"
+												          VerticalAlignment="Center"
+												          Margin="8,0,0,0">
+													<PathIcon.Transitions>
+														<Transitions>
+															<TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.2" Easing="CubicEaseOut"/>
+														</Transitions>
+													</PathIcon.Transitions>
+												</PathIcon>
+											</Grid>
+										</Border>
+									</ControlTemplate>
+								</ToggleButton.Template>
+							</ToggleButton>
+
+							<!-- Вміст контейнера (список предметів з плавною анімацією виїзду та заокругленими нижніми кутами) -->
+							<Border x:Name="PART_ContentBorder"
+							        BorderBrush="#153327"
+							        Background="#0B1712"
+							        Padding="10,8"
+							        CornerRadius="0,0,5,5"
+							        ClipToBounds="True">
+								<ContentPresenter Content="{TemplateBinding Content}"
+								                  ContentTemplate="{TemplateBinding ContentTemplate}"/>
+							</Border>
+						</StackPanel>
+					</Border>
+				</ControlTemplate>
+			</Setter>
 		</Style>
 
-		<!-- ПОЛЕ ВВОДУ СЕСІЇ -->
-		<Style Selector="TextBox.sessionInput">
-			<Setter Property="Background" Value="#141414"/>
-			<Setter Property="BorderBrush" Value="#2A2A2A"/>
-			<Setter Property="Foreground" Value="#E5E7EB"/>
-			<Setter Property="CaretBrush" Value="#E5E7EB"/>
-			<Setter Property="CornerRadius" Value="6"/>
-		</Style>
-		<Style Selector="TextBox.sessionInput /template/ Border#PART_BorderElement">
+		<!-- ПЛАВНА АНІМАЦІЯ РОЗГОРТАННЯ ТА ЗГОРТАННЯ ВМІСТУ EXPANDER -->
+		<Style Selector="Expander /template/ Border#PART_ContentBorder">
+			<Setter Property="MaxHeight" Value="0"/>
+			<Setter Property="Opacity" Value="0"/>
+			<Setter Property="BorderThickness" Value="0"/>
+			<Setter Property="CornerRadius" Value="0,0,5,5"/>
+			<Setter Property="IsHitTestVisible" Value="False"/>
 			<Setter Property="Transitions">
 				<Transitions>
-					<BrushTransition Property="Background" Duration="0:0:0.18" Easing="SineEaseOut"/>
-					<BrushTransition Property="BorderBrush" Duration="0:0:0.2" Easing="SineEaseOut"/>
+					<DoubleTransition Property="MaxHeight" Duration="0:0:0.3" Easing="CubicEaseOut"/>
+					<DoubleTransition Property="Opacity" Duration="0:0:0.2" Easing="SineEaseOut"/>
 				</Transitions>
 			</Setter>
 		</Style>
-		<Style Selector="TextBox.sessionInput:pointerover /template/ Border#PART_BorderElement">
-			<Setter Property="Background" Value="#1A1A1A"/>
-			<Setter Property="BorderBrush" Value="#444444"/>
+		<Style Selector="Expander:expanded /template/ Border#PART_ContentBorder">
+			<Setter Property="MaxHeight" Value="400"/>
+			<Setter Property="Opacity" Value="1"/>
+			<Setter Property="BorderThickness" Value="0,1,0,0"/>
+			<Setter Property="CornerRadius" Value="0,0,5,5"/>
+			<Setter Property="IsHitTestVisible" Value="True"/>
 		</Style>
-		<Style Selector="TextBox.sessionInput:focus /template/ Border#PART_BorderElement">
-			<Setter Property="Background" Value="#161616"/>
-			<Setter Property="BorderBrush" Value="#5A0010"/>
+
+		<!-- Єдине підсвічування всієї картки контейнера при ховері -->
+		<Style Selector="Expander:pointerover">
+			<Setter Property="Background" Value="#12251D"/>
+			<Setter Property="BorderBrush" Value="#255943"/>
 		</Style>
-		<Style Selector="TextBox.sessionInput:focus:pointerover /template/ Border#PART_BorderElement">
-			<Setter Property="Background" Value="#181818"/>
-			<Setter Property="BorderBrush" Value="#6A0010"/>
+
+		<!-- Поворот стрілочки при розгортанні -->
+		<Style Selector="Expander:expanded /template/ ToggleButton#PART_headerButton PathIcon">
+			<Setter Property="RenderTransform" Value="rotate(180deg)"/>
 		</Style>
 
 		<!-- АНІМАЦІЯ ВИСУВНОЇ ШТОРКИ ПЕРСОНАЖА -->
@@ -271,7 +598,7 @@
 			<Setter Property="RenderTransform" Value="rotate(180deg)"/>
 		</Style>
 
-		<!-- ПЛАВНИЙ ТА ВЕЛИЧНИЙ РУХ БІЧНОГО МЕНЮ (ВІДКРИТТЯ І ЗАКРИТТЯ) -->
+		<!-- ПЛАВНИЙ РУХ БІЧНОГО МЕНЮ (SPLITVIEW) -->
 		<Style Selector="SplitView /template/ Panel#PART_PaneRoot">
 			<Setter Property="Transitions">
 				<Transitions>
@@ -293,7 +620,6 @@
 				</Transitions>
 			</Setter>
 		</Style>
-
 		<Style Selector="SplitView /template/ ContentPresenter#PART_ContentRoot">
 			<Setter Property="Transitions">
 				<Transitions>
@@ -316,7 +642,7 @@
 			</Setter>
 		</Style>
 
-		<!-- М'ЯКИЙ ПРОЯВ ТА ЗГАСАННЯ ВМІСТУ БІЧНОГО МЕНЮ -->
+		<!-- М'ЯКИЙ ПРОЯВ ВМІСТУ БІЧНОГО МЕНЮ -->
 		<Style Selector="Border#MenuPaneContainer">
 			<Setter Property="Opacity" Value="0"/>
 			<Setter Property="Transitions">
@@ -330,26 +656,6 @@
 		</Style>
 		<Style Selector="SplitView[IsPaneOpen=False] Border#MenuPaneContainer">
 			<Setter Property="Opacity" Value="0"/>
-		</Style>
-
-		<!-- КОНТЕКСТНЕ МЕНЮ (ПКМ) -->
-		<Style Selector="MenuItem">
-			<Setter Property="CornerRadius" Value="0"/>
-		</Style>
-		<Style Selector="MenuItem /template/ Border#PART_LayoutRoot">
-			<Setter Property="Padding" Value="10,5"/>
-			<Setter Property="CornerRadius" Value="6"/>
-		</Style>
-		<Style Selector="MenuItem:pointerover /template/ Border#PART_LayoutRoot">
-			<Setter Property="Background" Value="#111111"/>
-		</Style>
-
-		<!-- СТИЛЬ TOOLTIP -->
-		<Style Selector="ToolTip">
-			<Setter Property="Background" Value="#111111"/>
-			<Setter Property="BorderBrush" Value="#2A2A2A"/>
-			<Setter Property="BorderThickness" Value="1"/>
-			<Setter Property="Foreground" Value="#9CA3AF"/>
 		</Style>
 
 		<!-- КНОПКА МЕНЮ -->
@@ -375,72 +681,324 @@
 			<Setter Property="Background" Value="#242424"/>
 			<Setter Property="BorderBrush" Value="#5A0010"/>
 		</Style>
+
+		<!-- 3. ЄДИНИЙ СТИЛЬ ТА ПОЗИЦІОНУВАННЯ TOOLTIP (ВИНЕСЕННЯ ЗА МЕЖІ КНОПКИ, БЕЗ ЗРИВУ ХОВЕРУ) -->
+		<Style Selector="Button">
+			<Setter Property="ToolTip.Placement" Value="Top"/>
+			<Setter Property="ToolTip.VerticalOffset" Value="-8"/>
+			<Setter Property="ToolTip.ShowDelay" Value="350"/>
+		</Style>
+		<Style Selector="Border">
+			<Setter Property="ToolTip.Placement" Value="Top"/>
+			<Setter Property="ToolTip.VerticalOffset" Value="-8"/>
+			<Setter Property="ToolTip.ShowDelay" Value="350"/>
+		</Style>
+
+		<Style Selector="ToolTip">
+			<Setter Property="Background" Value="#161616"/>
+			<Setter Property="BorderBrush" Value="#2E2E2E"/>
+			<Setter Property="BorderThickness" Value="1"/>
+			<Setter Property="CornerRadius" Value="6"/>
+			<Setter Property="Padding" Value="8,5"/>
+			<Setter Property="Foreground" Value="#D1D5DB"/>
+			<Setter Property="FontSize" Value="11"/>
+			<Setter Property="IsHitTestVisible" Value="False"/>
+		</Style>
+		<Style Selector="ToolTip /template/ Border#PART_LayoutRoot">
+			<Setter Property="CornerRadius" Value="6"/>
+			<Setter Property="IsHitTestVisible" Value="False"/>
+		</Style>
+
+		<!-- 1 & 2. ПОЛЕ ВВОДУ ДІАЛОГУ ТВОРЦЯ ДОЛІ (ЄДИНА РАМКА БЕЗ ДВОЙНИХ БОРДЕРІВ) -->
+		<Style Selector="TextBox.wizardInputBox">
+			<Setter Property="Background" Value="#161616"/>
+			<Setter Property="BorderBrush" Value="#333333"/>
+			<Setter Property="BorderThickness" Value="1"/>
+			<Setter Property="CornerRadius" Value="10"/>
+			<Setter Property="Padding" Value="14,12"/>
+			<Setter Property="Foreground" Value="#E5E7EB"/>
+			<Setter Property="FontSize" Value="13"/>
+			<Setter Property="VerticalAlignment" Value="Stretch"/>
+			<Setter Property="Transitions">
+				<Transitions>
+					<BrushTransition Property="BorderBrush" Duration="0:0:0.2"/>
+				</Transitions>
+			</Setter>
+		</Style>
+		<Style Selector="TextBox.wizardInputBox /template/ Border#PART_BorderElement">
+			<Setter Property="Transitions">
+				<Transitions>
+					<BrushTransition Property="BorderBrush" Duration="0:0:0.2"/>
+					<BrushTransition Property="Background" Duration="0:0:0.18"/>
+				</Transitions>
+			</Setter>
+		</Style>
+		<Style Selector="TextBox.wizardInputBox:pointerover /template/ Border#PART_BorderElement">
+			<Setter Property="BorderBrush" Value="#444444"/>
+			<Setter Property="Background" Value="#181818"/>
+		</Style>
+		<Style Selector="TextBox.wizardInputBox:focus /template/ Border#PART_BorderElement">
+			<Setter Property="BorderBrush" Value="#5A0010"/>
+			<Setter Property="Background" Value="#161616"/>
+		</Style>
+
+		<!-- СТИЛІ ПОЛІВ ВВЕДЕННЯ У МОДАЛЬНИХ ВІКНАХ ТА ПРАВІЙ ПАНЕЛІ -->
+		<Style Selector="TextBox.modalInput">
+			<Setter Property="Background" Value="#121212"/>
+			<Setter Property="BorderBrush" Value="#2E2E2E"/>
+			<Setter Property="Foreground" Value="#E5E7EB"/>
+			<Setter Property="CornerRadius" Value="6"/>
+			<Setter Property="Padding" Value="10,8"/>
+			<Setter Property="FontSize" Value="13"/>
+			<Setter Property="Transitions">
+				<Transitions>
+					<BrushTransition Property="BorderBrush" Duration="0:0:0.2"/>
+				</Transitions>
+			</Setter>
+		</Style>
+		<Style Selector="TextBox.modalInput:pointerover /template/ Border#PART_BorderElement">
+			<Setter Property="BorderBrush" Value="#444444"/>
+			<Setter Property="Background" Value="#141414"/>
+		</Style>
+		<Style Selector="TextBox.modalInput:focus /template/ Border#PART_BorderElement">
+			<Setter Property="BorderBrush" Value="#5A0010"/>
+			<Setter Property="Background" Value="#161616"/>
+		</Style>
 	</Window.Styles>
 
 	<Grid>
-		<!-- Основний макет зі SplitView -->
+		<!-- ОСНОВНИЙ МАКЕТ ЗІ SPLITVIEW -->
 		<SplitView IsPaneOpen="{Binding IsMenuOpen, Mode=TwoWay}"
 		           DisplayMode="Inline"
-		           OpenPaneLength="250"
+		           OpenPaneLength="290"
 		           PaneBackground="#111111"
 		           Background="#121212">
 
-			<!-- БІЧНЕ СИСТЕМНЕ МЕНЮ (Сейви, Сесії, Вихід) -->
+			<!-- 1.3 БІЧНЕ МЕНЮ -->
 			<SplitView.Pane>
 				<Border x:Name="MenuPaneContainer" BorderBrush="#2A2A2A" BorderThickness="0,0,1,0" ClipToBounds="True">
-					<!-- Фіксована ширина 210 запобігає зминанню тексту під час анімації розсування -->
-					<StackPanel Width="210" Margin="20,60,20,20" Spacing="12" HorizontalAlignment="Left">
-						<TextBlock Text="СИСТЕМНЕ МЕНЮ" HorizontalAlignment="Center" Foreground="#9CA3AF" FontWeight="Bold" Margin="0,0,0,4" LetterSpacing="1"/>
+					<Grid RowDefinitions="Auto, Auto, *, Auto" Width="260" Margin="15,40,15,15">
 
-						<!-- БЛОК ВИБОРУ/ВВЕДЕННЯ ІГРОВОЇ СЕСІЇ -->
-						<Border Background="#181818" BorderBrush="#2A2A2A" BorderThickness="1" CornerRadius="8" Padding="12">
-							<StackPanel Spacing="8">
-								<TextBlock Text="ІГРОВА СЕСІЯ" Foreground="#9CA3AF" FontSize="11" FontWeight="Bold" LetterSpacing="0.5"/>
-								
-								<TextBox x:Name="SessionInputBox"
-								         Classes="sessionInput"
-								         Text="{Binding SessionIdInput, Mode=TwoWay}"
-								         PlaceholderText="default"
-								         FontSize="12"
-								         Height="32"
-								         Padding="8,4"/>
+						<!-- 5. НАПИС "МЕНЮ" ВГОРІ -->
+						<TextBlock Grid.Row="0" Text="МЕНЮ" HorizontalAlignment="Center" Foreground="#9CA3AF" FontWeight="Bold" FontSize="13" Margin="0,0,0,12" LetterSpacing="1.5"/>
 
-								<Button Classes="menuActionBtn"
-								        Command="{Binding SwitchSessionCommand}"
-								        Content="📂 Завантажити сесію"
-								        HorizontalAlignment="Stretch"
-								        HorizontalContentAlignment="Center"
-								        FontSize="12"
-								        Padding="8,6"
-								        Cursor="Hand"/>
+						<!-- ВЕРХНІЙ БЛОК ДІЙ: СТВОРЕННЯ НОВОГО ГЕРОЯ -->
+						<StackPanel Grid.Row="1" Spacing="10" Margin="0,0,0,14">
+							<Button Classes="primaryCreateBtn"
+							        Command="{Binding OpenCreateCharacterScreenCommand}"
+							        Content="Створити нового персонажа"
+							        HorizontalAlignment="Stretch"
+							        HorizontalContentAlignment="Center"
+							        Cursor="Hand"/>
+							<Separator Background="#222222" Height="1" Margin="0,2"/>
+						</StackPanel>
 
-								<!-- Відображення поточної активної сесії -->
-								<StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center" Margin="0,2,0,0">
-									<TextBlock Text="Активна:" Foreground="#6B7280" FontSize="11"/>
-									<TextBlock Text="{Binding SessionId}" Foreground="#34D399" FontSize="11" FontWeight="SemiBold"/>
+						<!-- ЦЕНТРАЛЬНИЙ БЛОК: 6. АКТИВНИЙ ГЕРОЙ ТА ЙОГО КАМПАНІЇ -->
+						<ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,6,0">
+							<StackPanel Spacing="16">
+
+								<!-- 6. СЕКЦІЯ: АКТИВНИЙ ГЕРОЙ (1 КАРТКА) -->
+								<StackPanel Spacing="8">
+									<TextBlock Text="АКТИВНИЙ ГЕРОЙ" Foreground="#9CA3AF" FontSize="11" FontWeight="Bold" LetterSpacing="0.8"/>
+
+									<!-- Картка 1 активного героя -->
+									<Border Background="#161616" BorderBrush="#262626" BorderThickness="1" CornerRadius="8" Padding="10,8">
+										<Grid ColumnDefinitions="Auto, *, Auto">
+											<!-- Векторний аватар героя -->
+											<Border Grid.Column="0" Width="36" Height="36" CornerRadius="18" Background="#222222" BorderBrush="#353535" BorderThickness="1" Margin="0,0,10,0">
+												<PathIcon Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"
+												          Foreground="#60A5FA" Width="16" Height="16"/>
+											</Border>
+
+											<!-- Дані героя -->
+											<StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+												<TextBlock Text="{Binding SelectedCharacter.Name, FallbackValue='Не обрано'}" FontWeight="Bold" Foreground="#F3F4F6" FontSize="13" TextTrimming="CharacterEllipsis"/>
+												<TextBlock Text="{Binding SelectedCharacter.Background, FallbackValue='Оберіть героя'}" Foreground="#9CA3AF" FontSize="10" TextTrimming="CharacterEllipsis"/>
+											</StackPanel>
+
+											<!-- Кнопки дій з героєм (Змінити через інлайн-шторку, Редагувати, Видалити) -->
+											<StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+												<!-- 3. Кнопка зміни героя (відкриває інлайн-шторку прямо під карткою, без сірих рамок ОС) -->
+												<Button Classes="iconActionBtn"
+												        Command="{Binding ToggleHeroSelectorCommand}"
+												        ToolTip.Tip="Змінити активного героя">
+													<PathIcon Data="M6.99 11L3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z" Width="13" Height="13"/>
+												</Button>
+
+												<!-- Редагувати заготовку -->
+												<Button Classes="iconActionBtn"
+												        Command="{Binding OpenEditCharacterModalCommand}"
+												        CommandParameter="{Binding SelectedCharacter}"
+												        ToolTip.Tip="Редагувати заготовку">
+													<PathIcon Data="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.9959.9959 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" Width="12" Height="12"/>
+												</Button>
+
+												<!-- Видалити героя -->
+												<Button Classes="iconActionBtn danger"
+												        Command="{Binding RequestDeleteCharacterCommand}"
+												        CommandParameter="{Binding SelectedCharacter}"
+												        ToolTip.Tip="Видалити героя">
+													<PathIcon Data="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" Width="12" Height="12"/>
+												</Button>
+											</StackPanel>
+										</Grid>
+									</Border>
+
+									<!-- 3. ІНЛАЙН-ШТОРКА СПИСКУ ГЕРОЇВ (ПЛАВНИЙ ВИЇЗД, ОДНАКОВА ШИРИНА, ЧИСТИЙ ТЕМНИЙ СТИЛЬ) -->
+									<Border Classes="heroSelectorDrawer" Classes.open="{Binding IsHeroSelectorOpen}">
+										<Border Background="#161616" BorderBrush="#262626" BorderThickness="1" CornerRadius="8" Padding="6" Margin="0,2,0,0">
+											<ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="180">
+												<StackPanel Spacing="2">
+													<TextBlock Text="ОБЕРІТЬ ГЕРОЯ" Foreground="#9CA3AF" FontSize="10" FontWeight="Bold" Margin="4,2,4,4"/>
+													<ItemsControl ItemsSource="{Binding Characters}">
+														<ItemsControl.ItemTemplate>
+															<DataTemplate>
+																<Button Classes="drawerMenuItem"
+																        Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).SelectCharacterWithoutChatCommand}"
+																        CommandParameter="{Binding}">
+																	<Grid ColumnDefinitions="Auto, *">
+																		<PathIcon Grid.Column="0" Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"
+																		          Foreground="#9CA3AF" Width="14" Height="14" Margin="0,0,8,0"/>
+																		<TextBlock Grid.Column="1" Text="{Binding Name}" Foreground="#E5E7EB" FontWeight="SemiBold" FontSize="12" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+																	</Grid>
+																</Button>
+															</DataTemplate>
+														</ItemsControl.ItemTemplate>
+													</ItemsControl>
+												</StackPanel>
+											</ScrollViewer>
+										</Border>
+									</Border>
 								</StackPanel>
+
+								<!-- СЕКЦІЯ: КАМПАНІЇ ОБРАНОГО ГЕРОЯ -->
+								<StackPanel Spacing="8">
+									<Grid ColumnDefinitions="*, Auto">
+										<TextBlock Grid.Column="0" Text="КАМПАНІЇ ГЕРОЯ" Foreground="#9CA3AF" FontSize="11" FontWeight="Bold" LetterSpacing="0.8" VerticalAlignment="Center"/>
+										<Button Grid.Column="1" Classes="actionSmallBtn"
+										        Command="{Binding OpenNewCampaignModalCommand}"
+										        Content="Нова кампанія" ToolTip.Tip="Створити нову кампанію за цього героя" Cursor="Hand"/>
+									</Grid>
+
+									<ItemsControl ItemsSource="{Binding Campaigns}">
+										<ItemsControl.ItemTemplate>
+											<DataTemplate>
+												<!-- 6, 7 & 8. Картка кампанії з суцільним наведенням та фірмовим червоним акцентом для закріплених (без емодзі) -->
+												<Border Margin="0,0,0,5" Classes="campaignCard" Classes.pinned="{Binding IsPinned}">
+													<Grid ColumnDefinitions="*, Auto">
+														<!-- Клікабельна зона назви кампанії для входу в чат -->
+														<Button Grid.Column="0" Classes="campaignBodyBtn"
+														        Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).SelectCampaignCommand}"
+														        CommandParameter="{Binding}">
+															<StackPanel VerticalAlignment="Center" Spacing="2">
+																<Grid ColumnDefinitions="Auto, *">
+																	<!-- 6. Векторний міні-пін для закріплених кампаній замість дешевого емодзі -->
+																	<PathIcon Grid.Column="0"
+																	          Data="M16 9V4h1c.55 0 1-.45 1-1s-.45-1-1-1H7c-.55 0-1 .45-1 1s.45 1 1 1h1v5c0 1.66-1.34 3-3 3v2h5.97v7l1 1 1-1v-7H19v-2c-1.66 0-3-1.34-3-3z"
+																	          Width="10" Height="10" Foreground="#EF4444" Margin="0,0,6,0"
+																	          IsVisible="{Binding IsPinned}"/>
+																	<TextBlock Grid.Column="1" Text="{Binding Title}" FontWeight="SemiBold" Foreground="#E5E7EB" FontSize="12" TextTrimming="CharacterEllipsis"/>
+																</Grid>
+																<TextBlock Text="{Binding CurrentLocation}" Foreground="#6B7280" FontSize="10" TextTrimming="CharacterEllipsis"/>
+															</StackPanel>
+														</Button>
+
+														<!-- Дії з кампанією (Закріпити / Видалити) -->
+														<StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center" Margin="4,0,8,0">
+															<!-- 8. Векторна іконка закріплення -->
+															<Button Classes="iconActionBtn"
+															        Classes.pinned="{Binding IsPinned}"
+															        Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).TogglePinCampaignCommand}"
+															        CommandParameter="{Binding}"
+															        ToolTip.Tip="Закріпити / відкріпити кампанію">
+																<PathIcon Data="M16 9V4h1c.55 0 1-.45 1-1s-.45-1-1-1H7c-.55 0-1 .45-1 1s.45 1 1 1h1v5c0 1.66-1.34 3-3 3v2h5.97v7l1 1 1-1v-7H19v-2c-1.66 0-3-1.34-3-3z" Width="12" Height="12"/>
+															</Button>
+															<!-- Векторна іконка видалення -->
+															<Button Classes="iconActionBtn danger"
+															        Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).RequestDeleteCampaignCommand}"
+															        CommandParameter="{Binding}"
+															        ToolTip.Tip="Видалити кампанію">
+																<PathIcon Data="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" Width="12" Height="12"/>
+															</Button>
+														</StackPanel>
+													</Grid>
+												</Border>
+											</DataTemplate>
+										</ItemsControl.ItemTemplate>
+									</ItemsControl>
+
+									<TextBlock Text="Кампанії відсутні" Foreground="#555555" FontSize="11" FontStyle="Italic"
+									           IsVisible="{Binding !Campaigns.Count}"/>
+								</StackPanel>
+
 							</StackPanel>
-						</Border>
+						</ScrollViewer>
 
-						<Button Classes="menuItem" Command="{Binding RefreshSessionCommand}" Content="🔄 Оновити стан" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Cursor="Hand"/>
-						<Button Classes="menuItem" Command="{Binding ToggleCharacterSheetCommand}" Content="📜 Лист персонажа" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Cursor="Hand"/>
+						<!-- 1, 2, 3 НИЖНІЙ БЛОК: КАРТКА АКАУНТА ТА ПЛАВНА ШТОРКА (РІВНО 260px, БЕЗ СТИКІВ З КРАЯМИ ТА БЛІКІВ) -->
+						<StackPanel Grid.Row="3" Spacing="4" Margin="0,10,0,0">
+							<!-- 1 & 2. Виїжджаюче інлайн-меню (точно по ширині картки, плавна анімація, темний стиль) -->
+							<Border Classes="accountDrawer" Classes.open="{Binding IsAccountMenuOpen}">
+								<Border Background="#161616" BorderBrush="#262626" BorderThickness="1" CornerRadius="8" Padding="6" Margin="0,0,0,4">
+									<StackPanel Spacing="2">
+										<Button Classes="drawerMenuItem" Command="{Binding OpenSettingsCommand}">
+											<Grid ColumnDefinitions="Auto, *">
+												<TextBlock Grid.Column="0" Text="⚙" Foreground="#9CA3AF" FontSize="13" Margin="0,0,8,0" VerticalAlignment="Center"/>
+												<TextBlock Grid.Column="1" Text="Налаштування" Foreground="#E5E7EB" FontSize="12" VerticalAlignment="Center"/>
+											</Grid>
+										</Button>
+										<Button Classes="drawerMenuItem" Command="{Binding LogoutCommand}">
+											<Grid ColumnDefinitions="Auto, *">
+												<TextBlock Grid.Column="0" Text="🚪" Foreground="#EF4444" FontSize="13" Margin="0,0,8,0" VerticalAlignment="Center"/>
+												<TextBlock Grid.Column="1" Text="Вийти з акаунту" Foreground="#EF4444" FontSize="12" VerticalAlignment="Center"/>
+											</Grid>
+										</Button>
+									</StackPanel>
+								</Border>
+							</Border>
 
-						<Separator Background="#2A2A2A" Height="1" Margin="0,4"/>
-						<Button Classes="menuExitBtn" Command="{Binding ExitGameCommand}" Content="🚪 Вихід з гри" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Cursor="Hand"/>
-					</StackPanel>
+							<!-- Картка акаунта -->
+							<Button Classes="accountCardBtn" Command="{Binding ToggleAccountMenuCommand}" Cursor="Hand">
+								<Grid ColumnDefinitions="Auto, *">
+									<!-- Аватар ліворуч -->
+									<Border Grid.Column="0" Width="38" Height="38" CornerRadius="19" Background="#222222" BorderBrush="#353535" BorderThickness="1" Margin="0,0,10,0">
+										<PathIcon Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"
+										          Foreground="#9CA3AF" Width="18" Height="18"/>
+									</Border>
+
+									<!-- Дані акаунта праворуч -->
+									<Grid Grid.Column="1" RowDefinitions="Auto, Auto" VerticalAlignment="Center">
+										<!-- Рядок 1: Ім'я та бейдж статусу -->
+										<Grid Grid.Row="0" ColumnDefinitions="*, Auto">
+											<TextBlock Grid.Column="0" Text="{Binding UserName}" Foreground="#F3F4F6" FontWeight="SemiBold" FontSize="13" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+											<Border Grid.Column="1" Background="#261214" BorderBrush="#4E171B" BorderThickness="1" CornerRadius="4" Padding="5,1" Margin="6,0,0,0" VerticalAlignment="Center">
+												<TextBlock Text="{Binding SubscriptionStatus}" Foreground="#F87171" FontSize="10" FontWeight="SemiBold"/>
+											</Border>
+										</Grid>
+
+										<!-- Рядок 2: Пошта на всю ширину з триммінгом -->
+										<TextBlock Grid.Row="1" Text="{Binding UserEmail}" Foreground="#6B7280" FontSize="11" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"/>
+									</Grid>
+								</Grid>
+							</Button>
+						</StackPanel>
+
+					</Grid>
 				</Border>
 			</SplitView.Pane>
 
-			<!-- ОСНОВНИЙ ІНТЕРФЕЙС -->
+			<!-- ОСНОВНИЙ ІНТЕРФЕЙС (ПРАВА ЧАСТИНА ВІД БІЧНОГО МЕНЮ) -->
 			<SplitView.Content>
-				<Grid RowDefinitions="Auto, *, Auto" Margin="24,40,24,24">
+				<Grid>
+					<!-- 1. ІГРОВИЙ ЕКРАН (АКТИВНА КАМПАНІЯ ТА ЧАТ ГРИ) -->
+					<Grid RowDefinitions="Auto, *, Auto" Margin="24,40,24,24"
+					      IsVisible="{Binding !IsCharacterCreationActive}">
 
 					<!-- ВЕРХНЯ ПАНЕЛЬ З ВИСУВНОЮ ШТОРКОЮ ПЕРСОНАЖА -->
 					<StackPanel Grid.Row="0" Margin="0,0,0,16" Spacing="8">
 						<!-- ГОЛОВНА ЛАКОНІЧНА СМУГА СТАНУ -->
 						<Grid ColumnDefinitions="Auto, *">
 							<ToggleButton Grid.Column="0" Classes="menuBtn" IsChecked="{Binding IsMenuOpen, Mode=TwoWay}" Content="☰" Foreground="#E5E7EB" FontSize="20" Width="44" Height="44" Margin="0,0,16,0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Padding="0" Cursor="Hand"/>
-							
+
 							<!-- Клікабельна плашка персонажа (відкриває/закриває детальну шторку) -->
 							<Button Grid.Column="1" Classes="characterCard" Command="{Binding ToggleCharacterSheetCommand}"
 							        HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Cursor="Hand">
@@ -466,34 +1024,30 @@
 							</Button>
 						</Grid>
 
-						<!-- ДЕТАЛЬНА ВИСУВНА ШТОРКА (TOP DRAWER: Анатомія, Травми, Worn, Containers) -->
-						<Border Classes="drawerSheet"
-						        Classes.open="{Binding IsCharacterSheetOpen}"
-						        ClipToBounds="True"
-						        Background="#161616" CornerRadius="10" Padding="16" BorderBrush="#333333">
+						<!-- ВИСУВНА ДЕТАЛЬНА ШТОРКА СТАНУ ПЕРСОНАЖА -->
+						<Border Classes="drawerSheet" Classes.open="{Binding IsCharacterSheetOpen}"
+						        Background="#181818" CornerRadius="10" BorderBrush="#2A2A2A" Margin="0,4,0,0" Padding="16">
 							<Grid ColumnDefinitions="*, *, *">
+
 								<!-- Колонка 1: Анатомія та Травми -->
 								<Border Grid.Column="0" Background="#1C1C1C" CornerRadius="8" Padding="12" Margin="0,0,8,0" BorderBrush="#2A2A2A" BorderThickness="1" MaxHeight="340">
 									<Grid RowDefinitions="Auto, *">
-										<StackPanel Grid.Row="0" Spacing="6" Margin="0,0,0,8">
-											<TextBlock Text="🩸 ТРАВМИ ТА АНАТОМІЯ" FontWeight="Bold" Foreground="#EF4444" FontSize="12" LetterSpacing="0.5"/>
-											<TextBlock Text="{Binding CharacterAppearance}" Foreground="#9CA3AF" FontSize="11" TextWrapping="Wrap" FontStyle="Italic"/>
-										</StackPanel>
+										<TextBlock Grid.Row="0" Text="🩸 АНАТОМІЯ ТА ТРАВМИ" FontWeight="Bold" Foreground="#EF4444" FontSize="12" LetterSpacing="0.5" Margin="0,0,0,8"/>
 										<ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,10,0">
 											<StackPanel Spacing="4">
 												<ItemsControl ItemsSource="{Binding Injuries}">
 													<ItemsControl.ItemTemplate>
 														<DataTemplate>
-															<Border Background="#261214" CornerRadius="6" Padding="8,6" Margin="0,0,0,6" BorderBrush="#5A151B" BorderThickness="1">
+															<Border Background="#2A1414" CornerRadius="6" Padding="8,5" Margin="0,0,0,6" BorderBrush="#4A1818" BorderThickness="1">
 																<StackPanel>
-																	<TextBlock Text="{Binding Location}" FontWeight="Bold" Foreground="#FCA5A5" FontSize="12"/>
-																	<TextBlock Text="{Binding Description}" Foreground="#E5E7EB" FontSize="11" TextWrapping="Wrap"/>
+																	<TextBlock Text="{Binding Location}" FontWeight="SemiBold" Foreground="#FCA5A5" FontSize="12"/>
+																	<TextBlock Text="{Binding Description}" Foreground="#F87171" FontSize="11" TextWrapping="Wrap" Margin="0,2,0,0"/>
 																</StackPanel>
 															</Border>
 														</DataTemplate>
 													</ItemsControl.ItemTemplate>
 												</ItemsControl>
-												<TextBlock Text="Немає активних травм" Foreground="#6B7280" FontSize="12" FontStyle="Italic"
+												<TextBlock Text="Травми відсутні" Foreground="#6B7280" FontSize="12" FontStyle="Italic"
 												           IsVisible="{Binding !Injuries.Count}"/>
 											</StackPanel>
 										</ScrollViewer>
@@ -525,7 +1079,7 @@
 									</Grid>
 								</Border>
 
-								<!-- Колонка 3: Контейнери та Інвентар -->
+								<!-- 1.2 Колонка 3: Контейнери та Інвентар (Згорнуті в інтерактивні Expander) -->
 								<Border Grid.Column="2" Background="#1C1C1C" CornerRadius="8" Padding="12" Margin="8,0,0,0" BorderBrush="#2A2A2A" BorderThickness="1" MaxHeight="340">
 									<Grid RowDefinitions="Auto, *">
 										<TextBlock Grid.Row="0" Text="🎒 КОНТЕЙНЕРИ ТА РЮКЗАК" FontWeight="Bold" Foreground="#34D399" FontSize="12" LetterSpacing="0.5" Margin="0,0,0,8"/>
@@ -534,21 +1088,30 @@
 												<ItemsControl ItemsSource="{Binding ContainersList}">
 													<ItemsControl.ItemTemplate>
 														<DataTemplate>
-															<Border Background="#0F241C" CornerRadius="6" Padding="8,6" Margin="0,0,0,6" BorderBrush="#144231" BorderThickness="1">
-																<StackPanel Spacing="3">
-																	<TextBlock Text="{Binding Name}" FontWeight="Bold" Foreground="#6EE7B7" FontSize="12"/>
-																	<ItemsControl ItemsSource="{Binding Items}">
-																		<ItemsControl.ItemTemplate>
-																			<DataTemplate>
-																				<StackPanel Margin="6,2,0,0" ToolTip.Tip="{Binding Desc}">
-																					<TextBlock Text="{Binding Name, StringFormat='• {0}'}" Foreground="#D1FAE5" FontSize="11" FontWeight="Medium"/>
-																					<TextBlock Text="{Binding Desc}" Foreground="#86EFAC" Opacity="0.75" FontSize="10" Margin="10,1,0,2" TextWrapping="Wrap"/>
+															<Expander IsExpanded="{Binding IsExpanded, Mode=TwoWay}"
+															          HorizontalAlignment="Stretch"
+															          Margin="0,0,0,6">
+																<Expander.Header>
+																	<Grid ColumnDefinitions="*, Auto" HorizontalAlignment="Stretch">
+																		<TextBlock Grid.Column="0" Text="{Binding Name}" FontWeight="SemiBold" Foreground="#6EE7B7" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+																		<Border Grid.Column="1" Background="#142B20" BorderBrush="#1C4231" BorderThickness="1" CornerRadius="4" Padding="6,1" VerticalAlignment="Center" Margin="6,0,0,0">
+																			<TextBlock Text="{Binding ItemsCountText}" Foreground="#A7F3D0" FontSize="10" FontWeight="SemiBold"/>
+																		</Border>
+																	</Grid>
+																</Expander.Header>
+																<ItemsControl ItemsSource="{Binding Items}">
+																	<ItemsControl.ItemTemplate>
+																		<DataTemplate>
+																			<Border Background="#0E1E17" BorderBrush="#183B2C" BorderThickness="1" CornerRadius="5" Padding="8,5" Margin="0,0,0,4" ToolTip.Tip="{Binding Desc}">
+																				<StackPanel>
+																					<TextBlock Text="{Binding Name, StringFormat='• {0}'}" Foreground="#D1FAE5" FontSize="11" FontWeight="SemiBold"/>
+																					<TextBlock Text="{Binding Desc}" Foreground="#6EE7B7" Opacity="0.75" FontSize="10" Margin="10,1,0,0" TextWrapping="Wrap"/>
 																				</StackPanel>
-																			</DataTemplate>
-																		</ItemsControl.ItemTemplate>
-																	</ItemsControl>
-																</StackPanel>
-															</Border>
+																			</Border>
+																		</DataTemplate>
+																	</ItemsControl.ItemTemplate>
+																</ItemsControl>
+															</Expander>
 														</DataTemplate>
 													</ItemsControl.ItemTemplate>
 												</ItemsControl>
@@ -624,7 +1187,164 @@
 						</StackPanel>
 					</Grid>
 				</Grid>
-			</SplitView.Content>
+
+				<!-- 2. ЕКРАН СТВОРЕННЯ ГЕРОЯ: ТВОРЕЦЬ ДОЛІ (ПОВНІСТЮ ЗАМІЩУЄ ПРАВУ ЧАСТИНУ ВІД БІЧНОГО МЕНЮ) -->
+				<Grid RowDefinitions="Auto, *" Margin="24,40,24,24" IsVisible="{Binding IsCharacterCreationActive}">
+					<!-- Верхня панель екрану створення -->
+					<Grid Grid.Row="0" ColumnDefinitions="*, Auto" Margin="0,0,0,16">
+						<StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="4">
+							<TextBlock Text="🧙‍♂️ ТВОРЕЦЬ ДОЛІ: СТВОРЕННЯ ПЕРСОНАЖА" Foreground="#F3F4F6" FontSize="16" FontWeight="Bold" LetterSpacing="0.5"/>
+							<TextBlock Text="Опишіть свого героя у вільній формі. Штучний інтелект допоможе викувати характер, походження та здібності." Foreground="#9CA3AF" FontSize="12"/>
+						</StackPanel>
+
+						<Button Grid.Column="1" Classes="actionSmallBtn"
+						        Command="{Binding CancelCharacterCreationCommand}"
+						        Content="✕ Скасувати" Cursor="Hand" VerticalAlignment="Center"/>
+					</Grid>
+
+					<!-- Центральна частина: Чат із Творцем Долі ліворуч + Панель попереднього перегляду праворуч -->
+					<Grid Grid.Row="1" ColumnDefinitions="*, 340">
+						<!-- Ліва колонка: Чат із Творцем Долі -->
+						<Grid Grid.Column="0" RowDefinitions="*, Auto" Margin="0,0,16,0">
+							<!-- Область повідомлень діалогу -->
+							<Border Grid.Row="0" Background="#111111" BorderBrush="#262626" BorderThickness="1" CornerRadius="10" Padding="18,14" Margin="0,0,0,12">
+								<ScrollViewer VerticalScrollBarVisibility="Auto">
+									<StackPanel>
+										<ItemsControl ItemsSource="{Binding WizardMessages}">
+											<ItemsControl.ItemTemplate>
+												<DataTemplate>
+													<StackPanel Margin="0,0,0,16" Spacing="4">
+														<TextBlock Text="{Binding Sender}" Foreground="{Binding SenderColor}" FontWeight="Bold" FontSize="13"/>
+														<TextBlock Text="{Binding Text}" Foreground="#E5E7EB" FontSize="14" TextWrapping="Wrap" LineHeight="22"/>
+													</StackPanel>
+												</DataTemplate>
+											</ItemsControl.ItemTemplate>
+										</ItemsControl>
+
+										<StackPanel IsVisible="{Binding IsWizardTyping}" Orientation="Horizontal" Margin="0,4,0,0">
+											<TextBlock Text="{Binding WizardStatusText}" FontStyle="Italic" Foreground="#C084FC" FontSize="13"/>
+										</StackPanel>
+									</StackPanel>
+								</ScrollViewer>
+							</Border>
+
+							<!-- Поле вводу репліки Творцю Долі -->
+							<Grid Grid.Row="1" ColumnDefinitions="*, Auto">
+								<TextBox Grid.Column="0" Classes="wizardInputBox"
+								         PlaceholderText="Відповідайте Творцю Долі (ім'я, клас, особливості, спорядження)..."
+								         Text="{Binding WizardInput, Mode=TwoWay}"
+								         AcceptsReturn="True" MaxHeight="80" Margin="0,0,10,0"/>
+								<Button Grid.Column="1" Classes="sendBtn" Command="{Binding SendWizardMessageCommand}" ToolTip.Tip="Відправити Творцю Долі" Cursor="Hand">
+									<PathIcon Data="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" Foreground="#F3F4F6" Width="14" Height="14"/>
+								</Button>
+							</Grid>
+						</Grid>
+
+						<!-- Права колонка: Картка попереднього перегляду героя та кнопка старту гри -->
+						<Border Grid.Column="1" Background="#161616" BorderBrush="#262626" BorderThickness="1" CornerRadius="10" Padding="16">
+							<Grid RowDefinitions="Auto, *, Auto">
+								<TextBlock Grid.Row="0" Text="ПОПЕРЕДНІЙ ПЕРЕГЛЯД" Foreground="#9CA3AF" FontSize="11" FontWeight="Bold" LetterSpacing="1" Margin="0,0,0,12"/>
+
+								<ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+									<StackPanel Spacing="14">
+										<StackPanel Spacing="4">
+											<TextBlock Text="Ім'я героя:" Foreground="#9CA3AF" FontSize="11"/>
+											<TextBox Classes="modalInput" Text="{Binding WizardCharName, Mode=TwoWay}" PlaceholderText="Буде виведено з діалогу..."/>
+										</StackPanel>
+
+										<StackPanel Spacing="4">
+											<TextBlock Text="Походження / Архетип:" Foreground="#9CA3AF" FontSize="11"/>
+											<TextBox Classes="modalInput" Text="{Binding WizardCharBackground, Mode=TwoWay}" PlaceholderText="Буде сформовано ШІ..." AcceptsReturn="True" Height="70"/>
+										</StackPanel>
+
+										<StackPanel Spacing="4">
+											<TextBlock Text="Зовнішність:" Foreground="#9CA3AF" FontSize="11"/>
+											<TextBox Classes="modalInput" Text="{Binding WizardCharAppearance, Mode=TwoWay}" PlaceholderText="Буде сформовано ШІ..." AcceptsReturn="True" Height="70"/>
+										</StackPanel>
+
+										<Border Background="#1A0D0E" BorderBrush="#4A1218" BorderThickness="1" CornerRadius="8" Padding="10">
+											<TextBlock Text="💡 Можна вести діалог із Творцем Долі у вільному стилі, або за бажанням підкоригувати параметри вручну." Foreground="#FCA5A5" FontSize="11" TextWrapping="Wrap"/>
+										</Border>
+									</StackPanel>
+								</ScrollViewer>
+
+								<Button Grid.Row="2" Classes="primaryCreateBtn"
+								        Command="{Binding FinalizeAndStartGameCommand}"
+								        Content="🚀 Затвердити та почати гру"
+								        HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+								        Margin="0,12,0,0" Cursor="Hand"/>
+							</Grid>
+						</Border>
+					</Grid>
+				</Grid>
+			</Grid>
+		</SplitView.Content>
 		</SplitView>
+
+		<!-- МОДАЛЬНЕ ВІКНО: СТВОРЕННЯ / РЕДАГУВАННЯ ГЕРОЯ -->
+		<Grid IsVisible="{Binding IsCharacterModalOpen}" Background="#B3000000">
+			<Border Width="420" Background="#161616" BorderBrush="#333333" BorderThickness="1" CornerRadius="12" Padding="24" HorizontalAlignment="Center" VerticalAlignment="Center">
+				<StackPanel Spacing="14">
+					<TextBlock Text="ЗАГОТОВКА ГЕРОЯ" Foreground="#9CA3AF" FontSize="11" FontWeight="Bold" LetterSpacing="1"/>
+
+					<StackPanel Spacing="4">
+						<TextBlock Text="Ім'я персонажа:" Foreground="#9CA3AF" FontSize="12"/>
+						<TextBox Classes="modalInput" Text="{Binding ModalCharacterName, Mode=TwoWay}" PlaceholderText="Наприклад: Айвен"/>
+					</StackPanel>
+
+					<StackPanel Spacing="4">
+						<TextBlock Text="Архетип / Біографія:" Foreground="#9CA3AF" FontSize="12"/>
+						<TextBox Classes="modalInput" Text="{Binding ModalCharacterBackground, Mode=TwoWay}" PlaceholderText="Наприклад: Найманець, маг вогню 3-го кола" Height="60" TextWrapping="Wrap" AcceptsReturn="True"/>
+					</StackPanel>
+
+					<StackPanel Spacing="4">
+						<TextBlock Text="Зовнішність:" Foreground="#9CA3AF" FontSize="12"/>
+						<TextBox Classes="modalInput" Text="{Binding ModalCharacterAppearance, Mode=TwoWay}" PlaceholderText="Наприклад: 22-річний юнак з рудим волоссям" Height="60" TextWrapping="Wrap" AcceptsReturn="True"/>
+					</StackPanel>
+
+					<Grid ColumnDefinitions="*, *" Margin="0,8,0,0">
+						<Button Grid.Column="0" Classes="actionSmallBtn" Command="{Binding CloseCharacterModalCommand}" Content="Скасувати" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="0,0,6,0" Cursor="Hand"/>
+						<Button Grid.Column="1" Classes="primaryCreateBtn" Command="{Binding SaveCharacterModalCommand}" Content="Зберегти" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="6,0,0,0" Cursor="Hand"/>
+					</Grid>
+				</StackPanel>
+			</Border>
+		</Grid>
+
+		<!-- 7. МОДАЛЬНЕ ВІКНО: СТВОРЕННЯ НОВОЇ КАМПАНІЇ -->
+		<Grid IsVisible="{Binding IsNewCampaignModalOpen}" Background="#B3000000">
+			<Border Width="380" Background="#161616" BorderBrush="#333333" BorderThickness="1" CornerRadius="12" Padding="24" HorizontalAlignment="Center" VerticalAlignment="Center">
+				<StackPanel Spacing="14">
+					<TextBlock Text="НОВА КАМПАНІЯ" Foreground="#9CA3AF" FontSize="11" FontWeight="Bold" LetterSpacing="1"/>
+					<TextBlock Text="Створення нового ігрового забігу" Foreground="#F3F4F6" FontSize="15" FontWeight="Bold"/>
+
+					<StackPanel Spacing="4">
+						<TextBlock Text="Назва пригоди:" Foreground="#9CA3AF" FontSize="12"/>
+						<TextBox Classes="modalInput" Text="{Binding NewCampaignTitle, Mode=TwoWay}" PlaceholderText="Наприклад: Дослідження занедбаної каплиці"/>
+					</StackPanel>
+
+					<Grid ColumnDefinitions="*, *" Margin="0,8,0,0">
+						<Button Grid.Column="0" Classes="actionSmallBtn" Command="{Binding CloseNewCampaignModalCommand}" Content="Скасувати" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="0,0,6,0" Cursor="Hand"/>
+						<!-- 7. Кнопка "Підтвердити" завжди доступна та чітка -->
+						<Button Grid.Column="1" Classes="primaryCreateBtn" Command="{Binding ConfirmCreateCampaignCommand}" Content="Підтвердити" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="6,0,0,0" Cursor="Hand"/>
+					</Grid>
+				</StackPanel>
+			</Border>
+		</Grid>
+
+		<!-- МОДАЛЬНЕ ВІКНО: ПІДТВЕРДЖЕННЯ ВИДАЛЕННЯ -->
+		<Grid IsVisible="{Binding IsConfirmModalOpen}" Background="#B3000000">
+			<Border Width="380" Background="#181212" BorderBrush="#4A1818" BorderThickness="1" CornerRadius="12" Padding="24" HorizontalAlignment="Center" VerticalAlignment="Center">
+				<StackPanel Spacing="14">
+					<TextBlock Text="{Binding ConfirmModalTitle}" Foreground="#EF4444" FontSize="15" FontWeight="Bold"/>
+					<TextBlock Text="{Binding ConfirmModalMessage}" Foreground="#E5E7EB" FontSize="13" TextWrapping="Wrap" LineHeight="20"/>
+
+					<Grid ColumnDefinitions="*, *" Margin="0,8,0,0">
+						<Button Grid.Column="0" Classes="actionSmallBtn" Command="{Binding CancelConfirmModalCommand}" Content="Скасувати" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="0,0,6,0" Cursor="Hand"/>
+						<Button Grid.Column="1" Classes="primaryCreateBtn" Background="#4A1414" BorderBrush="#EF4444" Command="{Binding ConfirmModalActionCommand}" Content="🗑 Видалити" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="6,0,0,0" Cursor="Hand"/>
+					</Grid>
+				</StackPanel>
+			</Border>
+		</Grid>
+
 	</Grid>
 </Window>
