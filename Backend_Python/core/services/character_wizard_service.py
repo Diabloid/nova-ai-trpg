@@ -1,7 +1,7 @@
 import os
 import sys
 import json
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional, Any, Tuple
 
 # Безпечне кодування консолі для Windows
 if sys.stdout and hasattr(sys.stdout, "reconfigure"):
@@ -30,8 +30,17 @@ class CharacterWizardService:
         self.provider_service = provider_service
         self.prompt_service = prompt_service
 
-    async def dialog_with_creator(self, message: str, history: List[Dict[str, str]]) -> str:
-        """Крок інтерактивного діалогу з Творцем Долі."""
+    async def dialog_with_creator(
+        self,
+        message: str,
+        history: List[Dict[str, str]],
+        include_draft: bool = False
+    ) -> Tuple[str, Optional[PlayerState]]:
+        """
+        Крок інтерактивного діалогу з Творцем Долі (v1.3.0).
+        Якщо include_draft == False: генерує лише швидку репліку Творця Долі.
+        Якщо include_draft == True: додатково формує актуальну чернетку draft_state для Live Preview.
+        """
         system_creator = self.prompt_service.get_prompt("character_creator_system.txt")
         world_lore = self.prompt_service.cached_lore
 
@@ -53,7 +62,22 @@ class CharacterWizardService:
             temperature=0.7,
             max_tokens=600
         )
-        return raw_reply.strip()
+        reply = raw_reply.strip()
+
+        draft_state: Optional[PlayerState] = None
+        if include_draft:
+            try:
+                # Формуємо оновлену історію разом із щойно отриманою реплікою Творця Долі
+                updated_history = list(history) + [
+                    {"role": "user", "content": message},
+                    {"role": "assistant", "content": reply}
+                ]
+                draft_state = await self.finalize_character_concept(history=updated_history)
+            except Exception as e:
+                print(f"⚠️ [CharacterWizardService] Не вдалося згенерувати draft_state для Live Preview: {e}")
+                draft_state = None
+
+        return reply, draft_state
 
     async def finalize_character_concept(
         self,

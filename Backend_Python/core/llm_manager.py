@@ -1,7 +1,7 @@
 import os
 import sys
 import json
-from typing import Optional, List, Dict, Any, AsyncGenerator
+from typing import Optional, List, Dict, Any, AsyncGenerator, Tuple
 from dotenv import load_dotenv
 
 # Безпечне кодування консолі для Windows
@@ -166,9 +166,18 @@ class LLMController:
     # 🧙‍♂️ Character Wizard (Створення персонажа з AI) — Делегування в CharacterWizardService
     # =========================================================================
 
-    async def dialog_with_creator(self, message: str, history: List[Dict[str, str]]) -> str:
-        """Крок інтерактивного діалогу зі створення героя через Творця Долі."""
-        return await self.character_wizard_service.dialog_with_creator(message, history)
+    async def dialog_with_creator(
+        self,
+        message: str,
+        history: List[Dict[str, str]],
+        include_draft: bool = False
+    ) -> Tuple[str, Optional[PlayerState]]:
+        """Крок інтерактивного діалогу зі створення героя через Творця Долі (v1.3.0)."""
+        return await self.character_wizard_service.dialog_with_creator(
+            message=message,
+            history=history,
+            include_draft=include_draft
+        )
 
     async def finalize_character_concept(
         self,

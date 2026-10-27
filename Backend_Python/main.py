@@ -128,14 +128,15 @@ async def delete_character(char_id: str = Path(..., description="ID персон
     "/api/v1/character/dialog",
     response_model=CharacterDialogResponse,
     tags=["Character Wizard"],
-    summary="Інтерактивний крок діалогу з Творцем Долі"
+    summary="Інтерактивний крок діалогу з Творцем Долі (з Live Preview)"
 )
 async def character_wizard_dialog(request: CharacterDialogRequest):
-    reply = await llm_controller.dialog_with_creator(
+    reply, draft_state = await llm_controller.dialog_with_creator(
         message=request.message,
-        history=request.history
+        history=request.history,
+        include_draft=request.include_draft
     )
-    return CharacterDialogResponse(reply=reply)
+    return CharacterDialogResponse(reply=reply, draft_state=draft_state)
 
 
 @app.post(

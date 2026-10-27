@@ -1,6 +1,6 @@
 # 🏛️ NOVA AI TRPG — Завдання розробки Backend (Фаза 2.6: Еластичний Драфт Live Preview)
 
-**Статус:** У роботі (Затверджено Ванею)  
+**Статус:** Завершено (Фаза 2.6 виконана, очікує дозволу на коміт)  
 **Версія API:** 1.3.0  
 **Директорія:** `Backend_Python/`
 
@@ -9,10 +9,10 @@
 ## 1. Завдання в роботі (Фаза 2.6)
 
 ### 🧙‍♂️ 1.1. Підтримка еластичного драфту в Character Wizard
-- [ ] Оновити моделі у `schemas/game_dto.py`:
+- [x] Оновити моделі у `schemas/game_dto.py`:
   - `CharacterDialogRequest`: додати поле `include_draft: bool = False`.
   - `CharacterDialogResponse`: додати поле `draft_state: Optional[PlayerState] = None`.
-- [ ] Оновити `core/services/character_wizard_service.py` та роут `POST /api/v1/character/dialog`:
+- [x] Оновити `core/services/character_wizard_service.py` та роут `POST /api/v1/character/dialog`:
   - Якщо `include_draft == False`: швидко генерувати лише художню відповідь Творця Долі за 1–2 с;
   - Якщо `include_draft == True`: додатково витягувати актуальний проміжний `draft_state: PlayerState` (через фіналізатор) і повертати його разом із `reply`.
 
