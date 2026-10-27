@@ -2,6 +2,10 @@ from typing import List, Dict, Any, Optional, Union
 from pydantic import BaseModel, Field, ConfigDict
 
 
+# =========================================================================
+# 1. Токени намірів та кроки дії
+# =========================================================================
+
 class IntentItem(BaseModel):
     """Елемент наміру гравця, виділений синтаксичним парсером."""
     model_config = ConfigDict(extra="allow")
@@ -34,19 +38,23 @@ class ActionRequest(BaseModel):
     )
     session_id: Optional[str] = Field(
         default="default",
-        description="Ідентифікатор ігрової сесії/слота збереження. За замовчуванням: 'default'",
-        examples=["default"]
+        description="Ідентифікатор ігрової кампанії (campaign_id / session_id). За замовчуванням: 'default'",
+        examples=["ayven_chapel_run_1"]
     )
 
+
+# =========================================================================
+# 2. Модель стану гравця (PlayerState)
+# =========================================================================
 
 class PlayerMeta(BaseModel):
     """Метадані персонажа та поточна сцена."""
     model_config = ConfigDict(extra="allow")
 
     name: str = Field(default="Мандрівник", description="Ім'я персонажа")
-    background: Optional[str] = Field(default="Шукач пригод", description="Передісторія / архетип")
+    background: Optional[str] = Field(default="Шукач пригод", description="Передісторія / фах")
     location: Optional[str] = Field(default="Невідомий ліс", description="Поточна локація персонажа")
-    appearance: Optional[str] = Field(default=None, description="Опис зовної зовнішності")
+    appearance: Optional[str] = Field(default=None, description="Опис зовнішності персонажа")
 
 
 class InjuryItem(BaseModel):
@@ -80,8 +88,16 @@ class ItemObject(BaseModel):
     desc: Optional[str] = Field(default="", description="Художній або технічний опис предмета")
 
 
+class AbilityItem(BaseModel):
+    """Опис вміння чи навички персонажа."""
+    model_config = ConfigDict(extra="allow")
+
+    name: str = Field(..., description="Назва вміння")
+    desc: Optional[str] = Field(default="", description="Опис вміння/закляття")
+
+
 class StorageAndEquipment(BaseModel):
-    """Екіпірування та ієрархічні контейнери з багатими об'єктами предметів."""
+    """Екіпірування та ієрархічні контейнери."""
     model_config = ConfigDict(extra="allow")
 
     worn: List[Union[ItemObject, Dict[str, Any], str]] = Field(
@@ -94,14 +110,6 @@ class StorageAndEquipment(BaseModel):
     )
 
 
-class AbilityObject(BaseModel):
-    """Багатий об'єкт здібності/навички персонажа."""
-    model_config = ConfigDict(extra="allow")
-
-    name: str = Field(..., description="Назва здібності")
-    desc: Optional[str] = Field(default="", description="Опис або ефект здібності")
-
-
 class PlayerState(BaseModel):
     """Повний стан персонажа (PlayerState DTO)."""
     model_config = ConfigDict(extra="allow")
@@ -109,9 +117,9 @@ class PlayerState(BaseModel):
     meta: PlayerMeta = Field(default_factory=PlayerMeta)
     anatomy_and_health: AnatomyAndHealth = Field(default_factory=AnatomyAndHealth)
     storage_and_equipment: StorageAndEquipment = Field(default_factory=StorageAndEquipment)
-    abilities: List[Union[AbilityObject, Dict[str, Any], str]] = Field(
+    abilities: List[Union[AbilityItem, Dict[str, Any], str]] = Field(
         default_factory=list,
-        description="Активні та пасивні навички/здібності персонажа (об'єкти {name, desc} або рядки)"
+        description="Активні та пасивні навички/здібності персонажа"
     )
 
 
@@ -143,8 +151,102 @@ class ActionResponse(BaseModel):
     )
 
 
+# =========================================================================
+# 3. Персонажі (Character Blueprints, v1.2.0)
+# =========================================================================
+
+class CharacterSummary(BaseModel):
+    """Коротка інформація про заготовку персонажа."""
+    model_config = ConfigDict(extra="allow")
+
+    char_id: str = Field(..., description="Унікальний ідентифікатор заготовки героя")
+    name: str = Field(..., description="Ім'я персонажа")
+    background: str = Field(default="", description="Передісторія / фах")
+    appearance: Optional[str] = Field(default="", description="Опис зовнішності")
+    created_at: str = Field(..., description="ISO 8601 дата створення заготовки")
+
+
+# =========================================================================
+# 4. Кампанії (Campaigns, v1.2.0)
+# =========================================================================
+
+class CampaignSummary(BaseModel):
+    """Інформація про ігрову кампанію/чат."""
+    model_config = ConfigDict(extra="allow")
+
+    campaign_id: str = Field(..., description="Унікальний ідентифікатор кампанії (session_id)")
+    char_id: str = Field(..., description="ID прив'язаного персонажа-шаблону")
+    title: str = Field(..., description="Назва кампанії")
+    current_location: str = Field(default="Невідомий ліс", description="Поточна локація персонажа в кампанії")
+    is_pinned: bool = Field(default=False, description="Чи закріплена кампанія вгорі списку")
+    created_at: str = Field(..., description="ISO 8601 дата створення кампанії")
+    last_played: str = Field(..., description="ISO 8601 дата останнього ходу")
+
+
+class CampaignCreateRequest(BaseModel):
+    """Запит на створення нової кампанії для персонажа."""
+    model_config = ConfigDict(extra="allow")
+
+    title: Optional[str] = Field(default="Нова пригода", description="Назва кампанії")
+
+
+class CampaignPinRequest(BaseModel):
+    """Запит на зміну статусу закріплення кампанії."""
+    model_config = ConfigDict(extra="allow")
+
+    is_pinned: bool = Field(..., description="true для закріплення, false для відкріплення")
+
+
+# =========================================================================
+# 5. Історія повідомлень (History Messages, v1.2.0)
+# =========================================================================
+
+class HistoryMessage(BaseModel):
+    """Повідомлення з історії кампанії для завантаження в чат клієнта."""
+    model_config = ConfigDict(extra="allow")
+
+    role: str = Field(..., description="'player' (гравець), 'narrator' (оповідач), 'system' (система)")
+    text: str = Field(..., description="Зміст повідомлення")
+    timestamp: str = Field(..., description="ISO 8601 мітка часу повідомлення")
+
+
+# =========================================================================
+# 6. Character Wizard (Створення героя з AI, v1.2.0)
+# =========================================================================
+
+class CharacterDialogRequest(BaseModel):
+    """Запит діалогу зі створення героя через Творця Долі."""
+    model_config = ConfigDict(extra="allow")
+
+    message: str = Field(..., description="Репліка гравця до Творця Долі")
+    history: List[Dict[str, str]] = Field(
+        default_factory=list,
+        description="Історія діалогу створення [{'role': 'user'|'assistant', 'content': '...'}]"
+    )
+
+
+class CharacterDialogResponse(BaseModel):
+    """Відповідь Творця Долі."""
+    model_config = ConfigDict(extra="allow")
+
+    reply: str = Field(..., description="Атмосферна відповідь Творця Долі")
+
+
+class CharacterFinalizeRequest(BaseModel):
+    """Запит на фінальну генерацію заготовки персонажа на основі діалогу."""
+    model_config = ConfigDict(extra="allow")
+
+    dialog_summary: Optional[str] = Field(default=None, description="Підсумок діалогу створення")
+    history: Optional[List[Dict[str, str]]] = Field(
+        default_factory=list,
+        description="Повна історія діалогу створення, якщо summary немає"
+    )
+    char_id: Optional[str] = Field(default=None, description="Бажаний унікальний ID заготовки героя")
+
+
+# Для сумісності зі старими викликами
 class SessionInfo(BaseModel):
-    """Інформація про збережену ігрову сесію."""
+    """Інформація про збережену ігрову сесію (аліас до CampaignSummary)."""
     model_config = ConfigDict(extra="allow")
 
     session_id: str

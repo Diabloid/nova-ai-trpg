@@ -1,0 +1,17 @@
+{
+    "meta": {
+        "name": "",
+        "background": "",
+        "location": "Невідомий ліс",
+        "appearance": ""
+    },
+    "anatomy_and_health": {
+        "overall_state": "Повний сил",
+        "injuries": []
+    },
+    "storage_and_equipment": {
+        "worn": [],
+        "containers": {}
+    },
+    "abilities": []
+}

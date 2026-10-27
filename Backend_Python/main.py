@@ -2,8 +2,9 @@ import os
 import sys
 import json
 import logging
-from typing import Dict, Any, Union, List, AsyncGenerator
-from fastapi import FastAPI, status, Query
+from datetime import datetime, timezone
+from typing import Dict, Any, Union, List, AsyncGenerator, Optional
+from fastapi import FastAPI, status, Query, HTTPException, Path
 from fastapi.responses import JSONResponse, StreamingResponse
 import uvicorn
 
@@ -28,6 +29,14 @@ from schemas.game_dto import (
     ActionRequest,
     ActionResponse,
     PlayerState,
+    CharacterSummary,
+    CampaignSummary,
+    CampaignCreateRequest,
+    CampaignPinRequest,
+    HistoryMessage,
+    CharacterDialogRequest,
+    CharacterDialogResponse,
+    CharacterFinalizeRequest,
     SessionInfo
 )
 from core.llm_manager import LLMController
@@ -38,11 +47,13 @@ logger = logging.getLogger("nova-backend")
 
 app = FastAPI(
     title="NOVA AI TRPG Engine API",
-    version="1.1.0",
+    version="1.2.0",
     description=(
-        "Офіційний бекенд дипломного проєкту NOVA AI TRPG.\n"
-        "Реалізує: суворо послідовний пайплайн (Гравець -> Оповідач -> Аналізатор -> Стан),\n"
-        "транзакційний відкат історії (Unit of Work), мультисесійність та токен-стрімінг (SSE)."
+        "Офіційний бекенд дипломного проєкту NOVA AI TRPG (API v1.2.0).\n\n"
+        "Архітектура:\n"
+        "- Персонажі (Blueprints): створення, редагування, Character Wizard з AI Творцем Долі.\n"
+        "- Кампанії (Campaigns / Чати): мультисесійність за кожним героєм, авто-генерація вступного наративу (Intro Post), закріплення (Pin).\n"
+        "- Ігровий цикл: суворо послідовний пайплайн (Гравець -> Оповідач -> Аналізатор -> Стан) з транзакційним відкатом (Unit of Work) та SSE-стрімінгом."
     )
 )
 
@@ -50,14 +61,186 @@ llm_controller = LLMController()
 
 
 # =========================================================================
-# 1. Основний ендпоінт дії гравця (Non-streaming, POST /api/v1/action)
+# 👤 1. Управління заготовками персонажів (Character Blueprints)
+# =========================================================================
+
+@app.get(
+    "/api/v1/characters",
+    response_model=List[CharacterSummary],
+    tags=["Персонажі"],
+    summary="Отримати список усіх заготовок героїв"
+)
+async def list_characters():
+    return llm_controller.character_manager.list_characters()
+
+
+@app.get(
+    "/api/v1/characters/{char_id}",
+    response_model=PlayerState,
+    tags=["Персонажі"],
+    summary="Отримати повний стан заготовки персонажа"
+)
+async def get_character(char_id: str = Path(..., description="ID персонажа")):
+    return llm_controller.character_manager.get_character(char_id)
+
+
+@app.post(
+    "/api/v1/characters",
+    response_model=CharacterSummary,
+    status_code=status.HTTP_201_CREATED,
+    tags=["Персонажі"],
+    summary="Створити нову заготовку персонажа вручну"
+)
+async def create_character(state: PlayerState, char_id: Optional[str] = Query(default=None)):
+    target_id = char_id or state.meta.name.strip().lower().replace(" ", "_")
+    return llm_controller.character_manager.save_character(target_id, state)
+
+
+@app.put(
+    "/api/v1/characters/{char_id}",
+    response_model=PlayerState,
+    tags=["Персонажі"],
+    summary="Редагувати заготовку героя"
+)
+async def update_character(
+    char_id: str = Path(..., description="ID персонажа"),
+    state: PlayerState = ...
+):
+    llm_controller.character_manager.save_character(char_id, state)
+    return state
+
+
+@app.delete(
+    "/api/v1/characters/{char_id}",
+    tags=["Персонажі"],
+    summary="Видалити заготовку персонажа"
+)
+async def delete_character(char_id: str = Path(..., description="ID персонажа")):
+    llm_controller.character_manager.delete_character(char_id)
+    return {"status": "deleted", "char_id": char_id}
+
+
+# =========================================================================
+# 🧙‍♂️ 2. Створення персонажа з AI (Character Wizard)
+# =========================================================================
+
+@app.post(
+    "/api/v1/character/dialog",
+    response_model=CharacterDialogResponse,
+    tags=["Character Wizard"],
+    summary="Інтерактивний крок діалогу з Творцем Долі"
+)
+async def character_wizard_dialog(request: CharacterDialogRequest):
+    reply = await llm_controller.dialog_with_creator(
+        message=request.message,
+        history=request.history
+    )
+    return CharacterDialogResponse(reply=reply)
+
+
+@app.post(
+    "/api/v1/character/finalize",
+    response_model=PlayerState,
+    tags=["Character Wizard"],
+    summary="Згенерувати та зберегти фінальний лист героя за результатами діалогу"
+)
+async def character_wizard_finalize(request: CharacterFinalizeRequest):
+    player_state = await llm_controller.finalize_character_concept(
+        dialog_summary=request.dialog_summary,
+        history=request.history
+    )
+    # Зберігаємо створеного персонажа в базу
+    target_char_id = request.char_id or player_state.meta.name.strip().lower().replace(" ", "_")
+    llm_controller.character_manager.save_character(target_char_id, player_state)
+    logger.info(f"✨ Створено нового героя з AI: '{player_state.meta.name}' (ID: {target_char_id})")
+    return player_state
+
+
+# =========================================================================
+# ⚔ 3. Менеджмент Кампаній (Campaigns / Чати)
+# =========================================================================
+
+@app.get(
+    "/api/v1/characters/{char_id}/campaigns",
+    response_model=List[CampaignSummary],
+    tags=["Кампанії"],
+    summary="Список усіх кампаній персонажа (закріплені вгорі)"
+)
+async def list_campaigns(char_id: str = Path(..., description="ID персонажа")):
+    return llm_controller.campaign_manager.list_campaigns_for_character(char_id)
+
+
+@app.post(
+    "/api/v1/characters/{char_id}/campaigns",
+    response_model=CampaignSummary,
+    status_code=status.HTTP_201_CREATED,
+    tags=["Кампанії"],
+    summary="Створити нову кампанію + автогенерація стартового художнього посту"
+)
+async def create_campaign(
+    char_id: str = Path(..., description="ID персонажа"),
+    request: CampaignCreateRequest = CampaignCreateRequest()
+):
+    # Генератор оповіді для вступного посту
+    async def generate_intro(prompt: str, player_state_str: str) -> str:
+        return await llm_controller.generate_story(
+            raw_text=prompt,
+            player_state=player_state_str,
+            session_id="default"
+        )
+
+    summary = await llm_controller.campaign_manager.create_campaign(
+        char_id=char_id,
+        title=request.title,
+        narrator_generator=generate_intro
+    )
+    logger.info(f"⚔️ Створено нову кампанію '{summary.title}' для персонажа '{char_id}' з художнім вступом!")
+    return summary
+
+
+@app.get(
+    "/api/v1/campaigns/{campaign_id}/history",
+    response_model=List[HistoryMessage],
+    tags=["Кампанії"],
+    summary="Отримати повну хронологічну історію повідомлень кампанії"
+)
+async def get_campaign_history(campaign_id: str = Path(..., description="ID кампанії")):
+    return llm_controller.campaign_manager.get_campaign_history(campaign_id)
+
+
+@app.patch(
+    "/api/v1/campaigns/{campaign_id}/pin",
+    response_model=CampaignSummary,
+    tags=["Кампанії"],
+    summary="Закріпити або відкріпити кампанію"
+)
+async def pin_campaign(
+    campaign_id: str = Path(..., description="ID кампанії"),
+    request: CampaignPinRequest = ...
+):
+    return llm_controller.campaign_manager.pin_campaign(campaign_id, request.is_pinned)
+
+
+@app.delete(
+    "/api/v1/campaigns/{campaign_id}",
+    tags=["Кампанії"],
+    summary="Видалити кампанію з диска"
+)
+async def delete_campaign(campaign_id: str = Path(..., description="ID кампанії")):
+    llm_controller.campaign_manager.delete_campaign(campaign_id)
+    return {"status": "deleted", "campaign_id": campaign_id}
+
+
+# =========================================================================
+# 🎲 4. Ігровий цикл (Gameplay Action Pipeline)
 # =========================================================================
 
 @app.post(
     "/api/v1/action",
     response_model=ActionResponse,
     status_code=status.HTTP_200_OK,
-    summary="Виконання ігрового кроку гравця",
+    tags=["Геймплей"],
+    summary="Виконання ігрового кроку гравця (REST)",
     description=(
         "Приймає дію гравця з розпарсеними намірами (ActionRequest), виконує транзакційний "
         "послідовний пайплайн Оповідач -> Аналізатор -> Стан -> Commit і повертає ActionResponse."
@@ -71,7 +254,7 @@ async def process_action(request: ActionRequest) -> ActionResponse:
         raw_text = request.raw_text
         intents = request.intents
         
-        logger.info(f"🎮 [Сесія: {session_id}] Новий крок гравця. Текст: '{raw_text[:60]}...' | Намірів: {len(intents)}")
+        logger.info(f"🎮 [Кампанія: {session_id}] Хід гравця. Текст: '{raw_text[:60]}...' | Намірів: {len(intents)}")
         
         current_state_dict = game_state.get_current_state()
         context_str = json.dumps(current_state_dict, ensure_ascii=False, indent=2)
@@ -95,7 +278,7 @@ async def process_action(request: ActionRequest) -> ActionResponse:
         state_json_str = await llm_controller.generate_state_json(intents, story_text, context_str)
         
         if '{"error"' in state_json_str:
-            logger.warning(f"⚠️ Аналізатор повернув помилку: {state_json_str}. Відкат ходу сесії {session_id}...")
+            logger.warning(f"⚠️ Аналізатор повернув помилку: {state_json_str}. Відкат ходу кампанії {session_id}...")
             llm_controller.rollback_staged_turn(session_id=session_id)
             return ActionResponse(
                 status="error",
@@ -110,6 +293,10 @@ async def process_action(request: ActionRequest) -> ActionResponse:
         
         # ТРАНЗАКЦІЙНІСТЬ (Крок B): Commit в історію та збереження
         await llm_controller.commit_staged_turn(session_id=session_id)
+        
+        # Оновлюємо локацію у метаданих кампанії
+        new_location = new_state.get("meta", {}).get("location")
+        llm_controller.campaign_manager.touch_campaign_played(session_id, new_location)
         
         return ActionResponse(
             status="success",
@@ -131,11 +318,12 @@ async def process_action(request: ActionRequest) -> ActionResponse:
 
 
 # =========================================================================
-# 2. Потоковий стрімінг художнього тексту (Server-Sent Events / SSE)
+# 5. Потоковий стрімінг художнього тексту (Server-Sent Events / SSE)
 # =========================================================================
 
 @app.post(
     "/api/v1/action/stream",
+    tags=["Геймплей"],
     summary="Потокове виконання кроку гравця через Server-Sent Events (SSE)",
     description=(
         "Стрімить токени Оповідача в реальному часі (event: story_chunk),\n"
@@ -197,6 +385,9 @@ async def process_action_stream(request: ActionRequest):
             new_state = game_state.update_from_llm(state_json_str)
             await llm_controller.commit_staged_turn(session_id=session_id)
 
+            new_location = new_state.get("meta", {}).get("location")
+            llm_controller.campaign_manager.touch_campaign_played(session_id, new_location)
+
             # 5. Фінальний івент успіху
             complete_payload = json.dumps({
                 "status": "success",
@@ -228,42 +419,57 @@ async def process_action_stream(request: ActionRequest):
 
 
 # =========================================================================
-# 3. Ендпоінт стану персонажа (GET /api/v1/state)
+# 6. Ендпоінт стану персонажа (GET /api/v1/state)
 # =========================================================================
 
 @app.get(
     "/api/v1/state",
     response_model=Union[PlayerState, Dict[str, Any]],
-    summary="Отримання повного поточного стану гравця",
-    description="Повертає актуальний об'єкт PlayerState для заданої сесії."
+    tags=["Геймплей"],
+    summary="Отримання повного поточного стану гравця в кампанії",
+    description="Повертає актуальний об'єкт PlayerState для заданої кампанії."
 )
-async def get_current_state(session_id: str = Query(default="default", description="ID сесії")):
+async def get_current_state(session_id: str = Query(default="default", description="ID кампанії (session_id)")):
     game_state = llm_controller.get_game_state(session_id)
     return game_state.get_current_state()
 
 
 # =========================================================================
-# 4. Ендпоінти управління сесіями (Multi-session)
+# 7. Зворотна сумісність для сесій (Старі роути)
 # =========================================================================
 
 @app.get(
     "/api/v1/sessions",
     response_model=List[SessionInfo],
-    summary="Отримання списку всіх збережених ігрових сесій",
-    description="Сканує папку data/saves/ та повертає доступні слоти збережень."
+    tags=["Сумісність"],
+    summary="Отримання списку всіх кампаній (Legacy)",
+    deprecated=True
 )
-async def get_sessions():
-    return llm_controller.session_manager.list_sessions()
+async def get_sessions_legacy():
+    # Повертає список кампаній, перетворених у SessionInfo
+    all_campaigns = []
+    for char in llm_controller.character_manager.list_characters():
+        for c in llm_controller.campaign_manager.list_campaigns_for_character(char.char_id):
+            all_campaigns.append(SessionInfo(
+                session_id=c.campaign_id,
+                character_name=char.name,
+                location=c.current_location,
+                path=llm_controller.campaign_manager.get_campaign_dir(c.campaign_id)
+            ))
+    return all_campaigns
 
 
 @app.post(
     "/api/v1/sessions/{session_id}/reset",
     response_model=Union[PlayerState, Dict[str, Any]],
-    summary="Скидання ігрової сесії",
-    description="Скидає стан ігрової сесії до стартового стану за замовчуванням."
+    tags=["Сумісність"],
+    summary="Скидання ігрової кампанії (Legacy)",
+    deprecated=True
 )
-async def reset_session(session_id: str):
-    state = llm_controller.session_manager.reset_session(session_id)
+async def reset_session_legacy(session_id: str):
+    # Скидає стан кампанії
+    state = llm_controller.get_game_state(session_id)
+    state._init_default_state()
     return state.get_current_state()
 
 
