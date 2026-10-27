@@ -4,6 +4,7 @@ import json
 import logging
 from datetime import datetime, timezone
 from typing import Dict, Any, Union, List, AsyncGenerator, Optional
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, status, Query, HTTPException, Path
 from fastapi.responses import JSONResponse, StreamingResponse
 import uvicorn
@@ -45,9 +46,26 @@ from core.llm_manager import LLMController
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("nova-backend")
 
+llm_controller = LLMController()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Керування життєвим циклом додатку (Lifespan):
+    Виконується СТРОГО ОДИН РАЗ під час старту робочого worker-процесу Uvicorn.
+    """
+    logger.info("⏳ Ініціалізація бази знань та лору всесвіту...")
+    llm_controller.prompt_service.ensure_lore_loaded()
+    logger.info("🚀 NOVA AI TRPG Engine API успішно запущено та готовий до гри!")
+    yield
+    logger.info("🛑 Зупинка NOVA AI TRPG Engine API...")
+
+
 app = FastAPI(
     title="NOVA AI TRPG Engine API",
     version="1.2.0",
+    lifespan=lifespan,
     description=(
         "Офіційний бекенд дипломного проєкту NOVA AI TRPG (API v1.2.0).\n\n"
         "Архітектура:\n"
@@ -56,8 +74,6 @@ app = FastAPI(
         "- Ігровий цикл: суворо послідовний пайплайн (Гравець -> Оповідач -> Аналізатор -> Стан) з транзакційним відкатом (Unit of Work) та SSE-стрімінгом."
     )
 )
-
-llm_controller = LLMController()
 
 
 # =========================================================================
@@ -146,10 +162,18 @@ async def character_wizard_dialog(request: CharacterDialogRequest):
     summary="Згенерувати та зберегти фінальний лист героя за результатами діалогу"
 )
 async def character_wizard_finalize(request: CharacterFinalizeRequest):
-    player_state = await llm_controller.finalize_character_concept(
-        dialog_summary=request.dialog_summary,
-        history=request.history
-    )
+    try:
+        player_state = await llm_controller.finalize_character_concept(
+            dialog_summary=request.dialog_summary,
+            history=request.history
+        )
+    except Exception as e:
+        logger.error(f"❌ Помилка генерації листа героя через ШІ: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Не вдалося згенерувати лист героя через збій ШІ-провайдерів: {e}"
+        )
+
     # Зберігаємо створеного персонажа в базу
     target_char_id = request.char_id or player_state.meta.name.strip().lower().replace(" ", "_")
     llm_controller.character_manager.save_character(target_char_id, player_state)

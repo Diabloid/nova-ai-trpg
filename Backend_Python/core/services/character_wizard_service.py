@@ -122,10 +122,15 @@ class CharacterWizardService:
         end = cleaned.rfind("}")
         if start != -1 and end != -1:
             cleaned = cleaned[start:end+1]
+        else:
+            raise ValueError(f"ШІ повернув відповідь без JSON-структури: {cleaned}")
+
+        parsed = json.loads(cleaned)
+        if isinstance(parsed, dict) and "error" in parsed:
+            raise RuntimeError(f"ШІ-провайдер повернув помилку: {parsed['error']}")
 
         try:
-            return PlayerState.model_validate_json(cleaned)
-        except Exception as e:
-            print(f"⚠️ Помилка строгої валідації finalizer JSON ({e}), виправлення через json.loads: {cleaned}")
-            parsed = json.loads(cleaned)
             return PlayerState.model_validate(parsed)
+        except Exception as e:
+            print(f"⚠️ Помилка строгої валідації finalizer JSON ({e}): {cleaned}")
+            raise ValueError(f"Невалідний формат листа персонажа від ШІ: {e}")
