@@ -215,7 +215,7 @@ class HistoryMessage(BaseModel):
 # =========================================================================
 
 class CharacterDialogRequest(BaseModel):
-    """Запит діалогу зі створення героя через Творця Долі."""
+    """Запит діалогу зі створення героя через Творця Долі (v1.3.0)."""
     model_config = ConfigDict(extra="allow")
 
     message: str = Field(..., description="Репліка гравця до Творця Долі")
@@ -223,13 +223,21 @@ class CharacterDialogRequest(BaseModel):
         default_factory=list,
         description="Історія діалогу створення [{'role': 'user'|'assistant', 'content': '...'}]"
     )
+    include_draft: bool = Field(
+        default=False,
+        description="Чи формувати проміжний стан PlayerState (Live Preview) для правої панелі клієнта"
+    )
 
 
 class CharacterDialogResponse(BaseModel):
-    """Відповідь Творця Долі."""
+    """Відповідь Творця Долі (v1.3.0)."""
     model_config = ConfigDict(extra="allow")
 
     reply: str = Field(..., description="Атмосферна відповідь Творця Долі")
+    draft_state: Optional[PlayerState] = Field(
+        default=None,
+        description="Актуальний проміжний стан героя для панелі Live Preview клієнта (якщо include_draft=True)"
+    )
 
 
 class CharacterFinalizeRequest(BaseModel):
