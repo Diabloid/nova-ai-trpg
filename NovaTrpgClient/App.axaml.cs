@@ -64,9 +64,10 @@ public partial class App : Application
             client.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
         });
 
-        // Реєстрація сервісів обробки тексту та намірів
+        // Реєстрація сервісів обробки тексту, намірів та локального сховища
         services.AddSingleton<IIntentParserService, IntentParserService>();
         services.AddSingleton<ITextSanitizerService, TextSanitizerService>();
+        services.AddSingleton<IClientStorageService, ClientStorageService>();
 
         // Реєстрація ViewModels
         services.AddTransient<MainWindowViewModel>();
