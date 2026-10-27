@@ -15,16 +15,23 @@ class PromptService:
     Відповідає за читання, RAM-кешування та формування системних промптів,
     включаючи повний лор всесвіту (43 файли, 250 КБ).
     """
-    def __init__(self, prompts_dir: str, lore_dir: str):
+    def __init__(self, prompts_dir: str, lore_dir: str, auto_load: bool = False):
         self.prompts_dir = prompts_dir
         self.lore_dir = lore_dir
         self._prompt_cache: Dict[str, str] = {}
         self._cached_lore: str = ""
         self._lore_file_count: int = 0
+        self._is_lore_loaded: bool = False
 
-        # Початкове завантаження в RAM
-        self._load_all_lore_to_ram()
-        self._preload_prompts()
+        if auto_load:
+            self.ensure_lore_loaded()
+
+    def ensure_lore_loaded(self):
+        """Гарантує одноразове завантаження лору в RAM."""
+        if not self._is_lore_loaded:
+            self._load_all_lore_to_ram()
+            self._preload_prompts()
+            self._is_lore_loaded = True
 
     def _load_all_lore_to_ram(self):
         """Зчитує всі .txt та .md файли лору в RAM при ініціалізації."""
@@ -78,6 +85,7 @@ class PromptService:
         """Гаряче оновлення бази лору в RAM."""
         print("🔄 Оновлення лору в оперативній пам'яті...")
         self._load_all_lore_to_ram()
+        self._is_lore_loaded = True
 
     def reload_prompts(self):
         """Очищення та повторне зчитування шаблонів промптів."""
@@ -87,16 +95,20 @@ class PromptService:
 
     @property
     def cached_lore(self) -> str:
+        if not self._is_lore_loaded:
+            self.ensure_lore_loaded()
         return self._cached_lore
 
     @property
     def lore_file_count(self) -> int:
+        if not self._is_lore_loaded:
+            self.ensure_lore_loaded()
         return self._lore_file_count
 
     def build_narrator_system_prompt(self, player_state_str: str, summary_text: str) -> str:
         """Формує повний системний промпт для Оповідача."""
         system_lore = self.get_prompt("narrator_system.txt")
-        world_bible = self._cached_lore
+        world_bible = self.cached_lore
         summary_display = summary_text if summary_text else "Це самий початок історії. Попередніх подій ще не відбулося."
 
         return (
