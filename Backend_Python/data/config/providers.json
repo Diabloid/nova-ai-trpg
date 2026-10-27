@@ -5,7 +5,9 @@
       "url": "https://api.odirouter.ai/v1",
       "env_key": "ODIROUTER_API_KEY",
       "models": [
-        "free-gemini-2.5-flash"
+        "free-gemini-2.5-flash",
+        "free-gemini-2.5-pro",
+        "free-qwen-flash-character"
       ]
     }
   ],
@@ -15,7 +17,8 @@
       "url": "https://api.odirouter.ai/v1",
       "env_key": "ODIROUTER_API_KEY",
       "models": [
-        "free-gemini-2.5-flash"
+        "free-gemini-2.5-flash",
+        "free-gemini-3.1-flash-lite"
       ]
     },
     {
