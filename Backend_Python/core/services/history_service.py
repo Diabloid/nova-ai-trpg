@@ -1,7 +1,6 @@
 import os
 import sys
 import json
-from datetime import datetime, timezone
 from typing import List, Dict, Optional, Any
 
 # Безпечне кодування консолі для Windows
@@ -14,67 +13,49 @@ if sys.stdout and hasattr(sys.stdout, "reconfigure"):
 
 class HistoryService:
     """
-    Відповідає за управління історією діалогу (recent_messages),
-    повною хронологією повідомлень (full_history / messages),
-    сумаризацією (summary), персистентністю та транзакційністю ходів.
+    Відповідає виключно за управління внутрішнім робочим контекстом діалогу LLM
+    (recent_messages), сумаризацією (summary), персистентністю в history.json
+    та транзакційністю ходів.
+    НЕ використовується для виведення історії в UI клієнта (для цього створено ChatLogService).
     """
     def __init__(self, history_file_path: str):
         self.history_file_path = history_file_path
         self.summary: str = ""
         self.recent_messages: List[Dict[str, str]] = []
-        self.full_history: List[Dict[str, str]] = []
         self._staged_turn: Optional[Dict[str, str]] = None
 
         self.load()
 
     def load(self):
-        """Завантажує історію з файлу."""
+        """Завантажує робочий буфер LLM з history.json."""
         if os.path.exists(self.history_file_path):
             try:
                 with open(self.history_file_path, "r", encoding="utf-8") as f:
                     data = json.load(f)
                     self.summary = data.get("summary", "")
                     self.recent_messages = data.get("recent_messages", [])
-                    self.full_history = data.get("messages", [])
 
-                # Зворотна сумісність: якщо є recent_messages, але ще немає messages
-                if not self.full_history and self.recent_messages:
-                    now_iso = datetime.now(timezone.utc).isoformat()
-                    for m in self.recent_messages:
-                        role = "player" if m.get("role") == "user" else "narrator"
-                        self.full_history.append({
-                            "role": role,
-                            "text": m.get("content", ""),
-                            "timestamp": now_iso
-                        })
-
-                print(f"✅ [HistoryService] Завантажено: {len(self.recent_messages)} робочих, {len(self.full_history)} повних повідомлень.")
+                print(f"🧠 [HistoryService] Завантажено контекст LLM: {len(self.recent_messages)} робочих повідомлень.")
             except Exception as e:
                 print(f"⚠️ [HistoryService] Помилка читання історії: {e}")
+                self.summary = ""
+                self.recent_messages = []
         else:
             self.summary = ""
             self.recent_messages = []
-            self.full_history = []
 
     def save(self):
-        """Зберігає поточний стан історії на диск."""
+        """Зберігає виключно контекст LLM (summary + recent_messages) на диск."""
         os.makedirs(os.path.dirname(self.history_file_path), exist_ok=True)
         with open(self.history_file_path, "w", encoding="utf-8") as f:
             json.dump({
                 "summary": self.summary,
-                "recent_messages": self.recent_messages,
-                "messages": self.full_history
+                "recent_messages": self.recent_messages
             }, f, ensure_ascii=False, indent=4)
 
     def add_intro_post(self, intro_text: str):
-        """Додає початковий вступний пост Оповідача при старті кампанії."""
-        now_iso = datetime.now(timezone.utc).isoformat()
+        """Додає початковий вступний пост Оповідача в робочий буфер LLM."""
         self.recent_messages = [{"role": "assistant", "content": intro_text}]
-        self.full_history = [{
-            "role": "narrator",
-            "text": intro_text,
-            "timestamp": now_iso
-        }]
         self.save()
 
     # ==========================================
@@ -95,22 +76,24 @@ class HistoryService:
             print("↩️ [HistoryService] Відкат транзакції: підготовлений хід відкинуто.")
             self._staged_turn = None
 
-    async def commit_staged_turn(self, llm_provider=None, prompt_service=None):
-        """Фіксує хід у робочій пам'яті та повній історії на диску."""
+    async def commit_staged_turn(self, llm_provider=None, prompt_service=None, chat_log_service=None):
+        """
+        Фіксує хід у робочій пам'яті LLM, синхронізує з ChatLogService (якщо передано)
+        та зберігає стан history.json на диску.
+        """
         if not self._staged_turn:
             return
 
-        now_iso = datetime.now(timezone.utc).isoformat()
         u_text = self._staged_turn["user"]
         a_text = self._staged_turn["assistant"]
 
-        # Робочий буфер для контексту LLM
+        # Синхронізація з повним нестислим логом чату для клієнта
+        if chat_log_service:
+            chat_log_service.add_turn(player_text=u_text, narrator_text=a_text)
+
+        # Робочий ковзний буфер для генерацій LLM
         self.recent_messages.append({"role": "user", "content": u_text})
         self.recent_messages.append({"role": "assistant", "content": a_text})
-
-        # Повна хронологія для клієнта
-        self.full_history.append({"role": "player", "text": u_text, "timestamp": now_iso})
-        self.full_history.append({"role": "narrator", "text": a_text, "timestamp": now_iso})
 
         self._staged_turn = None
 
@@ -118,11 +101,7 @@ class HistoryService:
             await self._compress_history_if_needed(llm_provider, prompt_service)
 
         self.save()
-        print("💾 [HistoryService] Хід зафіксовано (Committed) у повній історії.")
-
-    def get_full_history(self) -> List[Dict[str, str]]:
-        """Повертає всю історію повідомлень."""
-        return self.full_history
+        print("💾 [HistoryService] Хід зафіксовано (Committed) у буфері LLM.")
 
     async def _compress_history_if_needed(self, llm_provider, prompt_service):
         """Архіватор історії: стискає перші 6 робочих повідомлень при перевищенні 20."""
@@ -154,7 +133,7 @@ class HistoryService:
 
             if "error" not in new_summary.lower():
                 self.summary = new_summary.strip()
-                # Зменшуємо тільки recent_messages для контексту LLM; full_history залишається непорушним!
+                # Зменшуємо recent_messages для оптимізації вікна токенів
                 self.recent_messages = self.recent_messages[COMPRESS_COUNT:]
                 print("✅ [HistoryService] Робочий контекст успішно стиснуто!")
             else:

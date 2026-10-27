@@ -22,6 +22,7 @@ load_dotenv(dotenv_path=os.path.join(BASE_DIR, ".env"))
 from core.services.llm_provider_service import LLMProviderService
 from core.services.prompt_service import PromptService
 from core.services.history_service import HistoryService
+from core.services.chat_log_service import ChatLogService
 from core.services.narrator_service import NarratorService
 from core.services.state_analyzer_service import StateAnalyzerService
 from core.services.character_wizard_service import CharacterWizardService
@@ -64,11 +65,15 @@ class LLMController:
         )
 
     def _get_history(self, session_id: str = "default") -> HistoryService:
-        _, hist = self.campaign_manager.get_campaign_session(session_id)
+        _, hist, _ = self.campaign_manager.get_campaign_session(session_id)
         return hist
 
+    def _get_chat_log(self, session_id: str = "default") -> ChatLogService:
+        _, _, chat_log = self.campaign_manager.get_campaign_session(session_id)
+        return chat_log
+
     def get_game_state(self, session_id: str = "default"):
-        state, _ = self.campaign_manager.get_campaign_session(session_id)
+        state, _, _ = self.campaign_manager.get_campaign_session(session_id)
         return state
 
     # Властивості для зворотної сумісності (дефолтна кампанія)
@@ -99,11 +104,13 @@ class LLMController:
         hist.stage_turn(raw_text, story_text)
 
     async def commit_staged_turn(self, session_id: str = "default"):
-        """Фіксує хід в історії кампанії та зберігає на диск (Commit)."""
+        """Фіксує хід в історії кампанії (робочий контекст LLM + повний нестислий chat_log) та зберігає на диск."""
         hist = self._get_history(session_id)
+        chat_log = self._get_chat_log(session_id)
         await hist.commit_staged_turn(
             llm_provider=self.provider_service,
-            prompt_service=self.prompt_service
+            prompt_service=self.prompt_service,
+            chat_log_service=chat_log
         )
         self.campaign_manager.touch_campaign_played(session_id)
 
@@ -113,11 +120,23 @@ class LLMController:
         hist.rollback_staged_turn()
 
     # Генерація Оповідача (Non-streaming)
-    async def generate_story(self, raw_text: str, player_state: str, session_id: str = "default") -> str:
+    async def generate_story(
+        self,
+        raw_text: str,
+        player_state: str,
+        session_id: str = "default",
+        recent_messages: Optional[List[Dict[str, str]]] = None,
+        summary_text: Optional[str] = None
+    ) -> str:
         """1-й крок пайплайну: генерація повної реакції Оповідача."""
         hist = self._get_history(session_id)
         narrator = NarratorService(self.provider_service, self.prompt_service, hist)
-        return await narrator.generate_story(raw_text, player_state)
+        return await narrator.generate_story(
+            raw_text,
+            player_state,
+            recent_messages=recent_messages,
+            summary_text=summary_text
+        )
 
     # Генерація Оповідача (Streaming SSE)
     async def stream_story(

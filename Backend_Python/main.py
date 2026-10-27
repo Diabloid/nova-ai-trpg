@@ -181,12 +181,13 @@ async def create_campaign(
     char_id: str = Path(..., description="ID персонажа"),
     request: CampaignCreateRequest = CampaignCreateRequest()
 ):
-    # Генератор оповіді для вступного посту
+    # Генератор оповіді для вступного посту з чистим контекстом (без залишків минулих сесій)
     async def generate_intro(prompt: str, player_state_str: str) -> str:
         return await llm_controller.generate_story(
             raw_text=prompt,
             player_state=player_state_str,
-            session_id="default"
+            recent_messages=[],
+            summary_text=""
         )
 
     summary = await llm_controller.campaign_manager.create_campaign(

@@ -16,6 +16,7 @@ if sys.stdout and hasattr(sys.stdout, "reconfigure"):
 from schemas.game_dto import CampaignSummary, HistoryMessage, PlayerState
 from core.state_manager import GameState
 from core.services.history_service import HistoryService
+from core.services.chat_log_service import ChatLogService
 from core.character_manager import CharacterManager
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -34,6 +35,7 @@ class CampaignManager:
         os.makedirs(self.saves_dir, exist_ok=True)
         self._state_cache: Dict[str, GameState] = {}
         self._history_cache: Dict[str, HistoryService] = {}
+        self._chat_log_cache: Dict[str, ChatLogService] = {}
         self._ensure_default_campaign_metadata()
 
     def _ensure_default_campaign_metadata(self):
@@ -63,14 +65,15 @@ class CampaignManager:
         clean = self._sanitize_id(campaign_id)
         return os.path.join(self.saves_dir, clean)
 
-    def get_campaign_session(self, campaign_id: str) -> Tuple[GameState, HistoryService]:
-        """Отримує GameState та HistoryService для кампанії, кешуючи їх у пам'яті."""
+    def get_campaign_session(self, campaign_id: str) -> Tuple[GameState, HistoryService, ChatLogService]:
+        """Отримує GameState, HistoryService та ChatLogService для кампанії, кешуючи їх у пам'яті."""
         clean_id = self._sanitize_id(campaign_id)
         c_dir = self.get_campaign_dir(clean_id)
         os.makedirs(c_dir, exist_ok=True)
 
         savegame_path = os.path.join(c_dir, "savegame.json")
         history_path = os.path.join(c_dir, "history.json")
+        chat_log_path = os.path.join(c_dir, "chat_log.json")
 
         if clean_id not in self._state_cache:
             self._state_cache[clean_id] = GameState(save_path=savegame_path)
@@ -78,7 +81,18 @@ class CampaignManager:
         if clean_id not in self._history_cache:
             self._history_cache[clean_id] = HistoryService(history_file_path=history_path)
 
-        return self._state_cache[clean_id], self._history_cache[clean_id]
+        if clean_id not in self._chat_log_cache:
+            self._chat_log_cache[clean_id] = ChatLogService(
+                chat_log_path=chat_log_path,
+                legacy_history_path=history_path
+            )
+
+        return self._state_cache[clean_id], self._history_cache[clean_id], self._chat_log_cache[clean_id]
+
+    def get_chat_log(self, campaign_id: str) -> ChatLogService:
+        """Повертає ChatLogService для вказаної кампанії."""
+        _, _, chat_log = self.get_campaign_session(campaign_id)
+        return chat_log
 
     def touch_campaign_played(self, campaign_id: str, new_location: Optional[str] = None):
         """Оновлює дату останнього ходу та поточну локацію в metadata.json."""
@@ -201,11 +215,18 @@ class CampaignManager:
 
         intro_text = await narrator_generator(intro_prompt, json.dumps(char_state.model_dump(), ensure_ascii=False))
 
-        # 5. Ініціалізуємо history.json зі вступним постом
+        # 5. Ініціалізуємо history.json та chat_log.json зі вступним постом
         history_path = os.path.join(c_dir, "history.json")
+        chat_log_path = os.path.join(c_dir, "chat_log.json")
+
         history_service = HistoryService(history_path)
         history_service.add_intro_post(intro_text)
+
+        chat_log_service = ChatLogService(chat_log_path)
+        chat_log_service.add_message(role="narrator", text=intro_text, timestamp=now_iso)
+
         self._history_cache[campaign_id] = history_service
+        self._chat_log_cache[campaign_id] = chat_log_service
         self._state_cache[campaign_id] = GameState(savegame_path)
 
         # 6. Зберігаємо metadata.json
@@ -267,28 +288,13 @@ class CampaignManager:
         # Очищення кешу
         self._state_cache.pop(clean_id, None)
         self._history_cache.pop(clean_id, None)
+        self._chat_log_cache.pop(clean_id, None)
 
         shutil.rmtree(c_dir, ignore_errors=True)
         return True
 
     def get_campaign_history(self, campaign_id: str) -> List[HistoryMessage]:
-        """Повертає повну хронологічну історію повідомлень кампанії для чату клієнта."""
+        """Повертає повну хронологічну історію повідомлень кампанії виключно з chat_log.json."""
         clean_id = self._sanitize_id(campaign_id)
-        _, history_service = self.get_campaign_session(clean_id)
-        raw_msgs = history_service.get_full_history()
-
-        result = []
-        for m in raw_msgs:
-            role = m.get("role", "narrator")
-            # Нормалізація ролей під контракт
-            if role in ("assistant", "gm"):
-                role = "narrator"
-            elif role in ("user",):
-                role = "player"
-
-            result.append(HistoryMessage(
-                role=role,
-                text=m.get("text") or m.get("content", ""),
-                timestamp=m.get("timestamp") or datetime.now(timezone.utc).isoformat()
-            ))
-        return result
+        chat_log_service = self.get_chat_log(clean_id)
+        return chat_log_service.get_history_messages()

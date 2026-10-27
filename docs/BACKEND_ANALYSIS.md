@@ -1,6 +1,6 @@
 # 🏛️ NOVA AI TRPG — Завдання розробки Backend (Фаза 2.5: Розділення LLM-пам'яті та Повного Логу Чату)
 
-**Статус:** У роботі (Коригування від Вані)  
+**Статус:** Завершено (Фаза 2.5 виконана, очікує дозволу на коміт)  
 **Версія API:** 1.2.1  
 **Директорія:** `Backend_Python/`
 
@@ -26,9 +26,9 @@
 ## 2. Завдання для Backend-чату на зараз
 
 ### 📝 2.1. Відокремлення журналу чату в `chat_log.json`
-- [ ] Винести збереження повного чату в окремий файл `data/saves/{campaign_id}/chat_log.json`.
-- [ ] Очистити `history.json` від зайвого поля `messages`, залишивши в ньому суто `summary` та `recent_messages` для роботи Оповідача.
-- [ ] При додаванні вступного посту (`add_intro_post`) та при кожному ході (`commit_staged_turn`):
+- [x] Винести збереження повного чату в окремий файл `data/saves/{campaign_id}/chat_log.json`.
+- [x] Очистити `history.json` від зайвого поля `messages`, залишивши в ньому суто `summary` та `recent_messages` для роботи Оповідача.
+- [x] При додаванні вступного посту (`add_intro_post`) та при кожному ході (`commit_staged_turn`):
   - Репліки обов'язково дописуються (append) у `chat_log.json`.
-- [ ] Оновити `GET /api/v1/campaigns/{campaign_id}/history`:
+- [x] Оновити `GET /api/v1/campaigns/{campaign_id}/history`:
   - Зчитувати та повертати історію **виключно з `chat_log.json`**.
