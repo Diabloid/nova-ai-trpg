@@ -1,3 +1,4 @@
+using System;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace NovaTrpgClient.Models
@@ -13,5 +14,11 @@ namespace NovaTrpgClient.Models
 
         [ObservableProperty]
         private string _senderColor = "#E5E7EB";
+
+        [ObservableProperty]
+        private string _timeText = DateTime.Now.ToString("HH:mm");
+
+        [ObservableProperty]
+        private bool _canRollback = false;
     }
 }

@@ -8,6 +8,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace NovaTrpgClient.ViewModels
@@ -482,13 +483,19 @@ namespace NovaTrpgClient.ViewModels
                             _ => "#10B981"
                         };
 
+                        var timeStr = msg.Timestamp != null && DateTime.TryParse(msg.Timestamp, out var dt)
+                            ? dt.ToString("HH:mm")
+                            : DateTime.Now.ToString("HH:mm");
+
                         ChatMessages.Add(new ChatMessage
                         {
                             Sender = senderName,
                             Text = msg.Text,
-                            SenderColor = senderColor
+                            SenderColor = senderColor,
+                            TimeText = timeStr
                         });
                     }
+                    UpdateRollbackAvailability();
                 }
             }
             catch (Exception ex)
@@ -1048,8 +1055,10 @@ namespace NovaTrpgClient.ViewModels
             {
                 Sender = "Ти:",
                 Text = displayAction,
-                SenderColor = "#60A5FA" // Блакитний
+                SenderColor = "#60A5FA", // Блакитний
+                TimeText = DateTime.Now.ToString("HH:mm")
             });
+            UpdateRollbackAvailability();
             UserInput = string.Empty;
 
             var intents = _intentParserService.ParseIntents(action);
@@ -1071,6 +1080,9 @@ namespace NovaTrpgClient.ViewModels
 
                 var storyBuilder = new StringBuilder();
                 bool hasReceivedChunks = false;
+                var streamQueue = new System.Collections.Concurrent.ConcurrentQueue<string>();
+                using var streamCts = new CancellationTokenSource();
+                Task? drainTask = null;
 
                 // Справжній стрімінг у реальному часі через Server-Sent Events (SSE)
                 await foreach (var sse in _gameApiService.StreamActionAsync(requestBody))
@@ -1087,16 +1099,14 @@ namespace NovaTrpgClient.ViewModels
                                     {
                                         Sender = "Оповідач:",
                                         Text = "",
-                                        SenderColor = "#EAB308"
+                                        SenderColor = "#EAB308",
+                                        TimeText = DateTime.Now.ToString("HH:mm")
                                     };
                                     ChatMessages.Add(aiMessage);
+                                    drainTask = Task.Run(() => DrainStreamQueueAsync(streamQueue, aiMessage, storyBuilder, streamCts.Token));
                                 }
 
-                                storyBuilder.Append(sse.TextChunk);
-                                if (aiMessage != null)
-                                {
-                                    aiMessage.Text = storyBuilder.ToString();
-                                }
+                                streamQueue.Enqueue(sse.TextChunk);
                             }
                             break;
 
@@ -1105,6 +1115,17 @@ namespace NovaTrpgClient.ViewModels
                             break;
 
                         case SseEventType.Complete:
+                            streamCts.Cancel();
+                            if (drainTask != null)
+                            {
+                                try { await drainTask; } catch { }
+                            }
+
+                            while (streamQueue.TryDequeue(out var remaining))
+                            {
+                                storyBuilder.Append(remaining);
+                            }
+
                             if (sse.FinalResponse != null)
                             {
                                 if (sse.FinalResponse.PlayerState != null)
@@ -1116,6 +1137,10 @@ namespace NovaTrpgClient.ViewModels
                                 {
                                     aiMessage.Text = _textSanitizerService.SanitizeStory(sse.FinalResponse.Story);
                                 }
+                                else if (aiMessage != null)
+                                {
+                                    aiMessage.Text = storyBuilder.ToString();
+                                }
                             }
 
                             if (SelectedCampaign != null)
@@ -1123,6 +1148,7 @@ namespace NovaTrpgClient.ViewModels
                                 SelectedCampaign.LastPlayed = DateTime.UtcNow.ToString("o");
                                 ReorderCampaigns();
                             }
+                            UpdateRollbackAvailability();
                             break;
 
                         case SseEventType.Error:
@@ -1130,7 +1156,8 @@ namespace NovaTrpgClient.ViewModels
                             {
                                 Sender = "Система:",
                                 Text = sse.ErrorMessage ?? "Помилка під час генерації ходу.",
-                                SenderColor = "#EF4444"
+                                SenderColor = "#EF4444",
+                                TimeText = DateTime.Now.ToString("HH:mm")
                             });
                             break;
                     }
@@ -1145,13 +1172,121 @@ namespace NovaTrpgClient.ViewModels
                 {
                     Sender = "Система:",
                     Text = $"Помилка підключення або обробки: {ex.Message}",
-                    SenderColor = "#EF4444"
+                    SenderColor = "#EF4444",
+                    TimeText = DateTime.Now.ToString("HH:mm")
                 });
             }
             finally
             {
                 IsTyping = false;
                 StatusIndicatorText = "Розмірковує над дією";
+                UpdateRollbackAvailability();
+            }
+        }
+
+        private async Task DrainStreamQueueAsync(
+            System.Collections.Concurrent.ConcurrentQueue<string> queue,
+            ChatMessage targetMessage,
+            StringBuilder fullStory,
+            CancellationToken ct)
+        {
+            while (!ct.IsCancellationRequested || !queue.IsEmpty)
+            {
+                if (queue.TryDequeue(out var chunk))
+                {
+                    var matches = System.Text.RegularExpressions.Regex.Matches(chunk, @"\S+|\s+");
+                    foreach (System.Text.RegularExpressions.Match match in matches)
+                    {
+                        fullStory.Append(match.Value);
+                        var currentText = fullStory.ToString();
+                        Avalonia.Threading.Dispatcher.UIThread.Post(() => targetMessage.Text = currentText);
+
+                        int delay = queue.Count > 3 ? 6 : 22;
+                        try
+                        {
+                            await Task.Delay(delay, ct);
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            break;
+                        }
+                    }
+                }
+                else
+                {
+                    if (ct.IsCancellationRequested) break;
+                    try
+                    {
+                        await Task.Delay(15, ct);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        break;
+                    }
+                }
+            }
+        }
+
+        [RelayCommand]
+        public async Task RollbackTurnAsync()
+        {
+            if (SelectedCampaign == null || IsTyping) return;
+
+            try
+            {
+                StatusIndicatorText = "Відкочую останній хід...";
+                IsTyping = true;
+
+                var rollbackResponse = await _gameApiService.RollbackTurnAsync(SelectedCampaign.CampaignId);
+                if (rollbackResponse != null)
+                {
+                    // 1. Оновлюємо стан гравця
+                    if (rollbackResponse.CurrentState != null)
+                    {
+                        ApplyPlayerState(rollbackResponse.CurrentState);
+                    }
+
+                    // 2. Перезавантажуємо журнал чату з сервера
+                    await LoadCampaignHistoryAsync(SelectedCampaign.CampaignId);
+
+                    // 3. Повертаємо текст попередньої дії гравця в поле вводу
+                    if (!string.IsNullOrWhiteSpace(rollbackResponse.PreviousUserInput))
+                    {
+                        UserInput = rollbackResponse.PreviousUserInput;
+                    }
+
+                    StatusIndicatorText = "Хід успішно відкочено";
+                }
+                else
+                {
+                    StatusIndicatorText = "Не вдалося відкотити хід";
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[RollbackTurn error]: {ex.Message}");
+                StatusIndicatorText = "Помилка відкату";
+            }
+            finally
+            {
+                IsTyping = false;
+                UpdateRollbackAvailability();
+            }
+        }
+
+        private void UpdateRollbackAvailability()
+        {
+            if (ChatMessages.Count == 0) return;
+
+            for (int i = 0; i < ChatMessages.Count; i++)
+            {
+                ChatMessages[i].CanRollback = false;
+            }
+
+            var lastMsg = ChatMessages.LastOrDefault();
+            if (lastMsg != null && lastMsg.Sender.StartsWith("Оповідач") && ChatMessages.Count > 1)
+            {
+                lastMsg.CanRollback = true;
             }
         }
 

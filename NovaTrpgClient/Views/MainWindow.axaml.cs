@@ -73,9 +73,13 @@ namespace NovaTrpgClient.Views
                     {
                         if (args.PropertyName == nameof(MainWindowViewModel.UserInput))
                         {
-                            if (string.IsNullOrEmpty(vm.UserInput) && !string.IsNullOrEmpty(ChatInputEditor?.Text))
+                            if (ChatInputEditor != null && ChatInputEditor.Text != vm.UserInput)
                             {
-                                ChatInputEditor.Text = string.Empty;
+                                ChatInputEditor.Text = vm.UserInput ?? string.Empty;
+                                if (!string.IsNullOrEmpty(vm.UserInput))
+                                {
+                                    ChatInputEditor.CaretOffset = ChatInputEditor.Text.Length;
+                                }
                             }
                         }
                         else if (args.PropertyName == nameof(MainWindowViewModel.IsCharacterSheetOpen))

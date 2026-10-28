@@ -360,6 +360,23 @@ namespace NovaTrpgClient.Services
             }
         }
 
+        public async Task<RollbackResponse?> RollbackTurnAsync(string campaignId, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var response = await _httpClient.PostAsync($"api/v1/campaigns/{Uri.EscapeDataString(campaignId)}/rollback", null, cancellationToken);
+                if (!response.IsSuccessStatusCode) return null;
+
+                var json = await response.Content.ReadAsStringAsync(cancellationToken);
+                return JsonSerializer.Deserialize<RollbackResponse>(json, JsonOptions);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[RollbackTurnAsync error]: {ex.Message}");
+                return null;
+            }
+        }
+
         public async Task<CharacterDialogResponse?> SendCharacterDialogMessageAsync(string message, List<CharacterDialogHistoryItem> history, bool includeDraft = true, CancellationToken cancellationToken = default)
         {
             try
