@@ -93,12 +93,37 @@ class GameState:
         with open(self.save_path, "w", encoding="utf-8") as f:
             json.dump(self.data, f, ensure_ascii=False, indent=4)
 
+    def create_snapshot(self):
+        """Зберігає копію поточного стану у savegame.prev.json перед мутацією."""
+        prev_path = self.save_path.replace("savegame.json", "savegame.prev.json")
+        try:
+            with open(prev_path, "w", encoding="utf-8") as f:
+                json.dump(self.data, f, ensure_ascii=False, indent=4)
+        except Exception as e:
+            print(f"⚠️ [GameState] Не вдалося створити snapshot: {e}")
+
+    def rollback_snapshot(self) -> bool:
+        """Відновлює стан із savegame.prev.json (Undo)."""
+        prev_path = self.save_path.replace("savegame.json", "savegame.prev.json")
+        if os.path.exists(prev_path):
+            try:
+                with open(prev_path, "r", encoding="utf-8") as f:
+                    self.data = json.load(f)
+                self.save()
+                print(f"↩️ [GameState] Стан успішно відновлено з попереднього снепшоту {prev_path}")
+                return True
+            except Exception as e:
+                print(f"⚠️ [GameState] Помилка відновлення снепшоту: {e}")
+        return False
+
     def get_current_state(self) -> dict:
         """Повертає повний стан персонажа без спотворень чи примусового сплощення."""
         return self.data
 
     def update_from_llm(self, llm_json_str: str) -> dict:
         """Ювелірно застосовує дельту від ШІ до нашої бази даних."""
+        # Фіксуємо снепшот перед застосуванням мутації
+        self.create_snapshot()
         try:
             delta = StateDelta.model_validate_json(llm_json_str)
         except Exception as e:

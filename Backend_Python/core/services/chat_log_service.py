@@ -131,6 +131,36 @@ class ChatLogService:
         })
         self.save()
 
+    def rollback_last_turn(self) -> Optional[str]:
+        """
+        Видаляє останній завершений хід (останнє повідомлення Оповідача та дію гравця)
+        із повного нестисненого журналу chat_log.json (Undo).
+        Повертає текст скасованої дії гравця для повернення в поле введення.
+        """
+        last_player_text: Optional[str] = None
+        # Стандартна послідовність: в кінці пара (player, narrator)
+        if (
+            len(self.messages) >= 2
+            and self.messages[-1].get("role") == "narrator"
+            and self.messages[-2].get("role") == "player"
+        ):
+            self.messages.pop()  # видаляємо narrator
+            player_msg = self.messages.pop()  # видаляємо player
+            last_player_text = player_msg.get("text", "")
+            self.save()
+            print("↩️ [ChatLogService] Останній хід успішно видалено з chat_log.json.")
+        elif self.messages:
+            # Нестандартна ситуація (наприклад, одиночний хід без пари)
+            removed = self.messages.pop()
+            if self.messages and self.messages[-1].get("role") == "player":
+                player_msg = self.messages.pop()
+                last_player_text = player_msg.get("text", "")
+            elif removed.get("role") == "player":
+                last_player_text = removed.get("text", "")
+            self.save()
+
+        return last_player_text
+
     def get_messages(self) -> List[Dict[str, str]]:
         """Повертає сирий список словників повідомлень."""
         return self.messages

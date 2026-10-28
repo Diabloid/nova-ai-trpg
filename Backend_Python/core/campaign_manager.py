@@ -196,9 +196,12 @@ class CampaignManager:
         c_dir = self.get_campaign_dir(campaign_id)
         os.makedirs(c_dir, exist_ok=True)
 
-        # 3. Копіюємо стан персонажа у savegame.json кампанії
+        # 3. Копіюємо стан персонажа у savegame.json та savegame.prev.json кампанії
         savegame_path = os.path.join(c_dir, "savegame.json")
+        savegame_prev_path = os.path.join(c_dir, "savegame.prev.json")
         with open(savegame_path, "w", encoding="utf-8") as f:
+            json.dump(char_state.model_dump(), f, ensure_ascii=False, indent=4)
+        with open(savegame_prev_path, "w", encoding="utf-8") as f:
             json.dump(char_state.model_dump(), f, ensure_ascii=False, indent=4)
 
         # 4. Авто-генерація вступного художнього посту Оповідача
@@ -298,3 +301,38 @@ class CampaignManager:
         clean_id = self._sanitize_id(campaign_id)
         chat_log_service = self.get_chat_log(clean_id)
         return chat_log_service.get_history_messages()
+
+    def rollback_campaign_turn(self, campaign_id: str) -> Tuple[str, Dict[str, Any]]:
+        """
+        Виконує відкат останнього ходу кампанії (Undo, v1.4.0):
+        1. Видаляє останній пост Оповідача та дію гравця з chat_log.json;
+        2. Видаляє останній хід з history.json;
+        3. Відновлює стан героя з savegame.prev.json;
+        4. Повертає (previous_user_input, current_state_dict).
+        """
+        clean_id = self._sanitize_id(campaign_id)
+        c_dir = self.get_campaign_dir(clean_id)
+        if not os.path.exists(c_dir):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Кампанію '{campaign_id}' не знайдено."
+            )
+
+        state, hist, chat_log = self.get_campaign_session(clean_id)
+
+        # 1. Відкат у chat_log.json
+        prev_user_input = chat_log.rollback_last_turn() or ""
+
+        # 2. Відкат у history.json
+        hist_input = hist.rollback_last_turn()
+        if not prev_user_input and hist_input:
+            prev_user_input = hist_input
+
+        # 3. Відкат збереження
+        state.rollback_snapshot()
+
+        # 4. Оновлюємо дату останнього оновлення та локацію
+        new_loc = state.get_current_state().get("meta", {}).get("location")
+        self.touch_campaign_played(clean_id, new_loc)
+
+        return prev_user_input, state.get_current_state()
