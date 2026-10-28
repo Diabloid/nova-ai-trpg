@@ -187,13 +187,19 @@
 			<Setter Property="Background" Value="#2A0005"/>
 		</Style>
 
-		<!-- КАРТКА ПЕРСОНАЖА (ВЕРХНЯ ПАНЕЛЬ СТАНУ) -->
+		<!-- КАРТКА ПЕРСОНАЖА (ВЕРХНЯ ПАНЕЛЬ СТАНУ З ФІЗИЧНИМ ВІДГУКОМ НА НАТИСКАННЯ) -->
 		<Style Selector="Button.characterCard">
 			<Setter Property="Background" Value="#1A1A1A"/>
 			<Setter Property="BorderBrush" Value="#2A2A2A"/>
 			<Setter Property="BorderThickness" Value="1"/>
 			<Setter Property="CornerRadius" Value="10"/>
 			<Setter Property="Padding" Value="20,10"/>
+			<Setter Property="RenderTransform" Value="none"/>
+			<Setter Property="Transitions">
+				<Transitions>
+					<TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.1" Easing="SineEaseOut"/>
+				</Transitions>
+			</Setter>
 		</Style>
 		<Style Selector="Button.characterCard /template/ ContentPresenter">
 			<Setter Property="Transitions">
@@ -206,6 +212,9 @@
 		<Style Selector="Button.characterCard:pointerover /template/ ContentPresenter">
 			<Setter Property="Background" Value="#1E1E1E"/>
 			<Setter Property="BorderBrush" Value="#4A1218"/>
+		</Style>
+		<Style Selector="Button.characterCard:pressed">
+			<Setter Property="RenderTransform" Value="translateY(2px) scale(0.985)"/>
 		</Style>
 		<Style Selector="Button.characterCard:pressed /template/ ContentPresenter">
 			<Setter Property="Background" Value="#161616"/>
@@ -621,7 +630,7 @@
 			<Setter Property="RenderTransform" Value="rotate(180deg)"/>
 		</Style>
 
-		<!-- АНІМАЦІЯ ВИСУВНОЇ ШТОРКИ ПЕРСОНАЖА -->
+		<!-- АНІМАЦІЯ ВИСУВНОЇ ШТОРКИ ПЕРСОНАЖА (ЗБІЛЬШЕНА ПЛАВНІСТЬ ДО 0.45s) -->
 		<Style Selector="Border.drawerSheet">
 			<Setter Property="MaxHeight" Value="0"/>
 			<Setter Property="Opacity" Value="0"/>
@@ -629,8 +638,8 @@
 			<Setter Property="IsHitTestVisible" Value="False"/>
 			<Setter Property="Transitions">
 				<Transitions>
-					<DoubleTransition Property="MaxHeight" Duration="0:0:0.35" Easing="CubicEaseOut"/>
-					<DoubleTransition Property="Opacity" Duration="0:0:0.25" Easing="SineEaseOut"/>
+					<DoubleTransition Property="MaxHeight" Duration="0:0:0.45" Easing="CubicEaseOut"/>
+					<DoubleTransition Property="Opacity" Duration="0:0:0.35" Easing="SineEaseOut"/>
 				</Transitions>
 			</Setter>
 		</Style>
@@ -1087,10 +1096,10 @@
 						<!-- ВИСУВНА ДЕТАЛЬНА ШТОРКА СТАНУ ПЕРСОНАЖА -->
 						<Border Classes="drawerSheet" Classes.open="{Binding IsCharacterSheetOpen}"
 						        Background="#181818" CornerRadius="10" BorderBrush="#2A2A2A" Margin="0,4,0,0" Padding="16">
-							<Grid ColumnDefinitions="*, *, *">
+							<Grid ColumnDefinitions="0.8*, 0.85*, 1.1*, 1.25*">
 
 								<!-- Колонка 1: Анатомія та Травми -->
-								<Border Grid.Column="0" Background="#1C1C1C" CornerRadius="8" Padding="12" Margin="0,0,8,0" BorderBrush="#2A2A2A" BorderThickness="1" MaxHeight="340">
+								<Border Grid.Column="0" Background="#1C1C1C" CornerRadius="8" Padding="12" Margin="0,0,6,0" BorderBrush="#2A2A2A" BorderThickness="1" MaxHeight="340">
 									<Grid RowDefinitions="Auto, *">
 										<TextBlock Grid.Row="0" Text="🩸 АНАТОМІЯ ТА ТРАВМИ" FontWeight="Bold" Foreground="#EF4444" FontSize="12" LetterSpacing="0.5" Margin="0,0,0,8"/>
 										<ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,10,0">
@@ -1115,7 +1124,7 @@
 								</Border>
 
 								<!-- Колонка 2: Екіпірування (Worn) -->
-								<Border Grid.Column="1" Background="#1C1C1C" CornerRadius="8" Padding="12" Margin="4,0,4,0" BorderBrush="#2A2A2A" BorderThickness="1" MaxHeight="340">
+								<Border Grid.Column="1" Background="#1C1C1C" CornerRadius="8" Padding="12" Margin="3,0,6,0" BorderBrush="#2A2A2A" BorderThickness="1" MaxHeight="340">
 									<Grid RowDefinitions="Auto, *">
 										<TextBlock Grid.Row="0" Text="🛡 ЕКІПІРУВАННЯ (WORN)" FontWeight="Bold" Foreground="#60A5FA" FontSize="12" LetterSpacing="0.5" Margin="0,0,0,8"/>
 										<ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,10,0">
@@ -1139,8 +1148,33 @@
 									</Grid>
 								</Border>
 
-								<!-- 1.2 Колонка 3: Контейнери та Інвентар (Згорнуті в інтерактивні Expander) -->
-								<Border Grid.Column="2" Background="#1C1C1C" CornerRadius="8" Padding="12" Margin="8,0,0,0" BorderBrush="#2A2A2A" BorderThickness="1" MaxHeight="340">
+								<!-- Колонка 3: Здібності та Закляття (Abilities / Skills) -->
+								<Border Grid.Column="2" Background="#1C1C1C" CornerRadius="8" Padding="12" Margin="3,0,6,0" BorderBrush="#2A2A2A" BorderThickness="1" MaxHeight="340">
+									<Grid RowDefinitions="Auto, *">
+										<TextBlock Grid.Row="0" Text="⚡ ЗДІБНОСТІ ТА ЗАКЛЯТТЯ" FontWeight="Bold" Foreground="#C084FC" FontSize="12" LetterSpacing="0.5" Margin="0,0,0,8"/>
+										<ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,10,0">
+											<StackPanel Spacing="4">
+												<ItemsControl ItemsSource="{Binding AbilitiesList}">
+													<ItemsControl.ItemTemplate>
+														<DataTemplate>
+															<Border Background="#161220" CornerRadius="6" Padding="8,5" Margin="0,0,0,6" BorderBrush="#35244C" BorderThickness="1" ToolTip.Tip="{Binding Desc}">
+																<StackPanel>
+																	<TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="#E9D5FF" FontSize="12" TextWrapping="Wrap"/>
+																	<TextBlock Text="{Binding Desc}" Foreground="#A855F7" FontSize="11" TextWrapping="Wrap" Opacity="0.85" Margin="0,2,0,0"/>
+																</StackPanel>
+															</Border>
+														</DataTemplate>
+													</ItemsControl.ItemTemplate>
+												</ItemsControl>
+												<TextBlock Text="Здібності відсутні" Foreground="#6B7280" FontSize="12" FontStyle="Italic"
+												           IsVisible="{Binding !AbilitiesList.Count}"/>
+											</StackPanel>
+										</ScrollViewer>
+									</Grid>
+								</Border>
+
+								<!-- Колонка 4: Контейнери та Інвентар (Згорнуті в інтерактивні Expander) -->
+								<Border Grid.Column="3" Background="#1C1C1C" CornerRadius="8" Padding="12" Margin="3,0,0,0" BorderBrush="#2A2A2A" BorderThickness="1" MaxHeight="340">
 									<Grid RowDefinitions="Auto, *">
 										<TextBlock Grid.Row="0" Text="🎒 КОНТЕЙНЕРИ ТА РЮКЗАК" FontWeight="Bold" Foreground="#34D399" FontSize="12" LetterSpacing="0.5" Margin="0,0,0,8"/>
 										<ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,10,0">
