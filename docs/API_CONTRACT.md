@@ -1,5 +1,5 @@
 # 📜 NOVA AI TRPG — Єдиний контракт взаємодії (API & Game Step Contract)
-**Версія контракту:** 1.3.0 (Додано еластичний драфт для Live Preview створення героя)  
+**Версія контракту:** 1.4.0 (Динамічні атрибути героя, розширений шаблон, відкат ходу Undo)  
 **Статус:** Обов'язковий до дотримання чатами **Backend** та **Client**.
 
 ---
@@ -106,4 +106,22 @@ $$\text{Гравець} \longrightarrow \text{Оповідач (GM)} \longrighta
 | `DELETE` | `/api/v1/campaigns/{campaign_id}` | Видалити кампанію | Відсутній | `{"status": "deleted"}` |
 | `POST` | `/api/v1/action` | Хід у кампанії (REST) | `ActionRequest` | `ActionResponse` |
 | `POST` | `/api/v1/action/stream` | Хід у кампанії (SSE стрімінг) | `ActionRequest` | `text/event-stream` |
+| `POST` | `/api/v1/campaigns/{campaign_id}/rollback` | **Відкат на 1 хід назад (Undo)** | Відсутній | `RollbackResponse` (`previous_user_input`, `current_state`) |
 | `GET` | `/api/v1/state` | Поточний стан кампанії | `?session_id=...` | `PlayerState` |
+
+---
+
+## 5. Специфікація розширених динамічних атрибутів персонажа (v1.4.0)
+
+Щоб зміни шаблону не ламали старі збереження та сумісність:
+1. **Моделі Pydantic (`PlayerMeta` та `PlayerState`):**
+   - Використовують `ConfigDict(extra="allow")`.
+   - Включають розширені опціональні поля:
+     - `first_name: Optional[str]`, `last_name: Optional[str]`, `patronymic: Optional[str]`, `titles: Optional[str]`;
+     - `age: Optional[str]`;
+     - `appearance_details: Optional[Dict[str, Any]]` (статура, очі, волосся, зріст, расові особливості);
+     - `biography: Optional[str]` (детальна хронологія / передісторія);
+     - `abilities: List[Dict[str, Any]]` (здібності, вміння, закляття);
+     - `custom_blocks: Optional[Dict[str, Any]]` (динамічні довільні блоки шаблону).
+2. **Клієнт (C# .NET):**
+   - Усі додаткові та нові властивості читаються динамічно (через словники / гнучкі DTO), забезпечуючи відображення у шторці та прев'ю без падінь при зміні полів шаблону.
