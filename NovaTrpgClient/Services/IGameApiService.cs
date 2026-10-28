@@ -25,6 +25,7 @@ namespace NovaTrpgClient.Services
         Task<List<HistoryMessage>> GetCampaignHistoryAsync(string campaignId, CancellationToken cancellationToken = default);
         Task<CampaignSummary?> PinCampaignAsync(string campaignId, bool isPinned, CancellationToken cancellationToken = default);
         Task<bool> DeleteCampaignAsync(string campaignId, CancellationToken cancellationToken = default);
+        Task<RollbackResponse?> RollbackTurnAsync(string campaignId, CancellationToken cancellationToken = default);
 
         // Створення героя з AI (Character Wizard) з еластичним Live Preview драфтом
         Task<CharacterDialogResponse?> SendCharacterDialogMessageAsync(string message, List<CharacterDialogHistoryItem> history, bool includeDraft = true, CancellationToken cancellationToken = default);

@@ -64,6 +64,18 @@ namespace NovaTrpgClient.Models
         public string? Timestamp { get; set; }
     }
 
+    public class RollbackResponse
+    {
+        [JsonPropertyName("previous_user_input")]
+        public string PreviousUserInput { get; set; } = string.Empty;
+
+        [JsonPropertyName("current_state")]
+        public PlayerState? CurrentState { get; set; }
+
+        [JsonPropertyName("message")]
+        public string Message { get; set; } = string.Empty;
+    }
+
     public class CreateCampaignRequest
     {
         [JsonPropertyName("title")]
