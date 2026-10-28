@@ -420,13 +420,13 @@
 			<Setter Property="BorderBrush" Value="#383838"/>
 		</Style>
 		<Style Selector="Border.campaignCard.pinned">
-			<Setter Property="Background" Value="#180C0E"/>
-			<Setter Property="BorderBrush" Value="#7E0018"/>
-			<Setter Property="BorderThickness" Value="3,1,1,1"/>
+			<Setter Property="Background" Value="#141414"/>
+			<Setter Property="BorderBrush" Value="#252525"/>
+			<Setter Property="BorderThickness" Value="1"/>
 		</Style>
 		<Style Selector="Border.campaignCard.pinned:pointerover">
-			<Setter Property="Background" Value="#220F12"/>
-			<Setter Property="BorderBrush" Value="#9E0022"/>
+			<Setter Property="Background" Value="#1C1C1C"/>
+			<Setter Property="BorderBrush" Value="#383838"/>
 		</Style>
 
 		<!-- 1. ТІЛО КАМПАНІЇ: СУЦІЛЬНА КЛІКАБЕЛЬНІСТЬ ЗЛІВА ВІД РИСКИ (ПОВНИЙ СТРЕТЧ І ПРОЗОРИЙ BORDER) -->
@@ -667,42 +667,42 @@
 		<Style Selector="SplitView /template/ Panel#PART_PaneRoot">
 			<Setter Property="Transitions">
 				<Transitions>
-					<DoubleTransition Property="Width" Duration="0:0:0.55" Easing="CubicEaseInOut"/>
+					<DoubleTransition Property="Width" Duration="0:0:0.25" Easing="CubicEaseOut"/>
 				</Transitions>
 			</Setter>
 		</Style>
 		<Style Selector="SplitView:open /template/ Panel#PART_PaneRoot">
 			<Setter Property="Transitions">
 				<Transitions>
-					<DoubleTransition Property="Width" Duration="0:0:0.55" Easing="CubicEaseInOut"/>
+					<DoubleTransition Property="Width" Duration="0:0:0.25" Easing="CubicEaseOut"/>
 				</Transitions>
 			</Setter>
 		</Style>
 		<Style Selector="SplitView:closed /template/ Panel#PART_PaneRoot">
 			<Setter Property="Transitions">
 				<Transitions>
-					<DoubleTransition Property="Width" Duration="0:0:0.55" Easing="CubicEaseInOut"/>
+					<DoubleTransition Property="Width" Duration="0:0:0.25" Easing="CubicEaseOut"/>
 				</Transitions>
 			</Setter>
 		</Style>
 		<Style Selector="SplitView /template/ ContentPresenter#PART_ContentRoot">
 			<Setter Property="Transitions">
 				<Transitions>
-					<ThicknessTransition Property="Margin" Duration="0:0:0.55" Easing="CubicEaseInOut"/>
+					<ThicknessTransition Property="Margin" Duration="0:0:0.25" Easing="CubicEaseOut"/>
 				</Transitions>
 			</Setter>
 		</Style>
 		<Style Selector="SplitView:open /template/ ContentPresenter#PART_ContentRoot">
 			<Setter Property="Transitions">
 				<Transitions>
-					<ThicknessTransition Property="Margin" Duration="0:0:0.55" Easing="CubicEaseInOut"/>
+					<ThicknessTransition Property="Margin" Duration="0:0:0.25" Easing="CubicEaseOut"/>
 				</Transitions>
 			</Setter>
 		</Style>
 		<Style Selector="SplitView:closed /template/ ContentPresenter#PART_ContentRoot">
 			<Setter Property="Transitions">
 				<Transitions>
-					<ThicknessTransition Property="Margin" Duration="0:0:0.55" Easing="CubicEaseInOut"/>
+					<ThicknessTransition Property="Margin" Duration="0:0:0.25" Easing="CubicEaseOut"/>
 				</Transitions>
 			</Setter>
 		</Style>
@@ -712,7 +712,7 @@
 			<Setter Property="Opacity" Value="0"/>
 			<Setter Property="Transitions">
 				<Transitions>
-					<DoubleTransition Property="Opacity" Duration="0:0:0.4" Easing="SineEaseInOut"/>
+					<DoubleTransition Property="Opacity" Duration="0:0:0.2" Easing="SineEaseOut"/>
 				</Transitions>
 			</Setter>
 		</Style>
@@ -723,28 +723,66 @@
 			<Setter Property="Opacity" Value="0"/>
 		</Style>
 
-		<!-- КНОПКА МЕНЮ -->
-		<Style Selector="ToggleButton.menuBtn">
-			<Setter Property="Background" Value="#1A1A1A"/>
-			<Setter Property="CornerRadius" Value="10"/>
+		<!-- КРАЙОВА КНОПКА-ВКЛАДКА МЕНЮ (EDGE DOCKED TAB) -->
+		<Style Selector="ToggleButton.edgeMenuTab">
+			<Setter Property="Width" Value="28"/>
+			<Setter Property="Height" Value="46"/>
+			<Setter Property="Padding" Value="0"/>
+			<Setter Property="CornerRadius" Value="0,8,8,0"/>
+			<Setter Property="BorderThickness" Value="0,1,1,1"/>
+			<Setter Property="Background" Value="#181818"/>
 			<Setter Property="BorderBrush" Value="#2A2A2A"/>
-			<Setter Property="BorderThickness" Value="1"/>
+			<Setter Property="Cursor" Value="Hand"/>
+			<Setter Property="HorizontalContentAlignment" Value="Center"/>
+			<Setter Property="VerticalContentAlignment" Value="Center"/>
+			<Setter Property="ZIndex" Value="100"/>
 		</Style>
-		<Style Selector="ToggleButton.menuBtn /template/ ContentPresenter">
+		<Style Selector="ToggleButton.edgeMenuTab /template/ ContentPresenter">
 			<Setter Property="Transitions">
 				<Transitions>
-					<BrushTransition Property="Background" Duration="0:0:0.18" Easing="SineEaseOut"/>
+					<BrushTransition Property="Background" Duration="0:0:0.2" Easing="SineEaseOut"/>
 					<BrushTransition Property="BorderBrush" Duration="0:0:0.2" Easing="SineEaseOut"/>
 				</Transitions>
 			</Setter>
 		</Style>
-		<Style Selector="ToggleButton.menuBtn:pointerover /template/ ContentPresenter">
+		<Style Selector="ToggleButton.edgeMenuTab:pointerover /template/ ContentPresenter">
 			<Setter Property="Background" Value="#222222"/>
-			<Setter Property="BorderBrush" Value="#383838"/>
+			<Setter Property="BorderBrush" Value="#7E0018"/>
 		</Style>
-		<Style Selector="ToggleButton.menuBtn:checked /template/ ContentPresenter">
-			<Setter Property="Background" Value="#242424"/>
+		<Style Selector="ToggleButton.edgeMenuTab:pressed /template/ ContentPresenter">
+			<Setter Property="Background" Value="#121212"/>
 			<Setter Property="BorderBrush" Value="#5A0010"/>
+		</Style>
+		<Style Selector="ToggleButton.edgeMenuTab:checked /template/ ContentPresenter">
+			<Setter Property="Background" Value="#161616"/>
+			<Setter Property="BorderBrush" Value="#353535"/>
+		</Style>
+		<Style Selector="ToggleButton.edgeMenuTab:checked:pointerover /template/ ContentPresenter">
+			<Setter Property="Background" Value="#222222"/>
+			<Setter Property="BorderBrush" Value="#9E0022"/>
+		</Style>
+
+		<!-- СТРІЛОЧКА З ПЛАВНИМ ПЕРЕВОРОТОМ НА 180° -->
+		<Style Selector="ToggleButton.edgeMenuTab PathIcon.menuArrow">
+			<Setter Property="Foreground" Value="#888888"/>
+			<Setter Property="RenderTransformOrigin" Value="50%,50%"/>
+			<Setter Property="RenderTransform" Value="rotate(0deg)"/>
+			<Setter Property="Transitions">
+				<Transitions>
+					<TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.35" Easing="CubicEaseOut"/>
+					<BrushTransition Property="Foreground" Duration="0:0:0.2" Easing="SineEaseOut"/>
+				</Transitions>
+			</Setter>
+		</Style>
+		<Style Selector="ToggleButton.edgeMenuTab:pointerover PathIcon.menuArrow">
+			<Setter Property="Foreground" Value="#F3F4F6"/>
+		</Style>
+		<Style Selector="ToggleButton.edgeMenuTab:checked PathIcon.menuArrow">
+			<Setter Property="RenderTransform" Value="rotate(180deg)"/>
+			<Setter Property="Foreground" Value="#EF4444"/>
+		</Style>
+		<Style Selector="ToggleButton.edgeMenuTab:checked:pointerover PathIcon.menuArrow">
+			<Setter Property="Foreground" Value="#FCA5A5"/>
 		</Style>
 
 		<!-- 3. ЄДИНИЙ СТИЛЬ ТА ПОЗИЦІОНУВАННЯ TOOLTIP (ВИНЕСЕННЯ ЗА МЕЖІ КНОПКИ, БЕЗ ЗРИВУ ХОВЕРУ) -->
@@ -952,16 +990,19 @@
 									<ItemsControl ItemsSource="{Binding Campaigns}">
 										<ItemsControl.ItemTemplate>
 											<DataTemplate>
-												<!-- 6, 7 & 8. Картка кампанії з суцільним наведенням та фірмовим червоним акцентом для закріплених (без емодзі) -->
+												<!-- Картка кампанії з суцільним наведенням та 3px лівою смужкою для закріплених -->
 												<Border Margin="0,0,0,5" Classes="campaignCard" Classes.pinned="{Binding IsPinned}">
-													<Grid ColumnDefinitions="*, Auto">
+													<Grid ColumnDefinitions="Auto, *, Auto">
+														<!-- Ліва вертикальна смужка 3px кольору #7E0018 для закріплених кампаній -->
+														<Border Grid.Column="0" Width="3" Background="#7E0018" IsVisible="{Binding IsPinned}" HorizontalAlignment="Left" CornerRadius="7,0,0,7"/>
+
 														<!-- Клікабельна зона назви кампанії для входу в чат -->
-														<Button Grid.Column="0" Classes="campaignBodyBtn"
+														<Button Grid.Column="1" Classes="campaignBodyBtn"
 														        Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).SelectCampaignCommand}"
 														        CommandParameter="{Binding}">
 															<StackPanel VerticalAlignment="Center" Spacing="2">
 																<Grid ColumnDefinitions="Auto, *">
-																	<!-- 6. Векторний міні-пін для закріплених кампаній замість дешевого емодзі -->
+																	<!-- Векторний міні-пін для закріплених кампаній -->
 																	<PathIcon Grid.Column="0"
 																	          Data="M16 9V4h1c.55 0 1-.45 1-1s-.45-1-1-1H7c-.55 0-1 .45-1 1s.45 1 1 1h1v5c0 1.66-1.34 3-3 3v2h5.97v7l1 1 1-1v-7H19v-2c-1.66 0-3-1.34-3-3z"
 																	          Width="10" Height="10" Foreground="#EF4444" Margin="0,0,6,0"
@@ -973,7 +1014,7 @@
 														</Button>
 
 														<!-- Дії з кампанією (Закріпити / Видалити) -->
-														<StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center" Margin="4,0,8,0">
+														<StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center" Margin="4,0,8,0">
 															<!-- 8. Векторна іконка закріплення -->
 															<Button Classes="iconActionBtn"
 															        Classes.pinned="{Binding IsPinned}"
@@ -1059,17 +1100,15 @@
 			<SplitView.Content>
 				<Grid>
 					<!-- 1. ІГРОВИЙ ЕКРАН (АКТИВНА КАМПАНІЯ ТА ЧАТ ГРИ) -->
-					<Grid RowDefinitions="Auto, *, Auto" Margin="24,40,24,24"
+					<Grid RowDefinitions="Auto, *, Auto" Margin="42,40,24,24"
 					      IsVisible="{Binding !IsCharacterCreationActive}">
 
 					<!-- ВЕРХНЯ ПАНЕЛЬ З ВИСУВНОЮ ШТОРКОЮ ПЕРСОНАЖА -->
 					<StackPanel Grid.Row="0" Margin="0,0,0,16" Spacing="8">
 						<!-- ГОЛОВНА ЛАКОНІЧНА СМУГА СТАНУ -->
-						<Grid ColumnDefinitions="Auto, *">
-							<ToggleButton Grid.Column="0" Classes="menuBtn" IsChecked="{Binding IsMenuOpen, Mode=TwoWay}" Content="☰" Foreground="#E5E7EB" FontSize="20" Width="44" Height="44" Margin="0,0,16,0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Padding="0" Cursor="Hand"/>
-
+						<Grid ColumnDefinitions="*">
 							<!-- Клікабельна плашка персонажа (відкриває/закриває детальну шторку) -->
-							<Button Grid.Column="1" Classes="characterCard" Command="{Binding ToggleCharacterSheetCommand}"
+							<Button Grid.Column="0" Classes="characterCard" Command="{Binding ToggleCharacterSheetCommand}"
 							        HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Cursor="Hand">
 								<Grid ColumnDefinitions="Auto, *, Auto">
 									<!-- Інфо персонажа -->
@@ -1283,7 +1322,7 @@
 				</Grid>
 
 				<!-- 2. ЕКРАН СТВОРЕННЯ ГЕРОЯ: ТВОРЕЦЬ ДОЛІ (ПОВНІСТЮ ЗАМІЩУЄ ПРАВУ ЧАСТИНУ ВІД БІЧНОГО МЕНЮ) -->
-				<Grid RowDefinitions="Auto, *" Margin="24,40,24,24" IsVisible="{Binding IsCharacterCreationActive}">
+				<Grid RowDefinitions="Auto, *" Margin="42,40,24,24" IsVisible="{Binding IsCharacterCreationActive}">
 					<!-- Верхня панель екрану створення -->
 					<Grid Grid.Row="0" ColumnDefinitions="*, Auto" Margin="0,0,0,16">
 						<StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="4">
@@ -1431,6 +1470,19 @@
 						</Grid>
 					</Grid>
 				</Grid>
+
+				<!-- 3. ФІРМОВА КРАЙОВА КНОПКА-ВКЛАДКА МЕНЮ (EDGE DOCKED TAB) -->
+				<ToggleButton Classes="edgeMenuTab"
+				              IsChecked="{Binding IsMenuOpen, Mode=TwoWay}"
+				              HorizontalAlignment="Left"
+				              VerticalAlignment="Top"
+				              Margin="0,46,0,0"
+				              Cursor="Hand"
+				              ToolTip.Tip="Бічне меню">
+					<PathIcon Classes="menuArrow"
+					          Data="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"
+					          Width="11" Height="11"/>
+				</ToggleButton>
 			</Grid>
 		</SplitView.Content>
 		</SplitView>
@@ -1493,8 +1545,8 @@
 					<TextBlock Text="{Binding ConfirmModalMessage}" Foreground="#E5E7EB" FontSize="13" TextWrapping="Wrap" LineHeight="20"/>
 
 					<Grid ColumnDefinitions="*, *" Margin="0,8,0,0">
-						<Button Grid.Column="0" Classes="actionSmallBtn" Command="{Binding CancelConfirmModalCommand}" Content="Скасувати" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="0,0,6,0" Cursor="Hand"/>
-						<Button Grid.Column="1" Classes="primaryCreateBtn" Background="#4A1414" BorderBrush="#EF4444" Command="{Binding ConfirmModalActionCommand}" Content="🗑 Видалити" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="6,0,0,0" Cursor="Hand"/>
+						<Button Grid.Column="0" Classes="actionSmallBtn" Command="{Binding CancelConfirmModalCommand}" Content="{Binding ConfirmModalCancelButtonText, FallbackValue='Скасувати'}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="0,0,6,0" Cursor="Hand"/>
+						<Button Grid.Column="1" Classes="primaryCreateBtn" Background="#4A1414" BorderBrush="#EF4444" Command="{Binding ConfirmModalActionCommand}" Content="{Binding ConfirmModalConfirmButtonText, FallbackValue='Підтвердити'}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="6,0,0,0" Cursor="Hand"/>
 					</Grid>
 				</StackPanel>
 			</Border>
