@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
+using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace NovaTrpgClient.Models
 {
@@ -22,7 +23,7 @@ namespace NovaTrpgClient.Models
         public string? CreatedAt { get; set; }
     }
 
-    public class CampaignSummary
+    public class CampaignSummary : ObservableObject
     {
         [JsonPropertyName("campaign_id")]
         public string CampaignId { get; set; } = string.Empty;
@@ -36,8 +37,13 @@ namespace NovaTrpgClient.Models
         [JsonPropertyName("current_location")]
         public string CurrentLocation { get; set; } = string.Empty;
 
+        private bool _isPinned;
         [JsonPropertyName("is_pinned")]
-        public bool IsPinned { get; set; }
+        public bool IsPinned
+        {
+            get => _isPinned;
+            set => SetProperty(ref _isPinned, value);
+        }
 
         [JsonPropertyName("created_at")]
         public string? CreatedAt { get; set; }

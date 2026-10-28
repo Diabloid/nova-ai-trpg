@@ -168,6 +168,12 @@ namespace NovaTrpgClient.ViewModels
         [ObservableProperty]
         private string _confirmModalMessage = "";
 
+        [ObservableProperty]
+        private string _confirmModalConfirmButtonText = "Підтвердити";
+
+        [ObservableProperty]
+        private string _confirmModalCancelButtonText = "Скасувати";
+
         private Func<Task>? _pendingConfirmAction;
 
         // Колекції інтерфейсу
@@ -295,6 +301,22 @@ namespace NovaTrpgClient.ViewModels
         public async Task SelectCharacterWithoutChatAsync(CharacterSummary? character)
         {
             if (character == null) return;
+
+            if (IsCharacterCreationActive)
+            {
+                PromptUnfinishedWizardExit(async () =>
+                {
+                    IsCharacterCreationActive = false;
+                    await ExecuteSelectCharacterWithoutChatAsync(character);
+                });
+                return;
+            }
+
+            await ExecuteSelectCharacterWithoutChatAsync(character);
+        }
+
+        private async Task ExecuteSelectCharacterWithoutChatAsync(CharacterSummary character)
+        {
             SelectedCharacter = character;
             IsHeroSelectorOpen = false;
 
@@ -306,6 +328,41 @@ namespace NovaTrpgClient.ViewModels
             await LoadCampaignsForCharacterAsync(character.CharId, autoSelectFirstCampaign: false);
         }
 
+        public void ReorderCampaigns(bool force = false)
+        {
+            var currentSelectedId = SelectedCampaign?.CampaignId;
+            var sorted = Campaigns
+                .OrderByDescending(c => c.IsPinned)
+                .ThenByDescending(c => DateTime.TryParse(c.LastPlayed, out var lp) ? lp : (DateTime.TryParse(c.CreatedAt, out var ca) ? ca : DateTime.MinValue))
+                .ToList();
+
+            bool orderChanged = force;
+            if (!orderChanged)
+            {
+                for (int i = 0; i < sorted.Count; i++)
+                {
+                    if (Campaigns[i].CampaignId != sorted[i].CampaignId)
+                    {
+                        orderChanged = true;
+                        break;
+                    }
+                }
+            }
+
+            if (orderChanged)
+            {
+                Campaigns.Clear();
+                foreach (var c in sorted)
+                {
+                    Campaigns.Add(c);
+                }
+                if (currentSelectedId != null)
+                {
+                    SelectedCampaign = Campaigns.FirstOrDefault(c => c.CampaignId == currentSelectedId);
+                }
+            }
+        }
+
         public async Task LoadCampaignsForCharacterAsync(string charId, bool autoSelectFirstCampaign = true)
         {
             try
@@ -315,8 +372,11 @@ namespace NovaTrpgClient.ViewModels
 
                 if (camps != null && camps.Count > 0)
                 {
-                    // Сортуємо: закріплені нагорі, далі за датою
-                    var sorted = camps.OrderByDescending(c => c.IsPinned).ThenByDescending(c => c.LastPlayed ?? c.CreatedAt).ToList();
+                    // Сортуємо: закріплені нагорі, далі за часом останнього повідомлення/гри
+                    var sorted = camps
+                        .OrderByDescending(c => c.IsPinned)
+                        .ThenByDescending(c => DateTime.TryParse(c.LastPlayed, out var lp) ? lp : (DateTime.TryParse(c.CreatedAt, out var ca) ? ca : DateTime.MinValue))
+                        .ToList();
                     foreach (var camp in sorted)
                     {
                         Campaigns.Add(camp);
@@ -352,6 +412,21 @@ namespace NovaTrpgClient.ViewModels
         {
             if (campaign == null) return;
 
+            if (IsCharacterCreationActive)
+            {
+                PromptUnfinishedWizardExit(async () =>
+                {
+                    IsCharacterCreationActive = false;
+                    await ExecuteSelectCampaignAsync(campaign);
+                });
+                return;
+            }
+
+            await ExecuteSelectCampaignAsync(campaign);
+        }
+
+        private async Task ExecuteSelectCampaignAsync(CampaignSummary campaign)
+        {
             SelectedCampaign = campaign;
             SessionId = campaign.CampaignId;
             SessionIdInput = campaign.CampaignId;
@@ -370,6 +445,16 @@ namespace NovaTrpgClient.ViewModels
 
             SessionStatusMessage = $"Кампанія: {campaign.Title}";
             IsMenuOpen = false;
+        }
+
+        private void PromptUnfinishedWizardExit(Func<Task> onConfirm)
+        {
+            ConfirmModalTitle = "Незбережений персонаж";
+            ConfirmModalMessage = "У вас є незбережений персонаж. Вийти без збереження?";
+            ConfirmModalConfirmButtonText = "Так";
+            ConfirmModalCancelButtonText = "Ні";
+            _pendingConfirmAction = onConfirm;
+            IsConfirmModalOpen = true;
         }
 
         private async Task LoadCampaignHistoryAsync(string campaignId)
@@ -416,6 +501,19 @@ namespace NovaTrpgClient.ViewModels
         [RelayCommand]
         public void OpenNewCampaignModal()
         {
+            if (IsCharacterCreationActive)
+            {
+                PromptUnfinishedWizardExit(() =>
+                {
+                    IsCharacterCreationActive = false;
+                    var name = SelectedCharacter?.Name ?? Characters.FirstOrDefault()?.Name ?? "Герой";
+                    NewCampaignTitle = $"Пригода {name} #{Campaigns.Count + 1}";
+                    IsNewCampaignModalOpen = true;
+                    return Task.CompletedTask;
+                });
+                return;
+            }
+
             var charName = SelectedCharacter?.Name ?? Characters.FirstOrDefault()?.Name ?? "Герой";
             NewCampaignTitle = $"Пригода {charName} #{Campaigns.Count + 1}";
             IsNewCampaignModalOpen = true;
@@ -493,10 +591,11 @@ namespace NovaTrpgClient.ViewModels
             campaign.IsPinned = newPinState;
 
             var result = await _gameApiService.PinCampaignAsync(campaign.CampaignId, newPinState);
-            if (SelectedCharacter != null)
+            if (result != null)
             {
-                await LoadCampaignsForCharacterAsync(SelectedCharacter.CharId, autoSelectFirstCampaign: false);
+                campaign.IsPinned = result.IsPinned;
             }
+            ReorderCampaigns(force: true);
         }
 
         [RelayCommand]
@@ -506,6 +605,8 @@ namespace NovaTrpgClient.ViewModels
 
             ConfirmModalTitle = "Видалити кампанію?";
             ConfirmModalMessage = $"Ви впевнені, що хочете безповоротно видалити кампанію «{campaign.Title}»? Уся історія діалогу буде втрачена.";
+            ConfirmModalConfirmButtonText = "Видалити";
+            ConfirmModalCancelButtonText = "Скасувати";
             _pendingConfirmAction = async () =>
             {
                 var success = await _gameApiService.DeleteCampaignAsync(campaign.CampaignId);
@@ -520,6 +621,20 @@ namespace NovaTrpgClient.ViewModels
         // --- ДІЇ З ПЕРСОНАЖАМИ (BLUEPRINTS) ТА AI СТВОРЕННЯ ---
         [RelayCommand]
         public void OpenCreateCharacterScreen()
+        {
+            if (IsCharacterCreationActive)
+            {
+                PromptUnfinishedWizardExit(() =>
+                {
+                    ResetWizardState();
+                    return Task.CompletedTask;
+                });
+                return;
+            }
+            ResetWizardState();
+        }
+
+        private void ResetWizardState()
         {
             IsCharacterCreationActive = true;
             IsMenuOpen = false;
@@ -546,6 +661,15 @@ namespace NovaTrpgClient.ViewModels
         [RelayCommand]
         public void CancelCharacterCreation()
         {
+            if (WizardMessages.Count > 1 || !string.IsNullOrWhiteSpace(WizardCharName) || !string.IsNullOrWhiteSpace(WizardInput))
+            {
+                PromptUnfinishedWizardExit(() =>
+                {
+                    IsCharacterCreationActive = false;
+                    return Task.CompletedTask;
+                });
+                return;
+            }
             IsCharacterCreationActive = false;
         }
 
@@ -849,6 +973,8 @@ namespace NovaTrpgClient.ViewModels
 
             ConfirmModalTitle = "Видалити персонажа?";
             ConfirmModalMessage = $"Ви впевнені, що хочете видалити героя «{character.Name}» та всі пов'язані з ним кампанії?";
+            ConfirmModalConfirmButtonText = "Видалити";
+            ConfirmModalCancelButtonText = "Скасувати";
             _pendingConfirmAction = async () =>
             {
                 var success = await _gameApiService.DeleteCharacterAsync(character.CharId);
@@ -990,6 +1116,12 @@ namespace NovaTrpgClient.ViewModels
                                 {
                                     aiMessage.Text = _textSanitizerService.SanitizeStory(sse.FinalResponse.Story);
                                 }
+                            }
+
+                            if (SelectedCampaign != null)
+                            {
+                                SelectedCampaign.LastPlayed = DateTime.UtcNow.ToString("o");
+                                ReorderCampaigns();
                             }
                             break;
 
