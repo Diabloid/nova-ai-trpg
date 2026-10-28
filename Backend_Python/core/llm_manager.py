@@ -188,6 +188,10 @@ class LLMController:
         return await self.character_wizard_service.finalize_character_concept(dialog_summary, history)
 
     # Гаряче оновлення
+    async def refresh_ai_models(self) -> List[str]:
+        """Опитує Odirouter API та динамічно ранжує пул безкоштовних моделей."""
+        return await self.provider_service.discover_and_rank_models()
+
     def reload_lore(self):
         self.prompt_service.reload_lore()
 

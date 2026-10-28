@@ -36,9 +36,22 @@ class CharacterManager:
             empty_template = {
                 "meta": {
                     "name": "",
+                    "first_name": "",
+                    "last_name": "",
+                    "patronymic": "",
+                    "titles": "",
+                    "age": "",
                     "background": "",
                     "location": "Невідомий ліс",
-                    "appearance": ""
+                    "appearance": "",
+                    "appearance_details": {
+                        "physique": "",
+                        "height": "",
+                        "eyes": "",
+                        "hair": "",
+                        "race_traits": ""
+                    },
+                    "biography": ""
                 },
                 "anatomy_and_health": {
                     "overall_state": "Повний сил",
@@ -48,7 +61,8 @@ class CharacterManager:
                     "worn": [],
                     "containers": {}
                 },
-                "abilities": []
+                "abilities": [],
+                "custom_blocks": {}
             }
             with open(template_path, "w", encoding="utf-8") as f:
                 json.dump(empty_template, f, ensure_ascii=False, indent=4)

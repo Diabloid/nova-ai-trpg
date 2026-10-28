@@ -48,13 +48,23 @@ class ActionRequest(BaseModel):
 # =========================================================================
 
 class PlayerMeta(BaseModel):
-    """Метадані персонажа та поточна сцена."""
+    """Метадані персонажа та поточна сцена (розширено у v1.4.0)."""
     model_config = ConfigDict(extra="allow")
 
-    name: str = Field(default="Мандрівник", description="Ім'я персонажа")
-    background: Optional[str] = Field(default="Шукач пригод", description="Передісторія / фах")
+    name: str = Field(default="Мандрівник", description="Ім'я або повне звертання до персонажа")
+    first_name: Optional[str] = Field(default=None, description="Власне ім'я")
+    last_name: Optional[str] = Field(default=None, description="Прізвище або родове ім'я")
+    patronymic: Optional[str] = Field(default=None, description="По батькові")
+    titles: Optional[str] = Field(default=None, description="Титули, епітети або військові звання")
+    age: Optional[str] = Field(default=None, description="Вік персонажа")
+    background: Optional[str] = Field(default="Шукач пригод", description="Передісторія / фах / клас")
     location: Optional[str] = Field(default="Невідомий ліс", description="Поточна локація персонажа")
-    appearance: Optional[str] = Field(default=None, description="Опис зовнішності персонажа")
+    appearance: Optional[str] = Field(default=None, description="Загальний художній опис зовнішності")
+    appearance_details: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Деталі зовнішності: статура, зріст, очі, волосся, расові ознаки"
+    )
+    biography: Optional[str] = Field(default=None, description="Детальна хронологія / передісторія")
 
 
 class InjuryItem(BaseModel):
@@ -111,7 +121,7 @@ class StorageAndEquipment(BaseModel):
 
 
 class PlayerState(BaseModel):
-    """Повний стан персонажа (PlayerState DTO)."""
+    """Повний стан персонажа (PlayerState DTO, v1.4.0)."""
     model_config = ConfigDict(extra="allow")
 
     meta: PlayerMeta = Field(default_factory=PlayerMeta)
@@ -120,6 +130,10 @@ class PlayerState(BaseModel):
     abilities: List[Union[AbilityItem, Dict[str, Any], str]] = Field(
         default_factory=list,
         description="Активні та пасивні навички/здібності персонажа"
+    )
+    custom_blocks: Optional[Dict[str, Any]] = Field(
+        default_factory=dict,
+        description="Динамічні довільні блоки шаблону"
     )
 
 
@@ -208,6 +222,15 @@ class HistoryMessage(BaseModel):
     role: str = Field(..., description="'player' (гравець), 'narrator' (оповідач), 'system' (система)")
     text: str = Field(..., description="Зміст повідомлення")
     timestamp: str = Field(..., description="ISO 8601 мітка часу повідомлення")
+
+
+class RollbackResponse(BaseModel):
+    """Відповідь на запит відкату ходу (Undo, v1.4.0)."""
+    model_config = ConfigDict(extra="allow")
+
+    previous_user_input: str = Field(..., description="Текст попередньої дії гравця для повернення в інпут клієнта")
+    current_state: PlayerState = Field(..., description="Відновлений стан героя після відкату")
+    message: str = Field(default="Хід успішно відкочено на 1 крок назад", description="Статус операції відкату")
 
 
 # =========================================================================

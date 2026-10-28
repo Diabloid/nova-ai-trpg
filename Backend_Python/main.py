@@ -35,6 +35,7 @@ from schemas.game_dto import (
     CampaignCreateRequest,
     CampaignPinRequest,
     HistoryMessage,
+    RollbackResponse,
     CharacterDialogRequest,
     CharacterDialogResponse,
     CharacterFinalizeRequest,
@@ -57,6 +58,8 @@ async def lifespan(app: FastAPI):
     """
     logger.info("⏳ Ініціалізація бази знань та лору всесвіту...")
     llm_controller.prompt_service.ensure_lore_loaded()
+    logger.info("🔍 Динамічне опитування та евристичне ранжування ШІ-моделей Odirouter...")
+    await llm_controller.refresh_ai_models()
     logger.info("🚀 NOVA AI TRPG Engine API успішно запущено та готовий до гри!")
     yield
     logger.info("🛑 Зупинка NOVA AI TRPG Engine API...")
@@ -64,10 +67,10 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="NOVA AI TRPG Engine API",
-    version="1.2.0",
+    version="1.4.0",
     lifespan=lifespan,
     description=(
-        "Офіційний бекенд дипломного проєкту NOVA AI TRPG (API v1.2.0).\n\n"
+        "Офіційний бекенд дипломного проєкту NOVA AI TRPG (API v1.4.0).\n\n"
         "Архітектура:\n"
         "- Персонажі (Blueprints): створення, редагування, Character Wizard з AI Творцем Долі.\n"
         "- Кампанії (Campaigns / Чати): мультисесійність за кожним героєм, авто-генерація вступного наративу (Intro Post), закріплення (Pin).\n"
@@ -232,6 +235,22 @@ async def create_campaign(
 )
 async def get_campaign_history(campaign_id: str = Path(..., description="ID кампанії")):
     return llm_controller.campaign_manager.get_campaign_history(campaign_id)
+
+
+@app.post(
+    "/api/v1/campaigns/{campaign_id}/rollback",
+    response_model=RollbackResponse,
+    tags=["Кампанії"],
+    summary="Відкат останнього ходу кампанії на 1 крок назад (Undo)"
+)
+async def rollback_campaign_turn(campaign_id: str = Path(..., description="ID кампанії")):
+    prev_input, state_dict = llm_controller.campaign_manager.rollback_campaign_turn(campaign_id)
+    msg = "Хід успішно відкочено на 1 крок назад" if prev_input else "Немає ходів гравця для відкату"
+    return RollbackResponse(
+        previous_user_input=prev_input,
+        current_state=PlayerState.model_validate(state_dict),
+        message=msg
+    )
 
 
 @app.patch(

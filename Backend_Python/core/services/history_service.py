@@ -103,6 +103,31 @@ class HistoryService:
         self.save()
         print("💾 [HistoryService] Хід зафіксовано (Committed) у буфері LLM.")
 
+    def rollback_last_turn(self) -> Optional[str]:
+        """
+        Видаляє останній завершений хід (репліку асистента та попередню дію користувача)
+        із робочого контекстного буфера history.json (Undo).
+        Повертає текст скасованої дії користувача.
+        """
+        last_user_text: Optional[str] = None
+        # Якщо в кінці буфера пара (user, assistant)
+        if (
+            len(self.recent_messages) >= 2
+            and self.recent_messages[-1].get("role") == "assistant"
+            and self.recent_messages[-2].get("role") == "user"
+        ):
+            self.recent_messages.pop()  # видаляємо assistant
+            user_msg = self.recent_messages.pop()  # видаляємо user
+            last_user_text = user_msg.get("content", "")
+            self.save()
+            print("↩️ [HistoryService] Останній хід успішно видалено з history.json.")
+        elif self.recent_messages and self.recent_messages[-1].get("role") == "assistant":
+            # Якщо з якихось причин тільки репліка асистента
+            self.recent_messages.pop()
+            self.save()
+
+        return last_user_text
+
     async def _compress_history_if_needed(self, llm_provider, prompt_service):
         """Архіватор історії: стискає перші 6 робочих повідомлень при перевищенні 20."""
         MAX_MESSAGES = 20
