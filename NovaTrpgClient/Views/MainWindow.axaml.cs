@@ -7,6 +7,7 @@ using AvaloniaEdit.Highlighting;
 using AvaloniaEdit.Highlighting.Xshd;
 using NovaTrpgClient.ViewModels;
 using System;
+using System.Threading.Tasks;
 using System.Xml;
 
 namespace NovaTrpgClient.Views
@@ -53,7 +54,15 @@ namespace NovaTrpgClient.Views
                 WizardInputBox.AddHandler(InputElement.KeyDownEvent, WizardInputBox_TunnelKeyDown, Avalonia.Interactivity.RoutingStrategies.Tunnel);
             }
 
-
+            // Автоскрол чату при зміні розміру вікна або області повідомлень
+            var mainChatScroll = this.FindControl<ScrollViewer>("ChatScroll");
+            if (mainChatScroll != null)
+            {
+                mainChatScroll.SizeChanged += (s, e) =>
+                {
+                    mainChatScroll.ScrollToEnd();
+                };
+            }
 
             this.DataContextChanged += (s, e) =>
             {
@@ -68,6 +77,17 @@ namespace NovaTrpgClient.Views
                             {
                                 ChatInputEditor.Text = string.Empty;
                             }
+                        }
+                        else if (args.PropertyName == nameof(MainWindowViewModel.IsCharacterSheetOpen))
+                        {
+                            // Усунення сповзання чату: фіксація скролу під час та після розгортання шторки
+                            Avalonia.Threading.Dispatcher.UIThread.Post(async () =>
+                            {
+                                var scroll = this.FindControl<ScrollViewer>("ChatScroll");
+                                scroll?.ScrollToEnd();
+                                await Task.Delay(460);
+                                scroll?.ScrollToEnd();
+                            }, Avalonia.Threading.DispatcherPriority.Loaded);
                         }
                     };
 
