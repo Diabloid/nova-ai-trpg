@@ -7,28 +7,47 @@
     <Color name="OOC" foreground="#9CA3AF" />                           <!-- Сірий для позаігрового -->
 
     <RuleSet>
-        <!-- Дії в **зірочках** із захистом від екранування -->
-        <Span color="Action" multiline="true">
-            <Begin>(?&lt;!\\)\*\*</Begin>
-            <End>(?&lt;!\\)\*\*</End>
-        </Span>
-        
-        <!-- Думки в "лапках" -->
-        <Span color="Thought" multiline="true">
-            <Begin>(?&lt;!\\)&quot;</Begin>
-            <End>(?&lt;!\\)&quot;</End>
-        </Span>
-        
-        <!-- Позаігрове в (дужках) -->
-        <Span color="OOC" multiline="true">
-            <Begin>(?&lt;!\\)\(</Begin>
-            <End>(?&lt;!\\)\)</End>
-        </Span>
-        
-        <!-- Пряма мова, що починається з дефіса (до кінця рядка) -->
+        <!-- Пряма мова, що починається з дефіса/тире (до кінця рядка) -->
         <Span color="Speech" multiline="false">
-            <Begin>(?&lt;!\\)\-</Begin>
+            <Begin>(?&lt;!\\)[\-\u2013\u2014](?![\u200B])</Begin>
             <End>$</End>
+        </Span>
+
+        <!-- Дія в **зірочках** (забарвлюється тільки коли є пара; всередині підтримує "думки" синім кольором) -->
+        <Span color="Action" multiline="false">
+            <Begin>(?&lt;!\\)\*\*(?![\u200B])(?=.*?(?&lt;!\\)\*\*)</Begin>
+            <End>(?&lt;!\\)\*\*</End>
+            <RuleSet>
+                <!-- Думка всередині дії: забарвлюється синім -->
+                <Span color="Thought" multiline="false">
+                    <Begin>(?&lt;!\\)&quot;(?![\u200B])(?=.*?(?&lt;!\\)&quot;)</Begin>
+                    <End>(?&lt;!\\)&quot;</End>
+                </Span>
+                <!-- Позаігрове всередині дії: забарвлюється сірим -->
+                <Span color="OOC" multiline="false">
+                    <Begin>(?&lt;!\\)\((?![\u200B])(?=.*?(?&lt;!\\)\))</Begin>
+                    <End>(?&lt;!\\)\)</End>
+                </Span>
+            </RuleSet>
+        </Span>
+        
+        <!-- Думка в "лапках" на верхньому рівні (забарвлюється тільки після закриваючої лапки) -->
+        <Span color="Thought" multiline="false">
+            <Begin>(?&lt;!\\)&quot;(?![\u200B])(?=.*?(?&lt;!\\)&quot;)</Begin>
+            <End>(?&lt;!\\)&quot;</End>
+            <RuleSet>
+                <!-- Дія всередині думки: забарвлюється золотим -->
+                <Span color="Action" multiline="false">
+                    <Begin>(?&lt;!\\)\*\*(?![\u200B])(?=.*?(?&lt;!\\)\*\*)</Begin>
+                    <End>(?&lt;!\\)\*\*</End>
+                </Span>
+            </RuleSet>
+        </Span>
+        
+        <!-- Позаігрове в (дужках) на верхньому рівні -->
+        <Span color="OOC" multiline="false">
+            <Begin>(?&lt;!\\)\((?![\u200B])(?=.*?(?&lt;!\\)\))</Begin>
+            <End>(?&lt;!\\)\)</End>
         </Span>
     </RuleSet>
 </SyntaxDefinition>

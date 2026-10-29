@@ -6,10 +6,10 @@ namespace NovaTrpgClient.Services
 {
     public class IntentParserService : IIntentParserService
     {
-        private static readonly Regex ActionRegex = new(@"(?<!\\)\*\*(.*?)(?<!\\)\*\*", RegexOptions.Compiled);
-        private static readonly Regex ThoughtRegex = new(@"(?<!\\)\""(.*?)(?<!\\)\""", RegexOptions.Compiled);
-        private static readonly Regex OocRegex = new(@"(?<!\\)\((.*?)(?<!\\)\)", RegexOptions.Compiled);
-        private static readonly Regex SpeechRegex = new(@"(?<!\\)\-(.*)$", RegexOptions.Compiled | RegexOptions.Multiline);
+        private static readonly Regex ActionRegex = new(@"(?<!\\)\*\*(?![\u200B])(.*?)(?<!\\)\*\*", RegexOptions.Compiled);
+        private static readonly Regex ThoughtRegex = new(@"(?<!\\)\""(?![\u200B])(.*?)(?<!\\)\""", RegexOptions.Compiled);
+        private static readonly Regex OocRegex = new(@"(?<!\\)\((?![\u200B])(.*?)(?<!\\)\)", RegexOptions.Compiled);
+        private static readonly Regex SpeechRegex = new(@"(?<!\\)[\-\u2013\u2014](?![\u200B])(.*)$", RegexOptions.Compiled | RegexOptions.Multiline);
 
         public List<IntentToken> ParseIntents(string rawAction)
         {
@@ -50,11 +50,14 @@ namespace NovaTrpgClient.Services
             }
 
             return rawAction
-                .Replace(@"\*\*", "**")
+                .Replace("**", "") // Приховуємо сирі зірочки для чистого відображення
+                .Replace(@"\*\*", "")
                 .Replace(@"\""", "\"")
                 .Replace(@"\(", "(")
                 .Replace(@"\)", ")")
-                .Replace(@"\-", "-");
+                .Replace(@"\-", "-")
+                .Replace("\u200B", "")
+                .Trim();
         }
     }
 }
