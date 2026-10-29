@@ -487,10 +487,14 @@ namespace NovaTrpgClient.ViewModels
                             ? dt.ToString("HH:mm")
                             : DateTime.Now.ToString("HH:mm");
 
+                        var displayText = msg.Role.ToLower() == "player"
+                            ? _intentParserService.CleanDisplayAction(msg.Text)
+                            : msg.Text;
+
                         ChatMessages.Add(new ChatMessage
                         {
                             Sender = senderName,
-                            Text = msg.Text,
+                            Text = displayText,
                             SenderColor = senderColor,
                             TimeText = timeStr
                         });
@@ -688,10 +692,13 @@ namespace NovaTrpgClient.ViewModels
             var userText = WizardInput.Trim();
             WizardInput = "";
 
+            // Очищаємо сирі символи ** (Markdown bold) з відповіді гравця у візарді
+            var cleanUserText = userText.Replace("**", "");
+
             WizardMessages.Add(new ChatMessage
             {
                 Sender = "Ти:",
-                Text = userText,
+                Text = cleanUserText,
                 SenderColor = "#60A5FA"
             });
 
@@ -714,6 +721,9 @@ namespace NovaTrpgClient.ViewModels
                 {
                     reply = "Цікавий образ. Нитки долі починають сплітатися. Чи має твій персонаж особливі прикмети, спорядження або магічний дар, про який варто знати?";
                 }
+
+                // Очищаємо сирі символи ** (Markdown bold) з реплік Творця Долі
+                reply = reply.Replace("**", "");
 
                 WizardMessages.Add(new ChatMessage
                 {

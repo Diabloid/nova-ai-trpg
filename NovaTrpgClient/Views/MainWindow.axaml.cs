@@ -7,6 +7,8 @@ using AvaloniaEdit.Highlighting;
 using AvaloniaEdit.Highlighting.Xshd;
 using NovaTrpgClient.ViewModels;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Xml;
 
@@ -192,29 +194,95 @@ namespace NovaTrpgClient.Views
             if (ChatInputEditor == null || string.IsNullOrEmpty(ChatInputEditor.Text)) return;
 
             int offset = ChatInputEditor.CaretOffset;
+            int selStart = ChatInputEditor.SelectionStart;
+            int selLength = ChatInputEditor.SelectionLength;
             string doc = ChatInputEditor.Text;
 
-            // Шукаємо лише не екрановані блоки розмітки
-            var matches = System.Text.RegularExpressions.Regex.Matches(doc, @"(?<!\\)\*\*.*?(?<!\\)\*\*|(?<!\\)"".*?(?<!\\)""|(?<!\\)\(.*?(?<!\\)\)");
+            // Збираємо окремо всі можливі блоки: думки, дії, OOC та пряму мову
+            var allMatches = new List<System.Text.RegularExpressions.Match>();
+            allMatches.AddRange(System.Text.RegularExpressions.Regex.Matches(doc, @"(?<!\\)\"".*?(?<!\\)\""").Cast<System.Text.RegularExpressions.Match>());
+            allMatches.AddRange(System.Text.RegularExpressions.Regex.Matches(doc, @"(?<!\\)\(.*?(?<!\\)\)").Cast<System.Text.RegularExpressions.Match>());
+            allMatches.AddRange(System.Text.RegularExpressions.Regex.Matches(doc, @"(?<!\\)\*\*.*?(?<!\\)\*\*").Cast<System.Text.RegularExpressions.Match>());
+            allMatches.AddRange(System.Text.RegularExpressions.Regex.Matches(doc, @"(?<!\\)[\-\u2013\u2014].*?$").Cast<System.Text.RegularExpressions.Match>());
 
-            for (int i = matches.Count - 1; i >= 0; i--)
+            if (allMatches.Count == 0) return;
+
+            // 1. Якщо виділено текст: знімаємо форматування з усіх блоків всередині виділення
+            if (selLength > 0)
             {
-                var m = matches[i];
-                if (offset >= m.Index && offset <= m.Index + m.Length)
+                int selEnd = selStart + selLength;
+                var selMatches = allMatches.Where(m => m.Index >= selStart && (m.Index + m.Length) <= selEnd)
+                                           .OrderByDescending(m => m.Index)
+                                           .ToList();
+                foreach (var m in selMatches)
                 {
-                    string inner = doc.Substring(m.Index, m.Length);
-
-                    if (inner.StartsWith("**"))
-                        inner = @"\*\*" + inner.Substring(2, inner.Length - 4) + @"\*\*";
-                    else if (inner.StartsWith("\""))
-                        inner = @"\""" + inner.Substring(1, inner.Length - 2) + @"\""";
-                    else if (inner.StartsWith("("))
-                        inner = @"\(" + inner.Substring(1, inner.Length - 2) + @"\)";
-
-                    ChatInputEditor.Document.Replace(m.Index, m.Length, inner);
-                    break;
+                    string clean = UnformatMatch(m.Value);
+                    ChatInputEditor.Document.Replace(m.Index, m.Length, clean);
                 }
+                return;
             }
+
+            // 2. Якщо курсор всередині блоку: обираємо найвужчий вкладений блок (наприклад, думку всередині дії)
+            var enclosingMatches = allMatches
+                .Where(m => offset >= m.Index && offset <= m.Index + m.Length)
+                .OrderBy(m => m.Length)
+                .ToList();
+
+            if (enclosingMatches.Count > 0)
+            {
+                var target = enclosingMatches.First();
+                string clean = UnformatMatch(target.Value);
+                ChatInputEditor.Document.Replace(target.Index, target.Length, clean);
+                return;
+            }
+
+            // 3. Якщо курсор не потрапив у блок: знімаємо форматування з усіх блоків
+            var ordered = allMatches.OrderByDescending(m => m.Index).ToList();
+            foreach (var m in ordered)
+            {
+                string clean = UnformatMatch(m.Value);
+                ChatInputEditor.Document.Replace(m.Index, m.Length, clean);
+            }
+        }
+
+        private static string UnformatMatch(string inner)
+        {
+            // Очищаємо залишки зворотних слешів якщо вони були введені
+            if (inner.Contains(@"\"))
+            {
+                return inner.Replace(@"\", "");
+            }
+
+            // Перемикаємо форматування через невидимий Zero-Width Space без слешів
+            if (inner.StartsWith("\"") && inner.EndsWith("\"") && inner.Length >= 2)
+            {
+                if (inner.Length > 2 && inner[1] == '\u200B')
+                    return "\"" + inner.Substring(2);
+                return "\"\u200B" + inner.Substring(1);
+            }
+
+            if (inner.StartsWith("**") && inner.EndsWith("**") && inner.Length >= 4)
+            {
+                if (inner.Length > 4 && inner[1] == '\u200B')
+                    return "**" + inner.Substring(3, inner.Length - 5) + "**";
+                return "*\u200B*" + inner.Substring(2, inner.Length - 4) + "*\u200B*";
+            }
+
+            if (inner.StartsWith("(") && inner.EndsWith(")") && inner.Length >= 2)
+            {
+                if (inner.Length > 2 && inner[1] == '\u200B')
+                    return "(" + inner.Substring(2);
+                return "(\u200B" + inner.Substring(1);
+            }
+
+            if (inner.StartsWith("-") || inner.StartsWith("–") || inner.StartsWith("—"))
+            {
+                if (inner.Length > 1 && inner[1] == '\u200B')
+                    return inner.Substring(0, 1) + inner.Substring(2);
+                return inner.Substring(0, 1) + "\u200B" + inner.Substring(1);
+            }
+
+            return inner;
         }
     }
 }

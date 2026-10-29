@@ -50,6 +50,7 @@
 							</StackPanel>
 						</Button>
 					</Grid>
+
 					<TextBlock Text="{Binding Text}" TextWrapping="Wrap" Foreground="#E5E7EB" LineHeight="24" FontSize="14" LetterSpacing="0.2"/>
 				</StackPanel>
 			</Border>
@@ -213,51 +214,118 @@
 			<Setter Property="BorderBrush" Value="#9E0020"/>
 		</Style>
 
-		<!-- 1.1 ЕФЕКТИ ГОЛОВНОГО ПОЛЯ ВВОДУ (ChatInputEditor) -->
+		<!-- СТИЛІЗАЦІЯ TOOLTIP (ФІРМОВА ТЕМНА РАМКА БЕЗ ДВОЙНИХ БОРДЕРІВ) -->
+		<Style Selector="ToolTip">
+			<Setter Property="Background" Value="#161616"/>
+			<Setter Property="BorderBrush" Value="#262626"/>
+			<Setter Property="BorderThickness" Value="1"/>
+			<Setter Property="CornerRadius" Value="8"/>
+			<Setter Property="Padding" Value="12,10"/>
+		</Style>
+
+		<!-- СТИЛЬ КОНТЕКСТНОГО МЕНЮ (ПКМ) — ІДЕНТИЧНО ДО МЕНЮ АКАУНТА ТА СПИСКУ ГЕРОЇВ -->
+		<Style Selector="ContextMenu">
+			<Setter Property="Background" Value="#161616"/>
+			<Setter Property="BorderBrush" Value="#262626"/>
+			<Setter Property="BorderThickness" Value="1"/>
+			<Setter Property="CornerRadius" Value="8"/>
+			<Setter Property="Padding" Value="5"/>
+		</Style>
+		<Style Selector="MenuItem">
+			<Setter Property="Background" Value="Transparent"/>
+			<Setter Property="Foreground" Value="#E5E7EB"/>
+			<Setter Property="BorderThickness" Value="0"/>
+			<Setter Property="CornerRadius" Value="6"/>
+			<Setter Property="Padding" Value="10,8"/>
+			<Setter Property="FontSize" Value="12"/>
+			<Setter Property="Cursor" Value="Hand"/>
+		</Style>
+		<Style Selector="MenuItem:pointerover /template/ ContentPresenter">
+			<Setter Property="Background" Value="#222222"/>
+			<Setter Property="BorderThickness" Value="0"/>
+			<Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
+		</Style>
+		<Style Selector="MenuItem:pressed /template/ ContentPresenter">
+			<Setter Property="Background" Value="#1A1A1A"/>
+			<Setter Property="BorderThickness" Value="0"/>
+		</Style>
+
+		<!-- 1.1 ЕФЕКТИ ГОЛОВНОГО ПОЛЯ ВВОДУ (ChatInputEditor - ІДЕНТИЧНО ДО WIZARDINPUTBOX) -->
 		<Style Selector="Border.inputBox">
+			<Setter Property="Background" Value="#161616"/>
 			<Setter Property="BorderBrush" Value="#333333"/>
+			<Setter Property="BorderThickness" Value="1"/>
+			<Setter Property="CornerRadius" Value="10"/>
 			<Setter Property="Transitions">
 				<Transitions>
-					<BrushTransition Property="BorderBrush" Duration="0:0:0.25"/>
+					<BrushTransition Property="BorderBrush" Duration="0:0:0.2"/>
 				</Transitions>
 			</Setter>
 		</Style>
 		<Style Selector="Border.inputBox:pointerover">
+			<Setter Property="Background" Value="#161616"/>
 			<Setter Property="BorderBrush" Value="#444444"/>
 		</Style>
 		<Style Selector="Border.inputBox:focus-within">
+			<Setter Property="Background" Value="#161616"/>
 			<Setter Property="BorderBrush" Value="#5A0010"/>
 		</Style>
 
-		<!-- БОРДОВА КНОПКА ВІДПРАВКИ -->
+		<!-- ФІРМОВА КНОПКА ВІДПРАВКИ (М'ЯКИЙ ОРГАНІЧНИЙ ХОВЕР ЯК У PRIMARYCREATEBTN) -->
 		<Style Selector="Button.sendBtn">
 			<Setter Property="CornerRadius" Value="10"/>
 			<Setter Property="Width" Value="48"/>
 			<Setter Property="Height" Value="48"/>
 			<Setter Property="Background">
 				<LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-					<GradientStop Color="#4A000A" Offset="0.0"/>
-					<GradientStop Color="#2A0005" Offset="1.0"/>
+					<GradientStop Color="#3E0B12" Offset="0.0"/>
+					<GradientStop Color="#240509" Offset="1.0"/>
 				</LinearGradientBrush>
 			</Setter>
+			<Setter Property="BorderBrush" Value="#5A0010"/>
+			<Setter Property="BorderThickness" Value="1"/>
 		</Style>
 		<Style Selector="Button.sendBtn /template/ ContentPresenter">
 			<Setter Property="Transitions">
 				<Transitions>
-					<BrushTransition Property="Background" Duration="0:0:0.2"/>
+					<BrushTransition Property="Background" Duration="0:0:0.18" Easing="SineEaseOut"/>
+					<BrushTransition Property="BorderBrush" Duration="0:0:0.2" Easing="SineEaseOut"/>
 				</Transitions>
 			</Setter>
 		</Style>
 		<Style Selector="Button.sendBtn:pointerover /template/ ContentPresenter">
 			<Setter Property="Background">
 				<LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-					<GradientStop Color="#6A0010" Offset="0.0"/>
-					<GradientStop Color="#4A000A" Offset="1.0"/>
+					<GradientStop Color="#5A0E1A" Offset="0.0"/>
+					<GradientStop Color="#36080E" Offset="1.0"/>
 				</LinearGradientBrush>
 			</Setter>
+			<Setter Property="BorderBrush" Value="#7E0018"/>
 		</Style>
 		<Style Selector="Button.sendBtn:pressed /template/ ContentPresenter">
-			<Setter Property="Background" Value="#2A0005"/>
+			<Setter Property="Background" Value="#2A050A"/>
+			<Setter Property="BorderBrush" Value="#5A0010"/>
+		</Style>
+
+		<!-- ІКОНКА-ПІДКАЗКА СИНТАКСИСУ (?) З ОРГАНІЧНИМ ХОВЕРОМ -->
+		<Style Selector="Border.helpIconBtn">
+			<Setter Property="Background" Value="#222222"/>
+			<Setter Property="BorderBrush" Value="#333333"/>
+			<Setter Property="BorderThickness" Value="1"/>
+			<Setter Property="CornerRadius" Value="12"/>
+			<Setter Property="Transitions">
+				<Transitions>
+					<BrushTransition Property="Background" Duration="0:0:0.18"/>
+					<BrushTransition Property="BorderBrush" Duration="0:0:0.18"/>
+				</Transitions>
+			</Setter>
+		</Style>
+		<Style Selector="Border.helpIconBtn:pointerover">
+			<Setter Property="Background" Value="#2A1215"/>
+			<Setter Property="BorderBrush" Value="#7E0018"/>
+		</Style>
+		<Style Selector="Border.helpIconBtn:pointerover TextBlock">
+			<Setter Property="Foreground" Value="#EF4444"/>
 		</Style>
 
 		<!-- КАРТКА ПЕРСОНАЖА (ВЕРХНЯ ПАНЕЛЬ СТАНУ З ФІЗИЧНИМ ВІДГУКОМ НА НАТИСКАННЯ) -->
@@ -907,17 +975,16 @@
 			<Setter Property="Transitions">
 				<Transitions>
 					<BrushTransition Property="BorderBrush" Duration="0:0:0.2"/>
-					<BrushTransition Property="Background" Duration="0:0:0.18"/>
 				</Transitions>
 			</Setter>
 		</Style>
 		<Style Selector="TextBox.wizardInputBox:pointerover /template/ Border#PART_BorderElement">
+			<Setter Property="Background" Value="#161616"/>
 			<Setter Property="BorderBrush" Value="#444444"/>
-			<Setter Property="Background" Value="#181818"/>
 		</Style>
 		<Style Selector="TextBox.wizardInputBox:focus /template/ Border#PART_BorderElement">
-			<Setter Property="BorderBrush" Value="#5A0010"/>
 			<Setter Property="Background" Value="#161616"/>
+			<Setter Property="BorderBrush" Value="#5A0010"/>
 		</Style>
 
 		<!-- СТИЛІ ПОЛІВ ВВЕДЕННЯ У МОДАЛЬНИХ ВІКНАХ ТА ПАНЕЛІ LIVE PREVIEW -->
@@ -1355,9 +1422,9 @@
 						</ScrollViewer>
 					</Border>
 
-					<!-- ПОЛЕ ВВОДУ ТА ЕЛЕМЕНТИ -->
+					<!-- ПОЛЕ ВВОДУ ТА ЕЛЕМЕНТИ (СИНХРОНІЗОВАНИЙ КОЛІР ФОНУ #161616) -->
 					<Grid Grid.Row="2" ColumnDefinitions="*, Auto" Margin="0,16,0,0">
-						<Border Grid.Column="0" Classes="inputBox" Background="#1A1A1A" CornerRadius="10" BorderThickness="1" Padding="16,14" VerticalAlignment="Stretch">
+						<Border Grid.Column="0" Classes="inputBox" CornerRadius="10" BorderThickness="1" Padding="16,14" VerticalAlignment="Stretch">
 							<Grid>
 								<TextBlock x:Name="WatermarkText" Text="Введіть дію, думку або фразу..." Foreground="#555555" IsHitTestVisible="False" Margin="4,0,0,0" FontStyle="Italic"/>
 								<avedit:TextEditor x:Name="ChatInputEditor"
@@ -1367,7 +1434,11 @@
 								                   FontSize="15" MinHeight="20" MaxHeight="120">
 									<avedit:TextEditor.ContextMenu>
 										<ContextMenu>
-											<MenuItem Header="Скасувати форматування (ПКМ)" Click="RemoveFormatting_Click"/>
+											<MenuItem Header="Скасувати форматування" Click="RemoveFormatting_Click">
+												<MenuItem.Icon>
+													<PathIcon Data="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" Width="11" Height="11" Foreground="#9CA3AF"/>
+												</MenuItem.Icon>
+											</MenuItem>
 										</ContextMenu>
 									</avedit:TextEditor.ContextMenu>
 								</avedit:TextEditor>
@@ -1383,8 +1454,29 @@
 								<PathIcon Data="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" Foreground="White" Width="18" Height="18" Margin="4,4,0,0"/>
 							</Button>
 
-							<Border Background="#2A2A2A" CornerRadius="16" Width="24" Height="24" Margin="12,0,0,12" VerticalAlignment="Bottom" Cursor="Help"
-							        ToolTip.Tip="**Дія** — фізичні дії&#x0a;&#x0a;&quot;Думка&quot; — внутрішній голос&#x0a;&#x0a;- Репліка — пряма мова&#x0a;&#x0a;(OOC) — позаігрове, для ШІ">
+							<!-- ІКОНКА-ПІДКАЗКА СИНТАКСИСУ З ФІРМОВИМИ КОЛЬОРАМИ ТА ХОВЕРОМ -->
+							<Border Classes="helpIconBtn" Width="26" Height="26" Margin="12,0,0,11" VerticalAlignment="Bottom" Cursor="Help">
+								<ToolTip.Tip>
+									<StackPanel Spacing="8">
+										<TextBlock Text="Синтаксис введення дій:" FontWeight="Bold" Foreground="#F3F4F6" FontSize="12" Margin="0,0,0,2"/>
+										<StackPanel Orientation="Horizontal" Spacing="6">
+											<TextBlock Text="**Дія**" Foreground="#EAB308" FontWeight="Bold" FontSize="12"/>
+											<TextBlock Text="— фізичні дії персонажа" Foreground="#D1D5DB" FontSize="12"/>
+										</StackPanel>
+										<StackPanel Orientation="Horizontal" Spacing="6">
+											<TextBlock Text="&quot;Думка&quot;" Foreground="#60A5FA" FontStyle="Italic" FontSize="12"/>
+											<TextBlock Text="— внутрішній голос / монолог" Foreground="#D1D5DB" FontSize="12"/>
+										</StackPanel>
+										<StackPanel Orientation="Horizontal" Spacing="6">
+											<TextBlock Text="- Репліка" Foreground="#4ADE80" FontSize="12"/>
+											<TextBlock Text="— пряма мова (без закриття)" Foreground="#D1D5DB" FontSize="12"/>
+										</StackPanel>
+										<StackPanel Orientation="Horizontal" Spacing="6">
+											<TextBlock Text="(OOC)" Foreground="#9CA3AF" FontSize="12"/>
+											<TextBlock Text="— позаігрове звернення до ШІ" Foreground="#D1D5DB" FontSize="12"/>
+										</StackPanel>
+									</StackPanel>
+								</ToolTip.Tip>
 								<TextBlock Text="?" Foreground="#9CA3AF" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="Bold" FontSize="14"/>
 							</Border>
 						</StackPanel>
