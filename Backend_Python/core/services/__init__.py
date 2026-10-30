@@ -5,6 +5,7 @@ from core.services.chat_log_service import ChatLogService
 from core.services.narrator_service import NarratorService
 from core.services.state_analyzer_service import StateAnalyzerService
 from core.services.character_wizard_service import CharacterWizardService
+from core.services.voice_service import VoiceService
 
 __all__ = [
     "LLMProviderService",
@@ -14,4 +15,5 @@ __all__ = [
     "NarratorService",
     "StateAnalyzerService",
     "CharacterWizardService",
+    "VoiceService",
 ]
