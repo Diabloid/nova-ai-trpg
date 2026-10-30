@@ -1,5 +1,5 @@
 # 📜 NOVA AI TRPG — Єдиний контракт взаємодії (API & Game Step Contract)
-**Версія контракту:** 1.4.0 (Динамічні атрибути героя, розширений шаблон, відкат ходу Undo)  
+**Версія контракту:** 1.5.0 (Роздільний скоринг ШІ-моделей, Голосове введення Voice-to-Text, Синхронізація драфту, Динамічний рендер шаблонів)  
 **Статус:** Обов'язковий до дотримання чатами **Backend** та **Client**.
 
 ---
@@ -94,6 +94,7 @@ $$\text{Гравець} \longrightarrow \text{Оповідач (GM)} \longrighta
 | Метод | URL | Опис | Request | Response |
 | :--- | :--- | :--- | :--- | :--- |
 | `POST` | `/api/v1/character/dialog` | Діалог створення героя з Live Preview | `CharacterDialogRequest` | `CharacterDialogResponse` |
+| `POST` | `/api/v1/character/sync-draft` | Синхронізувати та перерахувати залежні поля після ручного редагування прев'ю | `PlayerState` | `PlayerState` |
 | `POST` | `/api/v1/character/finalize` | Згенерувати фінальний лист героя та зберегти на диск | `{"dialog_summary": "..."}` | `PlayerState` |
 
 ### 4.3. Кампанії (Campaigns)
@@ -108,6 +109,11 @@ $$\text{Гравець} \longrightarrow \text{Оповідач (GM)} \longrighta
 | `POST` | `/api/v1/action/stream` | Хід у кампанії (SSE стрімінг) | `ActionRequest` | `text/event-stream` |
 | `POST` | `/api/v1/campaigns/{campaign_id}/rollback` | **Відкат на 1 хід назад (Undo)** | Відсутній | `RollbackResponse` (`previous_user_input`, `current_state`) |
 | `GET` | `/api/v1/state` | Поточний стан кампанії | `?session_id=...` | `PlayerState` |
+
+### 4.4. Голосові сервіси (Voice-to-Text, v1.5.0)
+| Метод | URL | Опис | Request | Response |
+| :--- | :--- | :--- | :--- | :--- |
+| `POST` | `/api/v1/voice/transcribe` | Перетворення записаного голосу в текст для інпуту | `multipart/form-data` (`file: audio/wav` або `audio/ogg`) | `{"text": "..."}` |
 
 ---
 
