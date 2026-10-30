@@ -616,8 +616,8 @@ namespace NovaTrpgClient.ViewModels
 
             ConfirmModalTitle = "Видалити кампанію?";
             ConfirmModalMessage = $"Ви впевнені, що хочете безповоротно видалити кампанію «{campaign.Title}»? Уся історія діалогу буде втрачена.";
-            ConfirmModalConfirmButtonText = "Видалити";
-            ConfirmModalCancelButtonText = "Скасувати";
+            ConfirmModalConfirmButtonText = "Так";
+            ConfirmModalCancelButtonText = "Ні";
             _pendingConfirmAction = async () =>
             {
                 var success = await _gameApiService.DeleteCampaignAsync(campaign.CampaignId);
@@ -990,8 +990,8 @@ namespace NovaTrpgClient.ViewModels
 
             ConfirmModalTitle = "Видалити персонажа?";
             ConfirmModalMessage = $"Ви впевнені, що хочете видалити героя «{character.Name}» та всі пов'язані з ним кампанії?";
-            ConfirmModalConfirmButtonText = "Видалити";
-            ConfirmModalCancelButtonText = "Скасувати";
+            ConfirmModalConfirmButtonText = "Так";
+            ConfirmModalCancelButtonText = "Ні";
             _pendingConfirmAction = async () =>
             {
                 var success = await _gameApiService.DeleteCharacterAsync(character.CharId);

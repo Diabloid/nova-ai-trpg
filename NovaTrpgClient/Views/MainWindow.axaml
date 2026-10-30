@@ -11,7 +11,18 @@
         Title="NOVA AI TRPG" MinWidth="850" MinHeight="600"
         Background="#121212"
         WindowState="Maximized"
-        ExtendClientAreaToDecorationsHint="True">
+        WindowDecorations="Full"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaTitleBarHeightHint="0">
+
+	<Window.WindowDecorationsTheme>
+		<ControlTheme TargetType="WindowDrawnDecorations">
+			<Setter Property="DefaultTitleBarHeight" Value="0"/>
+			<Setter Property="DefaultFrameThickness" Value="0"/>
+			<Setter Property="DefaultShadowThickness" Value="0"/>
+			<Setter Property="Template" Value="{x:Null}"/>
+		</ControlTheme>
+	</Window.WindowDecorationsTheme>
 
 	<Window.Resources>
 		<SolidColorBrush x:Key="ScrollBarThumbFill" Color="#262626"/>
@@ -58,20 +69,45 @@
 	</Window.Resources>
 
 	<Window.Styles>
-		<!-- 1.1 КАСТОМНІ СТИЛІ СИСТЕМНИХ КНОПОК ВІКНА (CaptionButtons) -->
-		<Style Selector="Window /template/ Button#PART_CloseButton:pointerover /template/ ContentPresenter">
-			<Setter Property="Background">
-				<LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-					<GradientStop Color="#6A0010" Offset="0.0"/>
-					<GradientStop Color="#3A0008" Offset="1.0"/>
-				</LinearGradientBrush>
+		<!-- 1.5 КАСТОМНІ СТИЛІ СИСТЕМНИХ КНОПОК ВІКНА (CaptionButtons - МИТТЄВИЙ ВІДГУК БЕЗ БЛІКІВ ТА БЕЗ БІЛОГО КОЛЬОРУ) -->
+		<Style Selector="Button.windowCaptionBtn">
+			<Setter Property="Width" Value="46"/>
+			<Setter Property="Height" Value="34"/>
+			<Setter Property="CornerRadius" Value="0"/>
+			<Setter Property="BorderThickness" Value="0"/>
+			<Setter Property="Background" Value="#00121212"/>
+			<Setter Property="Foreground" Value="#888888"/>
+			<Setter Property="Padding" Value="0"/>
+			<Setter Property="Cursor" Value="Hand"/>
+			<Setter Property="WindowDecorationProperties.ElementRole" Value="DecorationsElement"/>
+			<Setter Property="Win32Properties.NonClientHitTestResult" Value="Client"/>
+			<Setter Property="Template">
+				<ControlTemplate>
+					<Border x:Name="PART_CaptionBorder"
+					        Background="{TemplateBinding Background}"
+					        WindowDecorationProperties.ElementRole="DecorationsElement"
+					        Win32Properties.NonClientHitTestResult="Client">
+						<ContentPresenter Content="{TemplateBinding Content}"
+						                  HorizontalAlignment="Center"
+						                  VerticalAlignment="Center"
+						                  IsHitTestVisible="False"/>
+					</Border>
+				</ControlTemplate>
 			</Setter>
 		</Style>
-		<Style Selector="Window /template/ Button#PART_MinimizeButton:pointerover /template/ ContentPresenter">
-			<Setter Property="Background" Value="#222222"/>
+		<Style Selector="Button.windowCaptionBtn:pointerover">
+			<Setter Property="Background" Value="#26181B"/>
+			<Setter Property="Foreground" Value="#F3F4F6"/>
 		</Style>
-		<Style Selector="Window /template/ Button#PART_RestoreButton:pointerover /template/ ContentPresenter">
-			<Setter Property="Background" Value="#222222"/>
+		<Style Selector="Button.windowCaptionBtn:pressed">
+			<Setter Property="Background" Value="#1A1012"/>
+		</Style>
+		<Style Selector="Button.windowCaptionBtn.close:pointerover">
+			<Setter Property="Background" Value="#7E0018"/>
+			<Setter Property="Foreground" Value="#FFFFFF"/>
+		</Style>
+		<Style Selector="Button.windowCaptionBtn.close:pressed">
+			<Setter Property="Background" Value="#5A0010"/>
 		</Style>
 
 		<!-- МІНІМАЛІСТИЧНИЙ УЛЬТРА-ТОНКИЙ СКРОЛБАР (4px, БЕЗ СТРІЛОК) -->
@@ -377,8 +413,13 @@
 			<Setter Property="Padding" Value="14,10"/>
 			<Setter Property="FontWeight" Value="SemiBold"/>
 			<Setter Property="FontSize" Value="12"/>
+			<Setter Property="Cursor" Value="Hand"/>
+		</Style>
+		<Style Selector="Button.primaryCreateBtn:pointerover">
+			<Setter Property="Cursor" Value="Hand"/>
 		</Style>
 		<Style Selector="Button.primaryCreateBtn /template/ ContentPresenter">
+			<Setter Property="Cursor" Value="Hand"/>
 			<Setter Property="Transitions">
 				<Transitions>
 					<BrushTransition Property="Background" Duration="0:0:0.18" Easing="SineEaseOut"/>
@@ -387,6 +428,7 @@
 			</Setter>
 		</Style>
 		<Style Selector="Button.primaryCreateBtn:pointerover /template/ ContentPresenter">
+			<Setter Property="Cursor" Value="Hand"/>
 			<Setter Property="Background">
 				<LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
 					<GradientStop Color="#5A0E1A" Offset="0.0"/>
@@ -396,6 +438,7 @@
 			<Setter Property="BorderBrush" Value="#7E0018"/>
 		</Style>
 		<Style Selector="Button.primaryCreateBtn:pressed /template/ ContentPresenter">
+			<Setter Property="Cursor" Value="Hand"/>
 			<Setter Property="Background" Value="#2A050A"/>
 			<Setter Property="BorderBrush" Value="#5A0010"/>
 		</Style>
@@ -425,6 +468,52 @@
 		</Style>
 		<Style Selector="Button.actionSmallBtn:pressed /template/ ContentPresenter">
 			<Setter Property="Background" Value="#102018"/>
+		</Style>
+
+		<!-- ГОЛОВНА СМАРАГДОВА КНОПКА (ПОВНІСТЮ ДЗЕРКАЛЬНА ДО PRIMARYCREATEBTN У СВОЇЙ ПАЛІТРІ) -->
+		<Style Selector="Button.modalCancelBtn">
+			<Setter Property="Background">
+				<LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+					<GradientStop Color="#0D3324" Offset="0.0"/>
+					<GradientStop Color="#061F15" Offset="1.0"/>
+				</LinearGradientBrush>
+			</Setter>
+			<Setter Property="Foreground" Value="#F3F4F6"/>
+			<Setter Property="BorderBrush" Value="#135D3F"/>
+			<Setter Property="BorderThickness" Value="1"/>
+			<Setter Property="CornerRadius" Value="8"/>
+			<Setter Property="Padding" Value="14,10"/>
+			<Setter Property="FontWeight" Value="SemiBold"/>
+			<Setter Property="FontSize" Value="12"/>
+			<Setter Property="Cursor" Value="Hand"/>
+		</Style>
+		<Style Selector="Button.modalCancelBtn:pointerover">
+			<Setter Property="Cursor" Value="Hand"/>
+		</Style>
+		<Style Selector="Button.modalCancelBtn /template/ ContentPresenter">
+			<Setter Property="Cursor" Value="Hand"/>
+			<Setter Property="Transitions">
+				<Transitions>
+					<BrushTransition Property="Background" Duration="0:0:0.18" Easing="SineEaseOut"/>
+					<BrushTransition Property="BorderBrush" Duration="0:0:0.2" Easing="SineEaseOut"/>
+				</Transitions>
+			</Setter>
+		</Style>
+		<Style Selector="Button.modalCancelBtn:pointerover /template/ ContentPresenter">
+			<Setter Property="Cursor" Value="Hand"/>
+			<Setter Property="Background">
+				<LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+					<GradientStop Color="#164D37" Offset="0.0"/>
+					<GradientStop Color="#0B3021" Offset="1.0"/>
+				</LinearGradientBrush>
+			</Setter>
+			<Setter Property="BorderBrush" Value="#10B981"/>
+			<Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
+		</Style>
+		<Style Selector="Button.modalCancelBtn:pressed /template/ ContentPresenter">
+			<Setter Property="Cursor" Value="Hand"/>
+			<Setter Property="Background" Value="#082418"/>
+			<Setter Property="BorderBrush" Value="#059669"/>
 		</Style>
 
 		<!-- ВЕКТОРНІ ІКОНКИ ДІЙ (Редагувати, Видалити, Закріпити, Змінити) - 100% БЕЗ БЛІКІВ ТА БЕЗ БІЛОГО КОЛЬОРУ -->
@@ -1011,9 +1100,69 @@
 			<Setter Property="BorderBrush" Value="#5A0010"/>
 			<Setter Property="Background" Value="#161616"/>
 		</Style>
+
+		<!-- ПЛАВНА ПОЯВА МОДАЛЬНИХ ВІКОН ТА КАРТОК ПРИ ВІДКРИТТІ (КОЖЕН РАЗ ПРИ ISVISIBLE=TRUE) -->
+		<Style Selector="Grid.modalOverlay[IsVisible=True]">
+			<Style.Animations>
+				<Animation Duration="0:0:0.2" Easing="SineEaseOut" FillMode="Forward">
+					<KeyFrame Cue="0%">
+						<Setter Property="Opacity" Value="0"/>
+					</KeyFrame>
+					<KeyFrame Cue="100%">
+						<Setter Property="Opacity" Value="1"/>
+					</KeyFrame>
+				</Animation>
+			</Style.Animations>
+		</Style>
+		<Style Selector="Grid.modalOverlay[IsVisible=True] > Border">
+			<Style.Animations>
+				<Animation Duration="0:0:0.25" Easing="CubicEaseOut" FillMode="Forward">
+					<KeyFrame Cue="0%">
+						<Setter Property="Opacity" Value="0"/>
+						<Setter Property="Margin" Value="0,28,0,0"/>
+					</KeyFrame>
+					<KeyFrame Cue="100%">
+						<Setter Property="Opacity" Value="1"/>
+						<Setter Property="Margin" Value="0,0,0,0"/>
+					</KeyFrame>
+				</Animation>
+			</Style.Animations>
+		</Style>
 	</Window.Styles>
 
 	<Grid>
+		<!-- 1.5. ПАНЕЛЬ ПЕРЕТЯГУВАННЯ ВІКНА (DRAG AREA) У ВІКОННОМУ РЕЖИМІ -->
+		<Border Height="34" VerticalAlignment="Top" HorizontalAlignment="Stretch"
+		        Background="Transparent" IsHitTestVisible="True"
+		        PointerPressed="TitleBar_PointerPressed"
+		        Margin="32,0,140,0" ZIndex="90"/>
+
+		<!-- ФІРМОВА НАЗВА ЗАСТОСУНКУ ПО ЦЕНТРУ ВЕРХНЬОЇ ШАПКИ -->
+		<Border Height="34" VerticalAlignment="Top" HorizontalAlignment="Center" IsHitTestVisible="False" ZIndex="95">
+			<TextBlock Text="NOVA AI TRPG"
+			           Foreground="#9CA3AF"
+			           FontSize="11"
+			           FontWeight="Bold"
+			           LetterSpacing="2"
+			           VerticalAlignment="Center"/>
+		</Border>
+
+		<!-- ФІРМОВІ КАСТОМНІ СИСТЕМНІ КНОПКИ ВІКНА (CAPTION BUTTONS) -->
+		<StackPanel x:Name="CaptionButtonsPanel"
+		            Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top" ZIndex="100"
+		            WindowDecorationProperties.ElementRole="DecorationsElement"
+		            Win32Properties.NonClientHitTestResult="Client">
+			<Button x:Name="WindowMinimizeBtn" Classes="windowCaptionBtn" Click="MinimizeButton_Click" ToolTip.Tip="Згорнути">
+				<PathIcon Data="M20 14H4v-2h16v2z" Width="10" Height="10" IsHitTestVisible="False"/>
+			</Button>
+			<Button x:Name="WindowMaximizeBtn" Classes="windowCaptionBtn" Click="MaximizeButton_Click" ToolTip.Tip="Розгорнути">
+				<PathIcon Data="M4 4h16v16H4V4zm2 2v12h12V6H6z" Width="10" Height="10" IsHitTestVisible="False"/>
+			</Button>
+			<Button x:Name="WindowCloseBtn" Classes="windowCaptionBtn close" Click="CloseButton_Click" ClickMode="Press" ToolTip.Tip="Закрити">
+				<PathIcon Data="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" Width="10" Height="10" IsHitTestVisible="False"/>
+			</Button>
+		</StackPanel>
+
 		<!-- ОСНОВНИЙ МАКЕТ ЗІ SPLITVIEW -->
 		<SplitView IsPaneOpen="{Binding IsMenuOpen, Mode=TwoWay}"
 		           DisplayMode="Inline"
@@ -1492,7 +1641,7 @@
 							<TextBlock Text="Опишіть свого героя у вільній формі. Штучний інтелект допоможе викувати характер, походження та здібності." Foreground="#9CA3AF" FontSize="12"/>
 						</StackPanel>
 
-						<Button Grid.Column="1" Classes="actionSmallBtn"
+						<Button Grid.Column="1" Classes="modalCancelBtn"
 						        Command="{Binding CancelCharacterCreationCommand}"
 						        Content="✕ Скасувати" Cursor="Hand" VerticalAlignment="Center"/>
 					</Grid>
@@ -1500,12 +1649,13 @@
 					<!-- Центральна частина: Панель попереднього перегляду ліворуч + Чат із Творцем Долі праворуч -->
 					<Grid Grid.Row="1" ColumnDefinitions="340, *">
 						<!-- Ліва колонка: Картка попереднього перегляду героя та кнопка старту гри -->
-						<Border Grid.Column="0" Background="#161616" BorderBrush="#262626" BorderThickness="1" CornerRadius="10" Padding="16" Margin="0,0,16,0">
+						<Border Grid.Column="0" Background="#161616" BorderBrush="#262626" BorderThickness="1" CornerRadius="10" Padding="16,16,6,16" Margin="0,0,16,0">
 							<Grid RowDefinitions="Auto, *, Auto">
-								<TextBlock Grid.Row="0" Text="ПОПЕРЕДНІЙ ПЕРЕГЛЯД" Foreground="#9CA3AF" FontSize="11" FontWeight="Bold" LetterSpacing="1" Margin="0,0,0,12"/>
+								<TextBlock Grid.Row="0" Text="ПОПЕРЕДНІЙ ПЕРЕГЛЯД" Foreground="#9CA3AF" FontSize="11" FontWeight="Bold" LetterSpacing="1" Margin="0,0,10,12"/>
 
-								<ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,12,0">
-									<StackPanel Spacing="14">
+								<!-- Сайдбар скролу зміщений у правий коридор, не перекриваючи плашки -->
+								<ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0">
+									<StackPanel Spacing="14" Margin="0,0,10,0">
 										<StackPanel Spacing="4">
 											<TextBlock Text="Ім'я героя:" Foreground="#9CA3AF" FontSize="11"/>
 											<TextBox Classes="modalInput" Text="{Binding WizardCharName, Mode=TwoWay}" PlaceholderText="Буде виведено з діалогу..."/>
@@ -1646,8 +1796,8 @@
 		</SplitView.Content>
 		</SplitView>
 
-		<!-- МОДАЛЬНЕ ВІКНО: СТВОРЕННЯ / РЕДАГУВАННЯ ГЕРОЯ -->
-		<Grid IsVisible="{Binding IsCharacterModalOpen}" Background="#B3000000">
+		<!-- МОДАЛЬНЕ ВІКНО: СТВОРЕННЯ / РЕДАГУВАННЯ ГЕРОЯ (ПЛАВНА ПОЯВА) -->
+		<Grid Classes="modalOverlay" IsVisible="{Binding IsCharacterModalOpen}" Background="#B3000000">
 			<Border Width="420" Background="#161616" BorderBrush="#333333" BorderThickness="1" CornerRadius="12" Padding="24" HorizontalAlignment="Center" VerticalAlignment="Center">
 				<StackPanel Spacing="14">
 					<TextBlock Text="ЗАГОТОВКА ГЕРОЯ" Foreground="#9CA3AF" FontSize="11" FontWeight="Bold" LetterSpacing="1"/>
@@ -1659,24 +1809,24 @@
 
 					<StackPanel Spacing="4">
 						<TextBlock Text="Архетип / Біографія:" Foreground="#9CA3AF" FontSize="12"/>
-						<TextBox Classes="modalInput" Text="{Binding ModalCharacterBackground, Mode=TwoWay}" PlaceholderText="Наприклад: Найманець, маг вогню 3-го кола" Height="60" TextWrapping="Wrap" AcceptsReturn="True"/>
+						<TextBox Classes="modalInput" Text="{Binding ModalCharacterBackground, Mode=TwoWay}" PlaceholderText="Наприклад: Найманець, маг вогню 3-го кола" MinHeight="56" MaxHeight="120" ScrollViewer.VerticalScrollBarVisibility="Auto" TextWrapping="Wrap" AcceptsReturn="True"/>
 					</StackPanel>
 
 					<StackPanel Spacing="4">
 						<TextBlock Text="Зовнішність:" Foreground="#9CA3AF" FontSize="12"/>
-						<TextBox Classes="modalInput" Text="{Binding ModalCharacterAppearance, Mode=TwoWay}" PlaceholderText="Наприклад: 22-річний юнак з рудим волоссям" Height="60" TextWrapping="Wrap" AcceptsReturn="True"/>
+						<TextBox Classes="modalInput" Text="{Binding ModalCharacterAppearance, Mode=TwoWay}" PlaceholderText="Наприклад: 22-річний юнак з рудим волоссям" MinHeight="56" MaxHeight="120" ScrollViewer.VerticalScrollBarVisibility="Auto" TextWrapping="Wrap" AcceptsReturn="True"/>
 					</StackPanel>
 
 					<Grid ColumnDefinitions="*, *" Margin="0,8,0,0">
-						<Button Grid.Column="0" Classes="actionSmallBtn" Command="{Binding CloseCharacterModalCommand}" Content="Скасувати" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="0,0,6,0" Cursor="Hand"/>
+						<Button Grid.Column="0" Classes="modalCancelBtn" Command="{Binding CloseCharacterModalCommand}" Content="Скасувати" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="0,0,6,0" Cursor="Hand"/>
 						<Button Grid.Column="1" Classes="primaryCreateBtn" Command="{Binding SaveCharacterModalCommand}" Content="Зберегти" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="6,0,0,0" Cursor="Hand"/>
 					</Grid>
 				</StackPanel>
 			</Border>
 		</Grid>
 
-		<!-- 7. МОДАЛЬНЕ ВІКНО: СТВОРЕННЯ НОВОЇ КАМПАНІЇ -->
-		<Grid IsVisible="{Binding IsNewCampaignModalOpen}" Background="#B3000000">
+		<!-- 7. МОДАЛЬНЕ ВІКНО: СТВОРЕННЯ НОВОЇ КАМПАНІЇ (ПЛАВНА ПОЯВА) -->
+		<Grid Classes="modalOverlay" IsVisible="{Binding IsNewCampaignModalOpen}" Background="#B3000000">
 			<Border Width="380" Background="#161616" BorderBrush="#333333" BorderThickness="1" CornerRadius="12" Padding="24" HorizontalAlignment="Center" VerticalAlignment="Center">
 				<StackPanel Spacing="14">
 					<TextBlock Text="НОВА КАМПАНІЯ" Foreground="#9CA3AF" FontSize="11" FontWeight="Bold" LetterSpacing="1"/>
@@ -1688,7 +1838,7 @@
 					</StackPanel>
 
 					<Grid ColumnDefinitions="*, *" Margin="0,8,0,0">
-						<Button Grid.Column="0" Classes="actionSmallBtn" Command="{Binding CloseNewCampaignModalCommand}" Content="Скасувати" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="0,0,6,0" Cursor="Hand"/>
+						<Button Grid.Column="0" Classes="modalCancelBtn" Command="{Binding CloseNewCampaignModalCommand}" Content="Скасувати" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="0,0,6,0" Cursor="Hand"/>
 						<!-- 7. Кнопка "Підтвердити" завжди доступна та чітка -->
 						<Button Grid.Column="1" Classes="primaryCreateBtn" Command="{Binding ConfirmCreateCampaignCommand}" Content="Підтвердити" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="6,0,0,0" Cursor="Hand"/>
 					</Grid>
@@ -1696,16 +1846,16 @@
 			</Border>
 		</Grid>
 
-		<!-- МОДАЛЬНЕ ВІКНО: ПІДТВЕРДЖЕННЯ ВИДАЛЕННЯ -->
-		<Grid IsVisible="{Binding IsConfirmModalOpen}" Background="#B3000000">
-			<Border Width="380" Background="#181212" BorderBrush="#4A1818" BorderThickness="1" CornerRadius="12" Padding="24" HorizontalAlignment="Center" VerticalAlignment="Center">
+		<!-- МОДАЛЬНЕ ВІКНО: ПІДТВЕРДЖЕННЯ ДІЇ / ВИДАЛЕННЯ (ЧИСТИЙ ТЕМНИЙ ФОН ТА РУБІНОВА РАМКА) -->
+		<Grid Classes="modalOverlay" IsVisible="{Binding IsConfirmModalOpen}" Background="#B3000000">
+			<Border Width="380" Background="#161616" BorderBrush="#7E0018" BorderThickness="1" CornerRadius="12" Padding="24" HorizontalAlignment="Center" VerticalAlignment="Center">
 				<StackPanel Spacing="14">
 					<TextBlock Text="{Binding ConfirmModalTitle}" Foreground="#EF4444" FontSize="15" FontWeight="Bold"/>
 					<TextBlock Text="{Binding ConfirmModalMessage}" Foreground="#E5E7EB" FontSize="13" TextWrapping="Wrap" LineHeight="20"/>
 
 					<Grid ColumnDefinitions="*, *" Margin="0,8,0,0">
-						<Button Grid.Column="0" Classes="actionSmallBtn" Command="{Binding CancelConfirmModalCommand}" Content="{Binding ConfirmModalCancelButtonText, FallbackValue='Скасувати'}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="0,0,6,0" Cursor="Hand"/>
-						<Button Grid.Column="1" Classes="primaryCreateBtn" Background="#4A1414" BorderBrush="#EF4444" Command="{Binding ConfirmModalActionCommand}" Content="{Binding ConfirmModalConfirmButtonText, FallbackValue='Підтвердити'}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="6,0,0,0" Cursor="Hand"/>
+						<Button Grid.Column="0" Classes="modalCancelBtn" Command="{Binding CancelConfirmModalCommand}" Content="{Binding ConfirmModalCancelButtonText, FallbackValue='Ні'}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="0,0,6,0" Cursor="Hand"/>
+						<Button Grid.Column="1" Classes="primaryCreateBtn" Command="{Binding ConfirmModalActionCommand}" Content="{Binding ConfirmModalConfirmButtonText, FallbackValue='Так'}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="6,0,0,0" Cursor="Hand"/>
 					</Grid>
 				</StackPanel>
 			</Border>

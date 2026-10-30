@@ -1,6 +1,8 @@
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.LogicalTree;
 using Avalonia.Platform;
 using Avalonia.VisualTree;
 using AvaloniaEdit.Highlighting;
@@ -19,12 +21,24 @@ namespace NovaTrpgClient.Views
         public MainWindow()
         {
             InitializeComponent();
+            Win32Properties.AddWndProcHookCallback(this, CustomWndProc);
+            this.AttachedToVisualTree += (s, e) => SuppressManagedWindowDecorations();
+            this.Opened += (s, e) =>
+            {
+                SuppressManagedWindowDecorations();
+                EnableWindowsDwmAnimations();
+            };
             LoadCodeHighlighting();
 
-            // Зняття фокусу з полів вводу при кліку поза їхніми межами
+            // Зняття фокусу з полів вводу при кліку поза їхніми межами (не чіпати кліки по кнопках)
             this.AddHandler(InputElement.PointerPressedEvent, (s, e) =>
             {
                 var visual = e.Source as Avalonia.Visual;
+                if (visual?.FindAncestorOfType<Button>(includeSelf: true) != null)
+                {
+                    return;
+                }
+
                 if (visual?.FindAncestorOfType<TextBox>(includeSelf: true) == null &&
                     visual?.FindAncestorOfType<AvaloniaEdit.TextEditor>(includeSelf: true) == null)
                 {
@@ -283,6 +297,143 @@ namespace NovaTrpgClient.Views
             }
 
             return inner;
+        }
+
+        private void TitleBar_PointerPressed(object? sender, Avalonia.Input.PointerPressedEventArgs e)
+        {
+            if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+            {
+                if (e.ClickCount == 2)
+                {
+                    WindowState = WindowState == WindowState.Maximized 
+                        ? WindowState.Normal 
+                        : WindowState.Maximized;
+                }
+                else
+                {
+                    BeginMoveDrag(e);
+                }
+            }
+        }
+
+        private void MinimizeButton_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            WindowState = WindowState.Minimized;
+        }
+
+        private void MaximizeButton_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            ToggleMaximize();
+        }
+
+        private void ToggleMaximize()
+        {
+            WindowState = WindowState == WindowState.Maximized 
+                ? WindowState.Normal 
+                : WindowState.Maximized;
+        }
+
+        private void CloseButton_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            Close();
+        }
+
+        [System.Runtime.InteropServices.DllImport("user32.dll", EntryPoint = "GetWindowLong")]
+        private static extern int GetWindowLong32(IntPtr hWnd, int nIndex);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll", EntryPoint = "GetWindowLongPtr")]
+        private static extern IntPtr GetWindowLongPtr64(IntPtr hWnd, int nIndex);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll", EntryPoint = "SetWindowLong")]
+        private static extern int SetWindowLong32(IntPtr hWnd, int nIndex, int dwNewLong);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll", EntryPoint = "SetWindowLongPtr")]
+        private static extern IntPtr SetWindowLongPtr64(IntPtr hWnd, int nIndex, IntPtr dwNewLong);
+
+        private static IntPtr GetWindowLongPtr(IntPtr hWnd, int nIndex)
+        {
+            return IntPtr.Size == 8 ? GetWindowLongPtr64(hWnd, nIndex) : (IntPtr)GetWindowLong32(hWnd, nIndex);
+        }
+
+        private static IntPtr SetWindowLongPtr(IntPtr hWnd, int nIndex, IntPtr dwNewLong)
+        {
+            return IntPtr.Size == 8 ? SetWindowLongPtr64(hWnd, nIndex, dwNewLong) : (IntPtr)SetWindowLong32(hWnd, nIndex, (int)dwNewLong);
+        }
+
+        private IntPtr CustomWndProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+        {
+            const uint WM_NCHITTEST = 0x0084;
+            if (msg == WM_NCHITTEST && CaptionButtonsPanel != null && CaptionButtonsPanel.Bounds.Width > 0)
+            {
+                int screenX = (short)(lParam.ToInt64() & 0xFFFF);
+                int screenY = (short)((lParam.ToInt64() >> 16) & 0xFFFF);
+                var clientPt = this.PointToClient(new Avalonia.PixelPoint(screenX, screenY));
+                var localPt = this.TranslatePoint(clientPt, CaptionButtonsPanel);
+                if (localPt.HasValue)
+                {
+                    var hitRect = new Avalonia.Rect(
+                        -1,
+                        -8,
+                        CaptionButtonsPanel.Bounds.Width + 10,
+                        CaptionButtonsPanel.Bounds.Height + 8);
+
+                    if (hitRect.Contains(localPt.Value))
+                    {
+                        handled = true;
+                        return new IntPtr(1); // HTCLIENT = 1
+                    }
+                }
+            }
+            return IntPtr.Zero;
+        }
+
+        private void SuppressManagedWindowDecorations()
+        {
+            var topHost = this.GetVisualParent() ?? (Visual)this;
+            if (topHost is ILogical logicalRoot)
+            {
+                foreach (var logical in logicalRoot.GetLogicalDescendants())
+                {
+                    if (logical is Avalonia.Controls.Chrome.WindowDrawnDecorations decorations)
+                    {
+                        decorations.Template = null;
+                        decorations.DefaultTitleBarHeight = 0;
+                    }
+                }
+            }
+
+            foreach (var visual in topHost.GetVisualDescendants())
+            {
+                if (visual is Control ctrl)
+                {
+                    var autoId = Avalonia.Automation.AutomationProperties.GetAutomationId(ctrl);
+                    if (autoId == "WindowChromeOverlay" || autoId == "AvaloniaTitleBar")
+                    {
+                        ctrl.IsVisible = false;
+                        ctrl.IsHitTestVisible = false;
+                    }
+                }
+            }
+        }
+
+        private void EnableWindowsDwmAnimations()
+        {
+            if (OperatingSystem.IsWindows())
+            {
+                var platformHandle = this.TryGetPlatformHandle();
+                if (platformHandle != null && platformHandle.Handle != IntPtr.Zero)
+                {
+                    const int GWL_STYLE = -16;
+                    const long WS_CAPTION = 0x00C00000L;
+                    const long WS_MINIMIZEBOX = 0x00020000L;
+                    const long WS_MAXIMIZEBOX = 0x00010000L;
+                    const long WS_THICKFRAME = 0x00040000L;
+
+                    long style = (long)GetWindowLongPtr(platformHandle.Handle, GWL_STYLE);
+                    style |= WS_CAPTION | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_THICKFRAME;
+                    SetWindowLongPtr(platformHandle.Handle, GWL_STYLE, (IntPtr)style);
+                }
+            }
         }
     }
 }
