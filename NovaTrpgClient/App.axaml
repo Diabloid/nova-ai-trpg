@@ -30,7 +30,7 @@
                     <SolidColorBrush x:Key="MenuFlyoutItemBackgroundPointerOver" Color="#222222"/>
                     <SolidColorBrush x:Key="MenuFlyoutItemBackgroundPressed" Color="#1A1A1A"/>
                     <SolidColorBrush x:Key="MenuItemBackgroundSelected" Color="#222222"/>
-                    <SolidColorBrush x:Key="MenuItemBackgroundSelectedPointerOver" Color="#2A2A2A"/>
+                    <SolidColorBrush x:Key="MenuItemBackgroundSelectedPointerOver" Color="#222222"/>
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Default">
                     <SolidColorBrush x:Key="ButtonBackground" Color="Transparent"/>
@@ -48,7 +48,7 @@
                     <SolidColorBrush x:Key="MenuFlyoutItemBackgroundPointerOver" Color="#222222"/>
                     <SolidColorBrush x:Key="MenuFlyoutItemBackgroundPressed" Color="#1A1A1A"/>
                     <SolidColorBrush x:Key="MenuItemBackgroundSelected" Color="#222222"/>
-                    <SolidColorBrush x:Key="MenuItemBackgroundSelectedPointerOver" Color="#2A2A2A"/>
+                    <SolidColorBrush x:Key="MenuItemBackgroundSelectedPointerOver" Color="#222222"/>
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
         </ResourceDictionary>
@@ -68,12 +68,79 @@
             <Setter Property="SelectionBrush" Value="#3F3F3F"/>
             <Setter Property="SelectionForegroundBrush" Value="#FFFFFF"/>
         </Style>
+        <Style Selector="ContextMenu">
+            <Setter Property="Background" Value="#161616"/>
+            <Setter Property="BorderBrush" Value="#262626"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="4"/>
+            <Setter Property="Placement" Value="Pointer"/>
+        </Style>
         <Style Selector="MenuFlyoutPresenter">
             <Setter Property="Background" Value="#161616"/>
             <Setter Property="BorderBrush" Value="#262626"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="8"/>
-            <Setter Property="Padding" Value="5"/>
+            <Setter Property="Padding" Value="4"/>
+        </Style>
+        <Style Selector="MenuItem">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#E5E7EB"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="8,5"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="MenuItem /template/ Border#PART_LayoutRoot">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="CornerRadius" Value="6"/>
+        </Style>
+        <Style Selector="MenuItem /template/ ContentPresenter#PART_HeaderPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="MenuItem /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="MenuItem /template/ TextBlock">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="MenuItem:pointerover /template/ Border#PART_LayoutRoot">
+            <Setter Property="Background" Value="#222222"/>
+        </Style>
+        <Style Selector="MenuItem:pointerover /template/ ContentPresenter#PART_HeaderPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
+        </Style>
+        <Style Selector="MenuItem:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="MenuItem:pointerover /template/ TextBlock">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#FFFFFF"/>
+        </Style>
+        <Style Selector="MenuItem:selected /template/ Border#PART_LayoutRoot">
+            <Setter Property="Background" Value="#222222"/>
+        </Style>
+        <Style Selector="MenuItem:selected /template/ ContentPresenter#PART_HeaderPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
+        </Style>
+        <Style Selector="MenuItem:selected /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="MenuItem:selected /template/ TextBlock">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#FFFFFF"/>
+        </Style>
+        <Style Selector="MenuItem:pressed /template/ Border#PART_LayoutRoot">
+            <Setter Property="Background" Value="#1A1A1A"/>
+        </Style>
+        <Style Selector="MenuItem:pressed /template/ ContentPresenter#PART_HeaderPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="MenuItem:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
         </Style>
 
         <!-- ПОВНЕ ВИМКНЕННЯ СТАНДАРТНОЇ НАКЛАДНОЇ ШАПКИ AVALONIA 12 (ПРИ ЗБЕРЕЖЕННІ FULL DWM АНІМАЦІЙ WINDOWS) -->
