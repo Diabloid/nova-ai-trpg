@@ -160,6 +160,20 @@ async def character_wizard_dialog(request: CharacterDialogRequest):
 
 
 @app.post(
+    "/api/v1/character/sync-draft",
+    response_model=PlayerState,
+    tags=["Character Wizard"],
+    summary="Синхронізувати та перерахувати залежні поля після ручного редагування прев'ю (Live Sync, v1.5.0)"
+)
+async def character_wizard_sync_draft(request: PlayerState):
+    """
+    Приймає поточний стан PlayerState з ручними правками користувача
+    та перераховує взаємозалежні атрибути (вміння, травми/шрами, титули, речі).
+    """
+    return await llm_controller.sync_character_draft(request)
+
+
+@app.post(
     "/api/v1/character/finalize",
     response_model=PlayerState,
     tags=["Character Wizard"],
