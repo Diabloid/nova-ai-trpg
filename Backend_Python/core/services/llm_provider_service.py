@@ -13,40 +13,23 @@ if sys.stdout and hasattr(sys.stdout, "reconfigure"):
         pass
 
 
-def score_model(name: str) -> float:
+def score_model(name: str, mode: str = "story") -> float:
     """
     Універсальний евристичний скоринг для будь-яких моделей ШІ:
-    1. Сімейства: Claude (7000) > GPT (6000) > Gemini (5000) > Qwen (4000) > Minimax (3000) > DeepSeek (2000) > Інші (1000)
-    2. Грейд/Потужність: pro/plus/opus/max (300) > flash/standard/haiku (200) > lite/mini/micro/small (100)
-    3. Версія: сортування за спаданням числових версій (4.5 > 4 > 3.5 > 3.1 > 3 > 2.7 > 2.5) -> version * 10
+    1. Для mode == "story" (Оповідач / Наратив):
+       - Пріоритет на максимальну літературність, глибину контексту та багатство мови.
+       - Сімейства: Claude (7000) > GPT (6000) > Gemini (5000) > Qwen (4000) > Minimax (3000) > DeepSeek (2000) > Інші (1000)
+       - Грейд/Потужність: pro/plus/opus/max (300) > flash/standard/haiku (200) > lite/mini/micro/small (100)
+       - Версія: спадання числових версій (4.5 > 4 > 3.5 > 3.1 > 3 > 2.7 > 2.5) -> version * 10
+    2. Для mode == "state" (Аналізатор стану / Structured JSON):
+       - Пріоритет на надшвидкі моделі з бездоганною підтримкою response_format={"type": "json_object"}.
+       - Сімейства: Gemini (7000) > Qwen (6000) > GPT (5000) > DeepSeek (4000) > Claude (2000) > Minimax (1000)
+       - Грейд/Потужність: lite/mini/micro/small (300) > flash/standard/haiku (250) > pro/plus/opus/max (100)
+       - Версія: спадання числових версій -> version * 10
     """
     n = name.lower()
 
-    # 1. Сімейства моделей
-    family_score = 1000
-    if "claude" in n:
-        family_score = 7000
-    elif "gpt" in n:
-        family_score = 6000
-    elif "gemini" in n:
-        family_score = 5000
-    elif "qwen" in n:
-        family_score = 4000
-    elif "minimax" in n:
-        family_score = 3000
-    elif "deepseek" in n:
-        family_score = 2000
-
-    # 2. Грейд / Потужність (використовуємо регулярні межі, щоб уникнути помилкових збігів типу 'gemini' -> 'mini')
-    grade_score = 200
-    if re.search(r"(?<![a-z])(lite|mini|micro|small)(?![a-z])", n):
-        grade_score = 100
-    elif re.search(r"(?<![a-z])(pro|plus|opus|max)(?![a-z])", n):
-        grade_score = 300
-    elif re.search(r"(?<![a-z])(flash|standard|haiku)(?![a-z])", n):
-        grade_score = 200
-
-    # 3. Числова версія моделі
+    # Числова версія моделі
     normalized = re.sub(r"(\d+)-(\d+)", r"\1.\2", n)
     versions = re.findall(r"(?<![a-zA-Z])(\d+(?:\.\d+)?)", normalized)
     version_val = 0.0
@@ -58,7 +41,56 @@ def score_model(name: str) -> float:
         except ValueError:
             pass
 
-    return family_score + grade_score + (version_val * 10)
+    if mode == "state":
+        # Пріоритет бездоганного та блискавичного JSON
+        family_score = 1000
+        if "gemini" in n:
+            family_score = 7000
+        elif "qwen" in n:
+            family_score = 6000
+        elif "gpt" in n:
+            family_score = 5000
+        elif "deepseek" in n:
+            family_score = 4000
+        elif "claude" in n:
+            family_score = 2000
+        elif "minimax" in n:
+            family_score = 1000
+
+        grade_score = 200
+        if re.search(r"(?<![a-z])(lite|mini|micro|small)(?![a-z])", n):
+            grade_score = 300  # Найшвидші моделі нагору
+        elif re.search(r"(?<![a-z])(flash|standard|haiku)(?![a-z])", n):
+            grade_score = 250
+        elif re.search(r"(?<![a-z])(pro|plus|opus|max)(?![a-z])", n):
+            grade_score = 100  # Важкі моделі тільки як резерв
+
+        return family_score + grade_score + (version_val * 10)
+    else:
+        # Пріоритет літературності для Оповідача
+        family_score = 1000
+        if "claude" in n:
+            family_score = 7000
+        elif "gpt" in n:
+            family_score = 6000
+        elif "gemini" in n:
+            family_score = 5000
+        elif "qwen" in n:
+            family_score = 4000
+        elif "minimax" in n:
+            family_score = 3000
+        elif "deepseek" in n:
+            family_score = 2000
+
+        grade_score = 200
+        if re.search(r"(?<![a-z])(lite|mini|micro|small)(?![a-z])", n):
+            grade_score = 100
+        elif re.search(r"(?<![a-z])(pro|plus|opus|max)(?![a-z])", n):
+            grade_score = 300
+        elif re.search(r"(?<![a-z])(flash|standard|haiku)(?![a-z])", n):
+            grade_score = 200
+
+        return family_score + grade_score + (version_val * 10)
 
 
 class LLMProviderService:
@@ -114,28 +146,42 @@ class LLMProviderService:
                     if not any(k in m.lower() for k in excluded_keywords)
                 ]
 
-                # 3. Евристичний скоринг та сортування за спаданням
-                ranked = sorted(
-                    list(dict.fromkeys(text_free_models)),
-                    key=lambda m: score_model(m),
+                # 3. Роздільний евристичний скоринг: окремо для наративу (story) та аналізатора (state)
+                unique_free_models = list(dict.fromkeys(text_free_models))
+                story_ranked = sorted(
+                    unique_free_models,
+                    key=lambda m: score_model(m, mode="story"),
+                    reverse=True
+                )
+                state_ranked = sorted(
+                    unique_free_models,
+                    key=lambda m: score_model(m, mode="state"),
                     reverse=True
                 )
 
-                if ranked:
-                    self.discovered_models = ranked
-                    # Оновлюємо списки моделей у провайдера Odirouter для story та state
-                    for p_type in ("story", "state"):
-                        for provider in self.config.get(p_type, []):
-                            p_name = provider.get("name", "").lower()
-                            p_url = provider.get("url", "").lower()
-                            if "odirouter" in p_name or "odirouter" in p_url:
-                                provider["models"] = list(ranked)
+                if story_ranked or state_ranked:
+                    self.discovered_models = story_ranked
+                    self.discovered_story_models = story_ranked
+                    self.discovered_state_models = state_ranked
 
-                    print(f"✨ [LLMProviderService] Сформовано динамічний ШІ-пул з {len(ranked)} безкоштовних моделей:")
-                    for idx, m in enumerate(ranked, 1):
-                        print(f"   {idx:2d}. {m:<32} (скор: {score_model(m):.1f})")
+                    # Оновлюємо конфігурацію провайдера Odirouter окремо для story та state
+                    for provider in self.config.get("story", []):
+                        p_name = provider.get("name", "").lower()
+                        p_url = provider.get("url", "").lower()
+                        if "odirouter" in p_name or "odirouter" in p_url:
+                            provider["models"] = list(story_ranked)
 
-                    return ranked
+                    for provider in self.config.get("state", []):
+                        p_name = provider.get("name", "").lower()
+                        p_url = provider.get("url", "").lower()
+                        if "odirouter" in p_name or "odirouter" in p_url:
+                            provider["models"] = list(state_ranked)
+
+                    print(f"✨ [LLMProviderService] Сформовано роздільні ШІ-пули безкоштовних моделей:")
+                    print(f"   📖 Story (Оповідач, {len(story_ranked)} моделей): {', '.join(story_ranked[:3])}...")
+                    print(f"   ⚡ State (Аналізатор, {len(state_ranked)} моделей): {', '.join(state_ranked[:3])}...")
+
+                    return story_ranked
                 else:
                     print("⚠️ [LLMProviderService] Безкоштовних моделей не виявлено. Збережено базовий конфіг.")
                     return []
