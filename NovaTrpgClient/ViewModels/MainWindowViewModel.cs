@@ -496,7 +496,8 @@ namespace NovaTrpgClient.ViewModels
                             Sender = senderName,
                             Text = displayText,
                             SenderColor = senderColor,
-                            TimeText = timeStr
+                            TimeText = timeStr,
+                            IsPlayer = msg.Role.ToLower() == "player"
                         });
                     }
                     UpdateRollbackAvailability();
@@ -699,7 +700,8 @@ namespace NovaTrpgClient.ViewModels
             {
                 Sender = "Ти:",
                 Text = cleanUserText,
-                SenderColor = "#60A5FA"
+                SenderColor = "#60A5FA",
+                IsPlayer = true
             });
 
             IsWizardTyping = true;
@@ -1066,7 +1068,8 @@ namespace NovaTrpgClient.ViewModels
                 Sender = "Ти:",
                 Text = displayAction,
                 SenderColor = "#60A5FA", // Блакитний
-                TimeText = DateTime.Now.ToString("HH:mm")
+                TimeText = DateTime.Now.ToString("HH:mm"),
+                IsPlayer = true
             });
             UpdateRollbackAvailability();
             UserInput = string.Empty;

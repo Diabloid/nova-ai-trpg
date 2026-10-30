@@ -36,35 +36,50 @@
 		<SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#F3F4F6"/>
 		<SolidColorBrush x:Key="ButtonForegroundPressed" Color="#FFFFFF"/>
 
-		<!-- ЄДИНИЙ ШАБЛОН ПОВІДОМЛЕНЬ ДЛЯ ГРИ ТА ВІЗАРДА (BLOCK 1.3) -->
+		<!-- ЄДИНИЙ ШАБЛОН ПОВІДОМЛЕНЬ ДЛЯ ГРИ ТА ВІЗАРДА (BLOCK 1.1 ФАЗА 3.1) -->
 		<DataTemplate x:Key="ChatMessageTemplate" DataType="models:ChatMessage">
-			<Border Classes="chatBubble" Margin="0,0,0,22">
-				<Border.RenderTransform>
-					<TranslateTransform/>
-				</Border.RenderTransform>
-				<StackPanel Spacing="6">
-					<Grid ColumnDefinitions="Auto,*,Auto" MinHeight="24">
-						<StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Spacing="8">
-							<TextBlock Text="{Binding Sender}" Foreground="{Binding SenderColor}" FontWeight="Bold" FontSize="14" VerticalAlignment="Center"/>
+			<Grid Margin="0,0,0,20">
+				<!-- Кнопка відкату ходу, розміщена ЗОВНІ плашки праворуч угорі на загальному фоні вікна -->
+				<Button Classes="rollbackBtn"
+				        HorizontalAlignment="Right"
+				        VerticalAlignment="Top"
+				        Margin="0,0,12,0"
+				        ZIndex="5"
+				        Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).RollbackTurnCommand}"
+				        IsVisible="{Binding CanRollback}"
+				        ToolTip.Tip="Відкотити цей хід і повернути дію в поле вводу" Cursor="Hand">
+					<StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Top" Margin="0,1,0,0" IsHitTestVisible="False">
+						<PathIcon Data="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z" Width="11" Height="11" Foreground="#EF4444" VerticalAlignment="Center"/>
+						<TextBlock Text="Відкат" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
+					</StackPanel>
+				</Button>
+
+				<!-- ФОНОВА ПЛАШКА З ВУШКОМ (ШАБЛОН З ВЕРХНІМ ЯРЛИКОМ-ВУШКОМ ДЛЯ ІМЕНІ) -->
+				<StackPanel Classes="chatBubbleContainer"
+				            Classes.playerContainer="{Binding IsPlayer}"
+				            Classes.narratorContainer="{Binding !IsPlayer}">
+					<StackPanel.RenderTransform>
+						<TranslateTransform/>
+					</StackPanel.RenderTransform>
+
+					<!-- Верхнє вушко-вкладинка (Header Tab) -->
+					<Border Classes="chatBubbleTab"
+					        Classes.playerBubbleTab="{Binding IsPlayer}"
+					        Classes.narratorBubbleTab="{Binding !IsPlayer}">
+						<StackPanel Orientation="Horizontal" VerticalAlignment="Center" Spacing="8">
+							<TextBlock Text="{Binding Sender}" Foreground="{Binding SenderColor}" FontWeight="Bold" FontSize="13" VerticalAlignment="Center"/>
 							<TextBlock Text="{Binding TimeText}" Foreground="#6B7280" FontSize="10" VerticalAlignment="Center" Margin="0,1,0,0"/>
 						</StackPanel>
+					</Border>
 
-						<!-- Кнопка відкату ходу, показується ТІЛЬКИ на останньому повідомленні Оповідача -->
-						<Button Grid.Column="2" Classes="rollbackBtn"
-						        Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).RollbackTurnCommand}"
-						        IsVisible="{Binding CanRollback}"
-						        ToolTip.Tip="Відкотити цей хід і повернути дію в поле вводу" Cursor="Hand"
-						        VerticalAlignment="Center">
-							<StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
-								<PathIcon Data="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z" Width="11" Height="11" Foreground="#EF4444"/>
-								<TextBlock Text="Відкат" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
-							</StackPanel>
-						</Button>
-					</Grid>
-
-					<TextBlock Text="{Binding Text}" TextWrapping="Wrap" Foreground="#E5E7EB" LineHeight="24" FontSize="14" LetterSpacing="0.2"/>
+					<!-- Основне тіло плашки з текстом повідомлення -->
+					<Border Classes="chatBubbleBody"
+					        Classes.playerBubbleBody="{Binding IsPlayer}"
+					        Classes.narratorBubbleBody="{Binding !IsPlayer}">
+						<SelectableTextBlock Text="{Binding Text}" TextWrapping="Wrap" Foreground="#E5E7EB" LineHeight="24" FontSize="14" LetterSpacing="0.2"/>
+					</Border>
 				</StackPanel>
-			</Border>
+			</Grid>
 		</DataTemplate>
 	</Window.Resources>
 
@@ -208,8 +223,8 @@
 			</Style.Animations>
 		</Style>
 
-		<!-- FADE-IN АНІМАЦІЯ НОВИХ ПОВІДОМЛЕНЬ ЧАТУ (0.18s, CUBICEASEOUT) -->
-		<Style Selector="Border.chatBubble">
+		<!-- 1.1 ПЛАШКИ ПОВІДОМЛЕНЬ CHAT BUBBLES З ВЕРХНІМ ВУШКОМ (ФАЗА 3.1) -->
+		<Style Selector="StackPanel.chatBubbleContainer">
 			<Style.Animations>
 				<Animation Duration="0:0:0.18" FillMode="Forward" Easing="CubicEaseOut">
 					<KeyFrame Cue="0%">
@@ -223,31 +238,108 @@
 				</Animation>
 			</Style.Animations>
 		</Style>
+		<Style Selector="StackPanel.chatBubbleContainer.narratorContainer">
+			<Setter Property="HorizontalAlignment" Value="Stretch"/>
+		</Style>
+		<Style Selector="StackPanel.chatBubbleContainer.playerContainer">
+			<Setter Property="HorizontalAlignment" Value="Left"/>
+		</Style>
+
+		<!-- Спільні стилі для верхнього вушка (Tab) -->
+		<Style Selector="Border.chatBubbleTab">
+			<Setter Property="HorizontalAlignment" Value="Left"/>
+			<Setter Property="Padding" Value="12,5,16,6"/>
+			<Setter Property="CornerRadius" Value="8,8,0,0"/>
+			<Setter Property="BorderThickness" Value="1,1,1,0"/>
+			<Setter Property="Margin" Value="0,0,0,-1"/>
+			<Setter Property="ZIndex" Value="2"/>
+		</Style>
+		<Style Selector="Border.chatBubbleTab.narratorBubbleTab">
+			<Setter Property="Background" Value="#161616"/>
+			<Setter Property="BorderBrush" Value="#262626"/>
+		</Style>
+		<Style Selector="Border.chatBubbleTab.playerBubbleTab">
+			<Setter Property="Background" Value="#181B22"/>
+			<Setter Property="BorderBrush" Value="#2D3748"/>
+		</Style>
+
+		<!-- Спільні стилі для основного тіла плашки (Body) -->
+		<Style Selector="Border.chatBubbleBody">
+			<Setter Property="Padding" Value="14,12"/>
+			<Setter Property="CornerRadius" Value="0,8,8,8"/>
+			<Setter Property="BorderThickness" Value="1"/>
+			<Setter Property="ZIndex" Value="1"/>
+		</Style>
+		<Style Selector="Border.chatBubbleBody.narratorBubbleBody">
+			<Setter Property="Background" Value="#161616"/>
+			<Setter Property="BorderBrush" Value="#262626"/>
+		</Style>
+		<Style Selector="Border.chatBubbleBody.playerBubbleBody">
+			<Setter Property="Background" Value="#181B22"/>
+			<Setter Property="BorderBrush" Value="#2D3748"/>
+		</Style>
 
 		<!-- КНОПКА ВІДКАТУ ХОДУ (UNDO / 1 КРОК НАЗАД) -->
 		<Style Selector="Button.rollbackBtn">
-			<Setter Property="Background" Value="#1A1A1A"/>
-			<Setter Property="BorderBrush" Value="#2D2D2D"/>
-			<Setter Property="BorderThickness" Value="1"/>
-			<Setter Property="CornerRadius" Value="6"/>
-			<Setter Property="Padding" Value="7,3"/>
+			<Setter Property="Cursor" Value="Hand"/>
+			<Setter Property="VerticalAlignment" Value="Top"/>
+			<Setter Property="Height" Value="28"/>
+			<Setter Property="Padding" Value="0"/>
+			<Setter Property="Background" Value="Transparent"/>
+			<Setter Property="BorderThickness" Value="0"/>
+			<Setter Property="Template">
+				<ControlTemplate>
+					<Border Background="Transparent" VerticalAlignment="Top" Height="28">
+						<Border x:Name="PART_VisualBox"
+						        VerticalAlignment="Top"
+						        Height="23"
+						        Background="#1A1A1A"
+						        BorderBrush="#2D2D2D"
+						        BorderThickness="1"
+						        CornerRadius="6"
+						        Padding="7,2,7,3"
+						        UseLayoutRounding="True">
+							<Border.Transitions>
+								<Transitions>
+									<BrushTransition Property="Background" Duration="0:0:0.15"/>
+									<BrushTransition Property="BorderBrush" Duration="0:0:0.15"/>
+									<DoubleTransition Property="Height" Duration="0:0:0.12"/>
+								</Transitions>
+							</Border.Transitions>
+							<ContentPresenter Content="{TemplateBinding Content}"
+							                  RecognizesAccessKey="True"
+							                  VerticalAlignment="Top"/>
+						</Border>
+					</Border>
+				</ControlTemplate>
+			</Setter>
+		</Style>
+		<Style Selector="Button.rollbackBtn:pointerover /template/ Border#PART_VisualBox">
+			<Setter Property="Height" Value="28"/>
+			<Setter Property="Background" Value="#2A1418"/>
+			<Setter Property="BorderBrush" Value="#7E0018"/>
+			<Setter Property="BorderThickness" Value="1,1,1,0"/>
+			<Setter Property="CornerRadius" Value="6,6,0,0"/>
+		</Style>
+		<Style Selector="Button.rollbackBtn:pressed /template/ Border#PART_VisualBox">
+			<Setter Property="Background" Value="#3F1219"/>
+			<Setter Property="BorderBrush" Value="#9E0020"/>
+		</Style>
+
+		<!-- ПРЯМА СТИЛІЗАЦІЯ ТЕКСТУ В КНОПЦІ ВІДКАТУ (ПОВНЕ УСУНЕННЯ БЛІКІВ FLUENTTHEME ТА СУБПІКСЕЛЬНОГО МЕРЕХТІННЯ) -->
+		<Style Selector="Button.rollbackBtn TextBlock">
 			<Setter Property="Foreground" Value="#9CA3AF"/>
 			<Setter Property="Transitions">
 				<Transitions>
-					<BrushTransition Property="Background" Duration="0:0:0.15"/>
-					<BrushTransition Property="BorderBrush" Duration="0:0:0.15"/>
-					<BrushTransition Property="Foreground" Duration="0:0:0.15"/>
+					<BrushTransition Property="Foreground" Duration="0:0:0.12"/>
 				</Transitions>
 			</Setter>
 		</Style>
-		<Style Selector="Button.rollbackBtn:pointerover /template/ ContentPresenter">
-			<Setter Property="Background" Value="#2A1418"/>
-			<Setter Property="BorderBrush" Value="#7E0018"/>
-			<Setter Property="TextBlock.Foreground" Value="#EF4444"/>
+		<Style Selector="Button.rollbackBtn:pointerover TextBlock">
+			<Setter Property="Foreground" Value="#EF4444"/>
 		</Style>
-		<Style Selector="Button.rollbackBtn:pressed /template/ ContentPresenter">
-			<Setter Property="Background" Value="#3F1219"/>
-			<Setter Property="BorderBrush" Value="#9E0020"/>
+		<Style Selector="Button.rollbackBtn:pressed TextBlock">
+			<Setter Property="Foreground" Value="#F87171"/>
 		</Style>
 
 		<!-- СТИЛІЗАЦІЯ TOOLTIP (ФІРМОВА ТЕМНА РАМКА БЕЗ ДВОЙНИХ БОРДЕРІВ) -->
