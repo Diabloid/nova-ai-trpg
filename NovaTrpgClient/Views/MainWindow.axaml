@@ -1047,39 +1047,64 @@
 
 		<!-- КРАЙОВА КНОПКА-ВКЛАДКА МЕНЮ (EDGE DOCKED TAB) -->
 		<Style Selector="ToggleButton.edgeMenuTab">
-			<Setter Property="Width" Value="28"/>
-			<Setter Property="Height" Value="46"/>
-			<Setter Property="Padding" Value="0"/>
-			<Setter Property="CornerRadius" Value="0,8,8,0"/>
-			<Setter Property="BorderThickness" Value="0,1,1,1"/>
-			<Setter Property="Background" Value="#181818"/>
-			<Setter Property="BorderBrush" Value="#2A2A2A"/>
 			<Setter Property="Cursor" Value="Hand"/>
-			<Setter Property="HorizontalContentAlignment" Value="Center"/>
-			<Setter Property="VerticalContentAlignment" Value="Center"/>
+			<Setter Property="HorizontalAlignment" Value="Left"/>
+			<Setter Property="VerticalAlignment" Value="Top"/>
+			<Setter Property="Width" Value="28"/>
+			<Setter Property="Height" Value="56"/>
+			<Setter Property="Margin" Value="0,40,0,0"/>
+			<Setter Property="Padding" Value="0"/>
+			<Setter Property="Background" Value="Transparent"/>
+			<Setter Property="BorderThickness" Value="0"/>
 			<Setter Property="ZIndex" Value="100"/>
-		</Style>
-		<Style Selector="ToggleButton.edgeMenuTab /template/ ContentPresenter">
-			<Setter Property="Transitions">
-				<Transitions>
-					<BrushTransition Property="Background" Duration="0:0:0.2" Easing="SineEaseOut"/>
-					<BrushTransition Property="BorderBrush" Duration="0:0:0.2" Easing="SineEaseOut"/>
-				</Transitions>
+			<Setter Property="Template">
+				<ControlTemplate>
+					<Grid Background="Transparent" Width="28" Height="56" VerticalAlignment="Center" HorizontalAlignment="Left">
+						<!-- Візуальна плашка вкладки, що плавно розширюється симетрично вгору і вниз -->
+						<Border x:Name="PART_VisualTab"
+						        VerticalAlignment="Center"
+						        HorizontalAlignment="Left"
+						        Width="28"
+						        Height="46"
+						        Background="#181818"
+						        BorderBrush="#2A2A2A"
+						        BorderThickness="0,1,1,1"
+						        CornerRadius="0,8,8,0"
+						        UseLayoutRounding="True">
+							<Border.Transitions>
+								<Transitions>
+									<DoubleTransition Property="Height" Duration="0:0:0.15" Easing="SineEaseOut"/>
+									<BrushTransition Property="Background" Duration="0:0:0.18" Easing="SineEaseOut"/>
+									<BrushTransition Property="BorderBrush" Duration="0:0:0.18" Easing="SineEaseOut"/>
+								</Transitions>
+							</Border.Transitions>
+						</Border>
+
+						<!-- Іконка меню, жорстко зафіксована у нерухомому центрі зовнішнього контейнера -->
+						<ContentPresenter Content="{TemplateBinding Content}"
+						                  RecognizesAccessKey="True"
+						                  HorizontalAlignment="Center"
+						                  VerticalAlignment="Center"
+						                  IsHitTestVisible="False"/>
+					</Grid>
+				</ControlTemplate>
 			</Setter>
 		</Style>
-		<Style Selector="ToggleButton.edgeMenuTab:pointerover /template/ ContentPresenter">
+		<Style Selector="ToggleButton.edgeMenuTab:pointerover /template/ Border#PART_VisualTab">
+			<Setter Property="Height" Value="56"/>
 			<Setter Property="Background" Value="#222222"/>
 			<Setter Property="BorderBrush" Value="#7E0018"/>
 		</Style>
-		<Style Selector="ToggleButton.edgeMenuTab:pressed /template/ ContentPresenter">
+		<Style Selector="ToggleButton.edgeMenuTab:pressed /template/ Border#PART_VisualTab">
 			<Setter Property="Background" Value="#121212"/>
 			<Setter Property="BorderBrush" Value="#5A0010"/>
 		</Style>
-		<Style Selector="ToggleButton.edgeMenuTab:checked /template/ ContentPresenter">
+		<Style Selector="ToggleButton.edgeMenuTab:checked /template/ Border#PART_VisualTab">
 			<Setter Property="Background" Value="#161616"/>
 			<Setter Property="BorderBrush" Value="#353535"/>
 		</Style>
-		<Style Selector="ToggleButton.edgeMenuTab:checked:pointerover /template/ ContentPresenter">
+		<Style Selector="ToggleButton.edgeMenuTab:checked:pointerover /template/ Border#PART_VisualTab">
+			<Setter Property="Height" Value="56"/>
 			<Setter Property="Background" Value="#222222"/>
 			<Setter Property="BorderBrush" Value="#9E0022"/>
 		</Style>
@@ -1092,7 +1117,7 @@
 			<Setter Property="Transitions">
 				<Transitions>
 					<TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.35" Easing="CubicEaseOut"/>
-					<BrushTransition Property="Foreground" Duration="0:0:0.2" Easing="SineEaseOut"/>
+					<BrushTransition Property="Foreground" Duration="0:0:0.15" Easing="SineEaseOut"/>
 				</Transitions>
 			</Setter>
 		</Style>
@@ -1875,14 +1900,11 @@
 				<!-- 3. ФІРМОВА КРАЙОВА КНОПКА-ВКЛАДКА МЕНЮ (EDGE DOCKED TAB) -->
 				<ToggleButton Classes="edgeMenuTab"
 				              IsChecked="{Binding IsMenuOpen, Mode=TwoWay}"
-				              HorizontalAlignment="Left"
-				              VerticalAlignment="Top"
-				              Margin="0,46,0,0"
-				              Cursor="Hand"
 				              ToolTip.Tip="Бічне меню">
 					<PathIcon Classes="menuArrow"
-					          Data="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"
-					          Width="11" Height="11"/>
+					          Data="M6 4l7 5-7 5z"
+					          Width="10" Height="10"
+					          IsHitTestVisible="False"/>
 				</ToggleButton>
 			</Grid>
 		</SplitView.Content>
