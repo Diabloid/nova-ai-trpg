@@ -30,21 +30,48 @@ namespace NovaTrpgClient.Views
             };
             LoadCodeHighlighting();
 
-            // Зняття фокусу з полів вводу при кліку поза їхніми межами (не чіпати кліки по кнопках)
+            // Зняття фокусу з полів вводу при кліку поза їхніми межами (не чіпати кліки по кнопках, меню та полях з текстом)
             this.AddHandler(InputElement.PointerPressedEvent, (s, e) =>
             {
                 var visual = e.Source as Avalonia.Visual;
-                if (visual?.FindAncestorOfType<Button>(includeSelf: true) != null)
+                if (visual?.FindAncestorOfType<Button>(includeSelf: true) != null ||
+                    visual?.FindAncestorOfType<MenuItem>(includeSelf: true) != null ||
+                    visual?.FindAncestorOfType<ContextMenu>(includeSelf: true) != null ||
+                    visual?.FindAncestorOfType<MenuFlyoutPresenter>(includeSelf: true) != null ||
+                    visual?.FindAncestorOfType<Avalonia.Controls.Primitives.PopupRoot>(includeSelf: true) != null ||
+                    visual?.FindAncestorOfType<Avalonia.Controls.Primitives.OverlayPopupHost>(includeSelf: true) != null ||
+                    visual?.FindAncestorOfType<TextBox>(includeSelf: true) != null ||
+                    visual?.FindAncestorOfType<SelectableTextBlock>(includeSelf: true) != null ||
+                    visual?.FindAncestorOfType<AvaloniaEdit.TextEditor>(includeSelf: true) != null)
                 {
                     return;
                 }
 
-                if (visual?.FindAncestorOfType<TextBox>(includeSelf: true) == null &&
-                    visual?.FindAncestorOfType<AvaloniaEdit.TextEditor>(includeSelf: true) == null)
-                {
-                    this.FocusManager?.Focus(null);
-                }
+                this.FocusManager?.Focus(null);
             }, RoutingStrategies.Tunnel);
+
+            // Відкриття контекстного меню рівно біля курсору миші (Pointer) для SelectableTextBlock
+            SelectableTextBlock.ContextRequestedEvent.AddClassHandler<SelectableTextBlock>((stb, e) =>
+            {
+                _lastActiveSelectableTextBlock = stb;
+                if (stb.ContextMenu != null)
+                {
+                    stb.ContextMenu.Placement = PlacementMode.Pointer;
+                    stb.ContextMenu.Open(stb);
+                    e.Handled = true;
+                }
+            });
+
+            // Відкриття контекстного меню рівно біля курсору миші (Pointer) для TextBox
+            TextBox.ContextRequestedEvent.AddClassHandler<TextBox>((tb, e) =>
+            {
+                if (tb.ContextMenu != null)
+                {
+                    tb.ContextMenu.Placement = PlacementMode.Pointer;
+                    tb.ContextMenu.Open(tb);
+                    e.Handled = true;
+                }
+            });
 
             if (ChatInputEditor != null)
             {
@@ -198,6 +225,54 @@ namespace NovaTrpgClient.Views
                         {
                             vm.SendWizardMessageCommand.Execute(null);
                         }
+                    }
+                }
+            }
+        }
+
+        private void ChatCut_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            ChatInputEditor?.Cut();
+        }
+
+        private void ChatCopy_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            ChatInputEditor?.Copy();
+        }
+
+        private void ChatPaste_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            ChatInputEditor?.Paste();
+        }
+
+        private SelectableTextBlock? _lastActiveSelectableTextBlock;
+
+        private void ChatBubbleCopy_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            SelectableTextBlock? target = null;
+            if (sender is MenuItem mi)
+            {
+                var cm = mi.FindAncestorOfType<ContextMenu>();
+                target = cm?.PlacementTarget as SelectableTextBlock;
+            }
+
+            target ??= _lastActiveSelectableTextBlock;
+            target?.Copy();
+        }
+
+        private void ChatBubbleTab_PointerPressed(object? sender, PointerPressedEventArgs e)
+        {
+            if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+            {
+                if (sender is Visual visual && visual.Parent is Panel panel)
+                {
+                    var stb = panel.FindDescendantOfType<SelectableTextBlock>();
+                    if (stb != null)
+                    {
+                        stb.SelectionStart = 0;
+                        stb.SelectionEnd = 0;
+                        stb.Focus();
+                        e.Pointer.Capture(stb);
                     }
                 }
             }
