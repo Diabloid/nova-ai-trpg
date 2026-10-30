@@ -65,7 +65,8 @@
 					<!-- Верхнє вушко-вкладинка (Header Tab) -->
 					<Border Classes="chatBubbleTab"
 					        Classes.playerBubbleTab="{Binding IsPlayer}"
-					        Classes.narratorBubbleTab="{Binding !IsPlayer}">
+					        Classes.narratorBubbleTab="{Binding !IsPlayer}"
+					        PointerPressed="ChatBubbleTab_PointerPressed">
 						<StackPanel Orientation="Horizontal" VerticalAlignment="Center" Spacing="8">
 							<TextBlock Text="{Binding Sender}" Foreground="{Binding SenderColor}" FontWeight="Bold" FontSize="13" VerticalAlignment="Center"/>
 							<TextBlock Text="{Binding TimeText}" Foreground="#6B7280" FontSize="10" VerticalAlignment="Center" Margin="0,1,0,0"/>
@@ -76,7 +77,28 @@
 					<Border Classes="chatBubbleBody"
 					        Classes.playerBubbleBody="{Binding IsPlayer}"
 					        Classes.narratorBubbleBody="{Binding !IsPlayer}">
-						<SelectableTextBlock Text="{Binding Text}" TextWrapping="Wrap" Foreground="#E5E7EB" LineHeight="24" FontSize="14" LetterSpacing="0.2"/>
+						<SelectableTextBlock Classes="chatBubbleText"
+						                     Text="{Binding Text}"
+						                     TextWrapping="Wrap"
+						                     Foreground="#E5E7EB"
+						                     LineHeight="24"
+						                     FontSize="14"
+						                     LetterSpacing="0.2"
+						                     Padding="14,12"
+						                     HorizontalAlignment="Stretch"
+						                     VerticalAlignment="Stretch"
+						                     Background="Transparent"
+						                     ContextFlyout="{x:Null}">
+							<SelectableTextBlock.ContextMenu>
+								<ContextMenu Placement="Pointer">
+									<MenuItem Header="Копіювати" InputGesture="Ctrl+C" Click="ChatBubbleCopy_Click">
+										<MenuItem.Icon>
+											<PathIcon Data="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" Width="11" Height="11" Foreground="#9CA3AF"/>
+										</MenuItem.Icon>
+									</MenuItem>
+								</ContextMenu>
+							</SelectableTextBlock.ContextMenu>
+						</SelectableTextBlock>
 					</Border>
 				</StackPanel>
 			</Grid>
@@ -265,7 +287,7 @@
 
 		<!-- Спільні стилі для основного тіла плашки (Body) -->
 		<Style Selector="Border.chatBubbleBody">
-			<Setter Property="Padding" Value="14,12"/>
+			<Setter Property="Padding" Value="0"/>
 			<Setter Property="CornerRadius" Value="0,8,8,8"/>
 			<Setter Property="BorderThickness" Value="1"/>
 			<Setter Property="ZIndex" Value="1"/>
@@ -351,31 +373,92 @@
 			<Setter Property="Padding" Value="12,10"/>
 		</Style>
 
-		<!-- СТИЛЬ КОНТЕКСТНОГО МЕНЮ (ПКМ) — ІДЕНТИЧНО ДО МЕНЮ АКАУНТА ТА СПИСКУ ГЕРОЇВ -->
+		<!-- СТИЛЬ КОНТЕКСТНОГО МЕНЮ ТА MENUFLYOUT (ПКМ) — ОДНОРІДНИЙ СТИЛЬ БЕЗ ВНУТРІШНІХ ТЕМНИХ РАМОК ПІД ТЕКСТОМ -->
 		<Style Selector="ContextMenu">
 			<Setter Property="Background" Value="#161616"/>
 			<Setter Property="BorderBrush" Value="#262626"/>
 			<Setter Property="BorderThickness" Value="1"/>
 			<Setter Property="CornerRadius" Value="8"/>
-			<Setter Property="Padding" Value="5"/>
+			<Setter Property="Padding" Value="4"/>
+			<Setter Property="Placement" Value="Pointer"/>
+		</Style>
+		<Style Selector="MenuFlyoutPresenter">
+			<Setter Property="Background" Value="#161616"/>
+			<Setter Property="BorderBrush" Value="#262626"/>
+			<Setter Property="BorderThickness" Value="1"/>
+			<Setter Property="CornerRadius" Value="8"/>
+			<Setter Property="Padding" Value="4"/>
 		</Style>
 		<Style Selector="MenuItem">
 			<Setter Property="Background" Value="Transparent"/>
 			<Setter Property="Foreground" Value="#E5E7EB"/>
 			<Setter Property="BorderThickness" Value="0"/>
 			<Setter Property="CornerRadius" Value="6"/>
-			<Setter Property="Padding" Value="10,8"/>
+			<Setter Property="Padding" Value="8,5"/>
 			<Setter Property="FontSize" Value="12"/>
 			<Setter Property="Cursor" Value="Hand"/>
 		</Style>
-		<Style Selector="MenuItem:pointerover /template/ ContentPresenter">
+		<Style Selector="MenuItem /template/ Border#PART_LayoutRoot">
+			<Setter Property="Background" Value="Transparent"/>
+			<Setter Property="CornerRadius" Value="6"/>
+		</Style>
+		<Style Selector="MenuItem /template/ ContentPresenter#PART_HeaderPresenter">
+			<Setter Property="Background" Value="Transparent"/>
+		</Style>
+		<Style Selector="MenuItem /template/ ContentPresenter">
+			<Setter Property="Background" Value="Transparent"/>
+		</Style>
+		<Style Selector="MenuItem /template/ TextBlock">
+			<Setter Property="Background" Value="Transparent"/>
+		</Style>
+		<Style Selector="MenuItem:pointerover /template/ Border#PART_LayoutRoot">
 			<Setter Property="Background" Value="#222222"/>
-			<Setter Property="BorderThickness" Value="0"/>
+		</Style>
+		<Style Selector="MenuItem:pointerover /template/ ContentPresenter#PART_HeaderPresenter">
+			<Setter Property="Background" Value="Transparent"/>
 			<Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
 		</Style>
-		<Style Selector="MenuItem:pressed /template/ ContentPresenter">
+		<Style Selector="MenuItem:pointerover /template/ ContentPresenter">
+			<Setter Property="Background" Value="Transparent"/>
+		</Style>
+		<Style Selector="MenuItem:pointerover /template/ TextBlock">
+			<Setter Property="Background" Value="Transparent"/>
+			<Setter Property="Foreground" Value="#FFFFFF"/>
+		</Style>
+		<Style Selector="MenuItem:pressed /template/ Border#PART_LayoutRoot">
 			<Setter Property="Background" Value="#1A1A1A"/>
-			<Setter Property="BorderThickness" Value="0"/>
+		</Style>
+		<Style Selector="MenuItem:pressed /template/ ContentPresenter#PART_HeaderPresenter">
+			<Setter Property="Background" Value="Transparent"/>
+		</Style>
+		<Style Selector="MenuItem:pressed /template/ ContentPresenter">
+			<Setter Property="Background" Value="Transparent"/>
+		</Style>
+
+		<!-- УНІФІКОВАНЕ КОНТЕКСТНЕ МЕНЮ ТА ПАРАМЕТРИ ВИДІЛЕННЯ ДЛЯ ВСІХ TEXTBOX В ПРОЄКТІ -->
+		<Style Selector="TextBox">
+			<Setter Property="SelectionBrush" Value="#3F3F3F"/>
+			<Setter Property="SelectionForegroundBrush" Value="#FFFFFF"/>
+			<Setter Property="ClearSelectionOnLostFocus" Value="False"/>
+			<Setter Property="ContextMenu">
+				<ContextMenu>
+					<MenuItem Header="Вирізати" InputGesture="Ctrl+X" Command="{Binding $parent[TextBox].Cut}">
+						<MenuItem.Icon>
+							<PathIcon Data="M9.64 7.64c.23-.5.36-1.05.36-1.64 0-2.21-1.79-4-4-4S2 3.79 2 6s1.79 4 4 4c.59 0 1.14-.13 1.64-.36L10 12l-2.36 2.36C7.14 14.13 6.59 14 6 14c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4c0-.59-.13-1.14-.36-1.64L12 14l7 7h3v-1L9.64 7.64zM6 8c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm0 12c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm6-7.5c-.28 0-.5-.22-.5-.5s.22-.5.5-.5.5.22.5.5-.22.5-.5.5zM19 3l-6 6 2 2 7-7V3h-3z" Width="11" Height="11" Foreground="#9CA3AF"/>
+						</MenuItem.Icon>
+					</MenuItem>
+					<MenuItem Header="Копіювати" InputGesture="Ctrl+C" Command="{Binding $parent[TextBox].Copy}">
+						<MenuItem.Icon>
+							<PathIcon Data="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" Width="11" Height="11" Foreground="#9CA3AF"/>
+						</MenuItem.Icon>
+					</MenuItem>
+					<MenuItem Header="Вставити" InputGesture="Ctrl+V" Command="{Binding $parent[TextBox].Paste}">
+						<MenuItem.Icon>
+							<PathIcon Data="M19 2h-4.18C14.4 0.84 13.3 0 12 0c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm7 18H5V4h2v3h10V4h2v16z" Width="11" Height="11" Foreground="#9CA3AF"/>
+						</MenuItem.Icon>
+					</MenuItem>
+				</ContextMenu>
+			</Setter>
 		</Style>
 
 		<!-- 1.1 ЕФЕКТИ ГОЛОВНОГО ПОЛЯ ВВОДУ (ChatInputEditor - ІДЕНТИЧНО ДО WIZARDINPUTBOX) -->
@@ -1167,7 +1250,7 @@
 			<Setter Property="CornerRadius" Value="10"/>
 			<Setter Property="Padding" Value="14,12"/>
 			<Setter Property="Foreground" Value="#E5E7EB"/>
-			<Setter Property="SelectionBrush" Value="#6A0014"/>
+			<Setter Property="SelectionBrush" Value="#3F3F3F"/>
 			<Setter Property="SelectionForegroundBrush" Value="#FFFFFF"/>
 			<Setter Property="FontSize" Value="13"/>
 			<Setter Property="VerticalAlignment" Value="Stretch"/>
@@ -1198,7 +1281,7 @@
 			<Setter Property="Background" Value="#121212"/>
 			<Setter Property="BorderBrush" Value="#2E2E2E"/>
 			<Setter Property="Foreground" Value="#E5E7EB"/>
-			<Setter Property="SelectionBrush" Value="#6A0014"/>
+			<Setter Property="SelectionBrush" Value="#3F3F3F"/>
 			<Setter Property="SelectionForegroundBrush" Value="#FFFFFF"/>
 			<Setter Property="CornerRadius" Value="6"/>
 			<Setter Property="Padding" Value="10,8"/>
@@ -1407,14 +1490,7 @@
 														        Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).SelectCampaignCommand}"
 														        CommandParameter="{Binding}">
 															<StackPanel VerticalAlignment="Center" Spacing="2">
-																<Grid ColumnDefinitions="Auto, *">
-																	<!-- Векторний міні-пін для закріплених кампаній -->
-																	<PathIcon Grid.Column="0"
-																	          Data="M16 9V4h1c.55 0 1-.45 1-1s-.45-1-1-1H7c-.55 0-1 .45-1 1s.45 1 1 1h1v5c0 1.66-1.34 3-3 3v2h5.97v7l1 1 1-1v-7H19v-2c-1.66 0-3-1.34-3-3z"
-																	          Width="10" Height="10" Foreground="#EF4444" Margin="0,0,6,0"
-																	          IsVisible="{Binding IsPinned}"/>
-																	<TextBlock Grid.Column="1" Text="{Binding Title}" FontWeight="SemiBold" Foreground="#E5E7EB" FontSize="12" TextTrimming="CharacterEllipsis"/>
-																</Grid>
+																<TextBlock Text="{Binding Title}" FontWeight="SemiBold" Foreground="#E5E7EB" FontSize="12" TextTrimming="CharacterEllipsis"/>
 																<TextBlock Text="{Binding CurrentLocation}" Foreground="#6B7280" FontSize="10" TextTrimming="CharacterEllipsis"/>
 															</StackPanel>
 														</Button>
@@ -1700,6 +1776,22 @@
 								                   FontSize="15" MinHeight="20" MaxHeight="120">
 									<avedit:TextEditor.ContextMenu>
 										<ContextMenu>
+											<MenuItem Header="Вирізати" InputGesture="Ctrl+X" Click="ChatCut_Click">
+												<MenuItem.Icon>
+													<PathIcon Data="M9.64 7.64c.23-.5.36-1.05.36-1.64 0-2.21-1.79-4-4-4S2 3.79 2 6s1.79 4 4 4c.59 0 1.14-.13 1.64-.36L10 12l-2.36 2.36C7.14 14.13 6.59 14 6 14c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4c0-.59-.13-1.14-.36-1.64L12 14l7 7h3v-1L9.64 7.64zM6 8c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm0 12c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm6-7.5c-.28 0-.5-.22-.5-.5s.22-.5.5-.5.5.22.5.5-.22.5-.5.5zM19 3l-6 6 2 2 7-7V3h-3z" Width="11" Height="11" Foreground="#9CA3AF"/>
+												</MenuItem.Icon>
+											</MenuItem>
+											<MenuItem Header="Копіювати" InputGesture="Ctrl+C" Click="ChatCopy_Click">
+												<MenuItem.Icon>
+													<PathIcon Data="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" Width="11" Height="11" Foreground="#9CA3AF"/>
+												</MenuItem.Icon>
+											</MenuItem>
+											<MenuItem Header="Вставити" InputGesture="Ctrl+V" Click="ChatPaste_Click">
+												<MenuItem.Icon>
+													<PathIcon Data="M19 2h-4.18C14.4 0.84 13.3 0 12 0c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm7 18H5V4h2v3h10V4h2v16z" Width="11" Height="11" Foreground="#9CA3AF"/>
+												</MenuItem.Icon>
+											</MenuItem>
+											<Separator Background="#262626" Height="1" Margin="4,2"/>
 											<MenuItem Header="Скасувати форматування" Click="RemoveFormatting_Click">
 												<MenuItem.Icon>
 													<PathIcon Data="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" Width="11" Height="11" Foreground="#9CA3AF"/>
@@ -1888,7 +1980,28 @@
 								<TextBox x:Name="WizardInputBox" Grid.Column="0" Classes="wizardInputBox"
 								         PlaceholderText="Відповідайте Творцю Долі (ім'я, клас, особливості, спорядження)..."
 								         Text="{Binding WizardInput, Mode=TwoWay}"
-								         AcceptsReturn="True" MaxHeight="80" Margin="0,0,10,0"/>
+								         AcceptsReturn="True" MaxHeight="80" Margin="0,0,10,0"
+								         ContextFlyout="{x:Null}">
+									<TextBox.ContextMenu>
+										<ContextMenu Placement="Pointer">
+											<MenuItem Header="Вирізати" InputGesture="Ctrl+X" Command="{Binding $parent[TextBox].Cut}">
+												<MenuItem.Icon>
+													<PathIcon Data="M9.64 7.64c.23-.5.36-1.05.36-1.64 0-2.21-1.79-4-4-4S2 3.79 2 6s1.79 4 4 4c.59 0 1.14-.13 1.64-.36L10 12l-2.36 2.36C7.14 14.13 6.59 14 6 14c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4c0-.59-.13-1.14-.36-1.64L12 14l7 7h3v-1L9.64 7.64zM6 8c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm0 12c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm6-7.5c-.28 0-.5-.22-.5-.5s.22-.5.5-.5.5.22.5.5-.22.5-.5.5zM19 3l-6 6 2 2 7-7V3h-3z" Width="11" Height="11" Foreground="#9CA3AF"/>
+												</MenuItem.Icon>
+											</MenuItem>
+											<MenuItem Header="Копіювати" InputGesture="Ctrl+C" Command="{Binding $parent[TextBox].Copy}">
+												<MenuItem.Icon>
+													<PathIcon Data="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" Width="11" Height="11" Foreground="#9CA3AF"/>
+												</MenuItem.Icon>
+											</MenuItem>
+											<MenuItem Header="Вставити" InputGesture="Ctrl+V" Command="{Binding $parent[TextBox].Paste}">
+												<MenuItem.Icon>
+													<PathIcon Data="M19 2h-4.18C14.4 0.84 13.3 0 12 0c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm7 18H5V4h2v3h10V4h2v16z" Width="11" Height="11" Foreground="#9CA3AF"/>
+												</MenuItem.Icon>
+											</MenuItem>
+										</ContextMenu>
+									</TextBox.ContextMenu>
+								</TextBox>
 								<Button Grid.Column="1" Classes="sendBtn" Command="{Binding SendWizardMessageCommand}" ToolTip.Tip="Відправити Творцю Долі" Cursor="Hand">
 									<PathIcon Data="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" Foreground="#F3F4F6" Width="14" Height="14"/>
 								</Button>

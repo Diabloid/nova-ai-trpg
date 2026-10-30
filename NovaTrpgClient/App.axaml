@@ -22,9 +22,15 @@
                     <SolidColorBrush x:Key="ButtonForeground" Color="#D1D5DB"/>
                     <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#F3F4F6"/>
                     <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#E5E7EB"/>
-                    <!-- ФІРМОВЕ ВИДІЛЕННЯ ТЕКСТУ (ГЛИБОКИЙ РУБІН З ЧІТКИМ БІЛИМ ТЕКСТОМ) -->
-                    <SolidColorBrush x:Key="TextControlSelectionHighlightBrush" Color="#6A0014"/>
-                    <SolidColorBrush x:Key="HighlightBrush" Color="#6A0014"/>
+                    <!-- УНІФІКОВАНИЙ СТИЛЬ ВИДІЛЕННЯ ТЕКСТУ (ІДЕНТИЧНИЙ ДО CHATINPUTEDITOR) -->
+                    <SolidColorBrush x:Key="TextControlSelectionHighlightBrush" Color="#3F3F3F"/>
+                    <SolidColorBrush x:Key="HighlightBrush" Color="#3F3F3F"/>
+                    <!-- КОНТЕКСТНЕ МЕНЮ — ПОВНЕ УСУНЕННЯ ТЕМНИХ ПРЯМОКУТНИКІВ НА ХОВЕРІ -->
+                    <SolidColorBrush x:Key="MenuFlyoutItemBackground" Color="Transparent"/>
+                    <SolidColorBrush x:Key="MenuFlyoutItemBackgroundPointerOver" Color="#222222"/>
+                    <SolidColorBrush x:Key="MenuFlyoutItemBackgroundPressed" Color="#1A1A1A"/>
+                    <SolidColorBrush x:Key="MenuItemBackgroundSelected" Color="#222222"/>
+                    <SolidColorBrush x:Key="MenuItemBackgroundSelectedPointerOver" Color="#2A2A2A"/>
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Default">
                     <SolidColorBrush x:Key="ButtonBackground" Color="Transparent"/>
@@ -36,8 +42,13 @@
                     <SolidColorBrush x:Key="ButtonForeground" Color="#D1D5DB"/>
                     <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#F3F4F6"/>
                     <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#E5E7EB"/>
-                    <SolidColorBrush x:Key="TextControlSelectionHighlightBrush" Color="#6A0014"/>
-                    <SolidColorBrush x:Key="HighlightBrush" Color="#6A0014"/>
+                    <SolidColorBrush x:Key="TextControlSelectionHighlightBrush" Color="#3F3F3F"/>
+                    <SolidColorBrush x:Key="HighlightBrush" Color="#3F3F3F"/>
+                    <SolidColorBrush x:Key="MenuFlyoutItemBackground" Color="Transparent"/>
+                    <SolidColorBrush x:Key="MenuFlyoutItemBackgroundPointerOver" Color="#222222"/>
+                    <SolidColorBrush x:Key="MenuFlyoutItemBackgroundPressed" Color="#1A1A1A"/>
+                    <SolidColorBrush x:Key="MenuItemBackgroundSelected" Color="#222222"/>
+                    <SolidColorBrush x:Key="MenuItemBackgroundSelectedPointerOver" Color="#2A2A2A"/>
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
         </ResourceDictionary>
@@ -47,10 +58,22 @@
         <FluentTheme />
 		<StyleInclude Source="avares://AvaloniaEdit/Themes/Fluent/AvaloniaEdit.xaml" />
 
-        <!-- ФІРМОВИЙ СТИЛЬ ВИДІЛЕННЯ ТЕКСТУ ДЛЯ ВСІХ ТЕКСТОВИХ ПОЛІВ -->
+        <!-- УНІФІКОВАНИЙ СТИЛЬ ВИДІЛЕННЯ ТА КОНТЕКСТНОГО МЕНЮ ДЛЯ ВСІХ TEXTBOX В ПРОЄКТІ -->
         <Style Selector="TextBox">
-            <Setter Property="SelectionBrush" Value="#6A0014"/>
+            <Setter Property="SelectionBrush" Value="#3F3F3F"/>
             <Setter Property="SelectionForegroundBrush" Value="#FFFFFF"/>
+            <Setter Property="ClearSelectionOnLostFocus" Value="False"/>
+        </Style>
+        <Style Selector="SelectableTextBlock">
+            <Setter Property="SelectionBrush" Value="#3F3F3F"/>
+            <Setter Property="SelectionForegroundBrush" Value="#FFFFFF"/>
+        </Style>
+        <Style Selector="MenuFlyoutPresenter">
+            <Setter Property="Background" Value="#161616"/>
+            <Setter Property="BorderBrush" Value="#262626"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="5"/>
         </Style>
 
         <!-- ПОВНЕ ВИМКНЕННЯ СТАНДАРТНОЇ НАКЛАДНОЇ ШАПКИ AVALONIA 12 (ПРИ ЗБЕРЕЖЕННІ FULL DWM АНІМАЦІЙ WINDOWS) -->
