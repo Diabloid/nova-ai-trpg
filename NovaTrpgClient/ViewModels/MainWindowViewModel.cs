@@ -19,6 +19,13 @@ namespace NovaTrpgClient.ViewModels
         private readonly IIntentParserService _intentParserService;
         private readonly ITextSanitizerService _textSanitizerService;
         private readonly IClientStorageService _clientStorageService;
+        private readonly IAudioRecordingService _audioRecordingService;
+
+        [ObservableProperty]
+        private bool _isRecordingVoice = false;
+
+        [ObservableProperty]
+        private bool _isTranscribingVoice = false;
 
         [ObservableProperty]
         private string _hpText = "Завантаження...";
@@ -189,12 +196,14 @@ namespace NovaTrpgClient.ViewModels
             IGameApiService gameApiService,
             IIntentParserService intentParserService,
             ITextSanitizerService textSanitizerService,
-            IClientStorageService clientStorageService)
+            IClientStorageService clientStorageService,
+            IAudioRecordingService? audioRecordingService = null)
         {
             _gameApiService = gameApiService ?? throw new ArgumentNullException(nameof(gameApiService));
             _intentParserService = intentParserService ?? throw new ArgumentNullException(nameof(intentParserService));
             _textSanitizerService = textSanitizerService ?? throw new ArgumentNullException(nameof(textSanitizerService));
             _clientStorageService = clientStorageService ?? throw new ArgumentNullException(nameof(clientStorageService));
+            _audioRecordingService = audioRecordingService ?? new AudioRecordingService();
 
             var settings = _clientStorageService.GetSettings();
             UserName = settings.UserName;
@@ -210,8 +219,67 @@ namespace NovaTrpgClient.ViewModels
                 new GameApiService(new HttpClient { BaseAddress = new Uri("http://127.0.0.1:8000/") }),
                 new IntentParserService(),
                 new TextSanitizerService(),
-                new ClientStorageService())
+                new ClientStorageService(),
+                new AudioRecordingService())
         {
+        }
+
+        public bool HasUserInput => !string.IsNullOrWhiteSpace(UserInput);
+        public bool HasWizardInput => !string.IsNullOrWhiteSpace(WizardInput);
+
+        public bool ShowSendIcon => HasUserInput && !IsRecordingVoice;
+        public bool ShowMicIcon => !HasUserInput && !IsRecordingVoice;
+
+        public bool ShowWizardSendIcon => HasWizardInput && !IsRecordingVoice;
+        public bool ShowWizardMicIcon => !HasWizardInput && !IsRecordingVoice;
+
+        public bool CanSendOrRecord => !IsTyping && !IsTranscribingVoice;
+        public bool CanWizardSendOrRecord => !IsWizardTyping && !IsTranscribingVoice;
+
+        public string SendButtonToolTip => IsRecordingVoice
+            ? "Зупинити запис та розпізнати дію (клік)"
+            : (HasUserInput ? "Відправити дію (Enter)" : "Голосове введення дії (мікрофон)");
+
+        public string WizardSendButtonToolTip => IsRecordingVoice
+            ? "Зупинити запис та розпізнати відповідь (клік)"
+            : (HasWizardInput ? "Відправити Творцю Долі" : "Голосове введення відповіді (мікрофон)");
+
+        partial void OnUserInputChanged(string value)
+        {
+            OnPropertyChanged(nameof(HasUserInput));
+            OnPropertyChanged(nameof(ShowSendIcon));
+            OnPropertyChanged(nameof(ShowMicIcon));
+            OnPropertyChanged(nameof(SendButtonToolTip));
+        }
+
+        partial void OnWizardInputChanged(string value)
+        {
+            OnPropertyChanged(nameof(HasWizardInput));
+            OnPropertyChanged(nameof(ShowWizardSendIcon));
+            OnPropertyChanged(nameof(ShowWizardMicIcon));
+            OnPropertyChanged(nameof(WizardSendButtonToolTip));
+        }
+
+        partial void OnIsRecordingVoiceChanged(bool value)
+        {
+            OnPropertyChanged(nameof(ShowSendIcon));
+            OnPropertyChanged(nameof(ShowMicIcon));
+            OnPropertyChanged(nameof(ShowWizardSendIcon));
+            OnPropertyChanged(nameof(ShowWizardMicIcon));
+            OnPropertyChanged(nameof(SendButtonToolTip));
+            OnPropertyChanged(nameof(WizardSendButtonToolTip));
+            OnPropertyChanged(nameof(CanSendOrRecord));
+            OnPropertyChanged(nameof(CanWizardSendOrRecord));
+            SendOrRecordCommand.NotifyCanExecuteChanged();
+            SendOrRecordWizardCommand.NotifyCanExecuteChanged();
+        }
+
+        partial void OnIsTranscribingVoiceChanged(bool value)
+        {
+            OnPropertyChanged(nameof(CanSendOrRecord));
+            OnPropertyChanged(nameof(CanWizardSendOrRecord));
+            SendOrRecordCommand.NotifyCanExecuteChanged();
+            SendOrRecordWizardCommand.NotifyCanExecuteChanged();
         }
 
         private bool CanSend => !IsTyping;
@@ -219,6 +287,15 @@ namespace NovaTrpgClient.ViewModels
         partial void OnIsTypingChanged(bool value)
         {
             SendCommand.NotifyCanExecuteChanged();
+            OnPropertyChanged(nameof(CanSendOrRecord));
+            SendOrRecordCommand.NotifyCanExecuteChanged();
+        }
+
+        partial void OnIsWizardTypingChanged(bool value)
+        {
+            SendWizardMessageCommand.NotifyCanExecuteChanged();
+            OnPropertyChanged(nameof(CanWizardSendOrRecord));
+            SendOrRecordWizardCommand.NotifyCanExecuteChanged();
         }
 
         [RelayCommand]
@@ -1052,6 +1129,126 @@ namespace NovaTrpgClient.ViewModels
             if (Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop)
             {
                 desktop.Shutdown();
+            }
+        }
+
+        // --- 1.4 ГОЛОСОВЕ ВВЕДЕННЯ (VOICE-TO-TEXT) ТА ДИНАМІЧНА КНОПКА ВІДПРАВКИ ---
+        [RelayCommand]
+        public async Task SendOrRecordAsync()
+        {
+            if (IsTyping || IsTranscribingVoice) return;
+
+            if (IsRecordingVoice)
+            {
+                await StopVoiceRecordingAsync(isWizard: false);
+                return;
+            }
+
+            if (HasUserInput)
+            {
+                await SendAsync();
+                return;
+            }
+
+            StartVoiceRecording(isWizard: false);
+        }
+
+        [RelayCommand]
+        public async Task SendOrRecordWizardAsync()
+        {
+            if (IsWizardTyping || IsTranscribingVoice) return;
+
+            if (IsRecordingVoice)
+            {
+                await StopVoiceRecordingAsync(isWizard: true);
+                return;
+            }
+
+            if (HasWizardInput)
+            {
+                await SendWizardMessageAsync();
+                return;
+            }
+
+            StartVoiceRecording(isWizard: true);
+        }
+
+        private void StartVoiceRecording(bool isWizard)
+        {
+            if (!_audioRecordingService.IsSupported)
+            {
+                string msg = "Мікрофон не виявлено або пристрої запису відсутні в системі.";
+                if (isWizard) WizardStatusText = msg;
+                else StatusIndicatorText = msg;
+                return;
+            }
+
+            try
+            {
+                _audioRecordingService.StartRecording();
+                IsRecordingVoice = true;
+                string recordingMsg = "🎙️ Запис голосу... Говоріть дію (натисніть кнопку ще раз для завершення)";
+                if (isWizard) WizardStatusText = recordingMsg;
+                else StatusIndicatorText = recordingMsg;
+            }
+            catch (Exception ex)
+            {
+                string err = $"Помилка старту запису: {ex.Message}";
+                if (isWizard) WizardStatusText = err;
+                else StatusIndicatorText = err;
+            }
+        }
+
+        private async Task StopVoiceRecordingAsync(bool isWizard)
+        {
+            if (!IsRecordingVoice) return;
+
+            try
+            {
+                IsRecordingVoice = false;
+                IsTranscribingVoice = true;
+                string transcribingMsg = "Перетворення голосу в текст через ШІ...";
+                if (isWizard) WizardStatusText = transcribingMsg;
+                else StatusIndicatorText = transcribingMsg;
+
+                byte[] audioData = await _audioRecordingService.StopRecordingAsync();
+                if (audioData.Length > 0)
+                {
+                    string? text = await _gameApiService.TranscribeAudioAsync(audioData);
+                    if (!string.IsNullOrWhiteSpace(text))
+                    {
+                        if (isWizard)
+                        {
+                            WizardInput = string.IsNullOrWhiteSpace(WizardInput)
+                                ? text.Trim()
+                                : $"{WizardInput.Trim()} {text.Trim()}";
+                            WizardStatusText = "Творець Долі слухає...";
+                        }
+                        else
+                        {
+                            UserInput = string.IsNullOrWhiteSpace(UserInput)
+                                ? text.Trim()
+                                : $"{UserInput.Trim()} {text.Trim()}";
+                            StatusIndicatorText = "Готовий до нових дій";
+                        }
+                    }
+                    else
+                    {
+                        string failMsg = "Не вдалося розпізнати мову або запис був порожнім.";
+                        if (isWizard) WizardStatusText = failMsg;
+                        else StatusIndicatorText = failMsg;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                string err = $"Помилка розпізнавання: {ex.Message}";
+                if (isWizard) WizardStatusText = err;
+                else StatusIndicatorText = err;
+            }
+            finally
+            {
+                IsTranscribingVoice = false;
             }
         }
 

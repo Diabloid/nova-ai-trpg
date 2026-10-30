@@ -531,6 +531,83 @@
 			<Setter Property="Background" Value="#2A050A"/>
 			<Setter Property="BorderBrush" Value="#5A0010"/>
 		</Style>
+		<Style Selector="Button.sendBtn.recording /template/ ContentPresenter">
+			<Setter Property="Background">
+				<LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+					<GradientStop Color="#7E0018" Offset="0.0"/>
+					<GradientStop Color="#4A000E" Offset="1.0"/>
+				</LinearGradientBrush>
+			</Setter>
+			<Setter Property="BorderBrush" Value="#E11D48"/>
+		</Style>
+		<Style Selector="Button.sendBtn.recording">
+			<Style.Animations>
+				<Animation Duration="0:0:1.0" IterationCount="Infinite" PlaybackDirection="Alternate">
+					<KeyFrame Cue="0%">
+						<Setter Property="Opacity" Value="0.75"/>
+					</KeyFrame>
+					<KeyFrame Cue="100%">
+						<Setter Property="Opacity" Value="1.0"/>
+					</KeyFrame>
+				</Animation>
+			</Style.Animations>
+		</Style>
+
+		<!-- ПЛАВНІ АНІМОВАНІ ПЕРЕХОДИ ІКОНОК КНОПКИ ВІДПРАВКИ/МІКРОФОНА -->
+		<Style Selector="PathIcon.btnIcon">
+			<Setter Property="Opacity" Value="0"/>
+			<Setter Property="Transitions">
+				<Transitions>
+					<DoubleTransition Property="Opacity" Duration="0:0:0.2" Easing="SineEaseInOut"/>
+				</Transitions>
+			</Setter>
+		</Style>
+		<Style Selector="PathIcon.btnIcon.active">
+			<Setter Property="Opacity" Value="1"/>
+		</Style>
+
+		<!-- ПУЛЬСУЮЧИЙ СКРУГЛЕНИЙ КВАДРАТ ЗУПИНКИ ЗАПИСУ -->
+		<Style Selector="Border.stopSquare">
+			<Setter Property="Opacity" Value="0"/>
+			<Setter Property="Transitions">
+				<Transitions>
+					<DoubleTransition Property="Opacity" Duration="0:0:0.2" Easing="SineEaseInOut"/>
+				</Transitions>
+			</Setter>
+		</Style>
+		<Style Selector="Border.stopSquare.active">
+			<Setter Property="Opacity" Value="1"/>
+			<Style.Animations>
+				<Animation Duration="0:0:0.75" IterationCount="Infinite" PlaybackDirection="Alternate" Easing="SineEaseInOut">
+					<KeyFrame Cue="0%">
+						<Setter Property="ScaleTransform.ScaleX" Value="0.82"/>
+						<Setter Property="ScaleTransform.ScaleY" Value="0.82"/>
+					</KeyFrame>
+					<KeyFrame Cue="100%">
+						<Setter Property="ScaleTransform.ScaleX" Value="1.18"/>
+						<Setter Property="ScaleTransform.ScaleY" Value="1.18"/>
+					</KeyFrame>
+				</Animation>
+			</Style.Animations>
+		</Style>
+
+		<!-- ПУЛЬСАЦІЯ ТОЧКИ В БАННЕРІ ЗАПИСУ -->
+		<Style Selector="Ellipse.pulsingDot">
+			<Style.Animations>
+				<Animation Duration="0:0:0.7" IterationCount="Infinite" PlaybackDirection="Alternate" Easing="SineEaseInOut">
+					<KeyFrame Cue="0%">
+						<Setter Property="Opacity" Value="0.35"/>
+						<Setter Property="ScaleTransform.ScaleX" Value="0.8"/>
+						<Setter Property="ScaleTransform.ScaleY" Value="0.8"/>
+					</KeyFrame>
+					<KeyFrame Cue="100%">
+						<Setter Property="Opacity" Value="1.0"/>
+						<Setter Property="ScaleTransform.ScaleX" Value="1.2"/>
+						<Setter Property="ScaleTransform.ScaleY" Value="1.2"/>
+					</KeyFrame>
+				</Animation>
+			</Style.Animations>
+		</Style>
 
 		<!-- ІКОНКА-ПІДКАЗКА СИНТАКСИСУ (?) З ОРГАНІЧНИМ ХОВЕРОМ -->
 		<Style Selector="Border.helpIconBtn">
@@ -1779,52 +1856,102 @@
 					</Border>
 
 					<!-- ПОЛЕ ВВОДУ ТА ЕЛЕМЕНТИ (СИНХРОНІЗОВАНИЙ КОЛІР ФОНУ #161616) -->
-					<Grid Grid.Row="2" ColumnDefinitions="*, Auto" Margin="0,16,0,0">
-						<Border Grid.Column="0" Classes="inputBox" CornerRadius="10" BorderThickness="1" Padding="16,14" VerticalAlignment="Stretch">
-							<Grid>
-								<TextBlock x:Name="WatermarkText" Text="Введіть дію, думку або фразу..." Foreground="#555555" IsHitTestVisible="False" Margin="4,0,0,0" FontStyle="Italic"/>
-								<avedit:TextEditor x:Name="ChatInputEditor"
-								                   IsEnabled="{Binding !IsTyping}"
-								                   Background="Transparent" Foreground="#E5E7EB"
-								                   WordWrap="True" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto"
-								                   FontSize="15" MinHeight="20" MaxHeight="120">
-									<avedit:TextEditor.ContextMenu>
-										<ContextMenu>
-											<MenuItem Header="Вирізати" InputGesture="Ctrl+X" Click="ChatCut_Click">
-												<MenuItem.Icon>
-													<PathIcon Data="M9.64 7.64c.23-.5.36-1.05.36-1.64 0-2.21-1.79-4-4-4S2 3.79 2 6s1.79 4 4 4c.59 0 1.14-.13 1.64-.36L10 12l-2.36 2.36C7.14 14.13 6.59 14 6 14c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4c0-.59-.13-1.14-.36-1.64L12 14l7 7h3v-1L9.64 7.64zM6 8c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm0 12c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm6-7.5c-.28 0-.5-.22-.5-.5s.22-.5.5-.5.5.22.5.5-.22.5-.5.5zM19 3l-6 6 2 2 7-7V3h-3z" Width="11" Height="11" Foreground="#9CA3AF"/>
-												</MenuItem.Icon>
-											</MenuItem>
-											<MenuItem Header="Копіювати" InputGesture="Ctrl+C" Click="ChatCopy_Click">
-												<MenuItem.Icon>
-													<PathIcon Data="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" Width="11" Height="11" Foreground="#9CA3AF"/>
-												</MenuItem.Icon>
-											</MenuItem>
-											<MenuItem Header="Вставити" InputGesture="Ctrl+V" Click="ChatPaste_Click">
-												<MenuItem.Icon>
-													<PathIcon Data="M19 2h-4.18C14.4 0.84 13.3 0 12 0c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm7 18H5V4h2v3h10V4h2v16z" Width="11" Height="11" Foreground="#9CA3AF"/>
-												</MenuItem.Icon>
-											</MenuItem>
-											<Separator Background="#262626" Height="1" Margin="4,2"/>
-											<MenuItem Header="Скасувати форматування" Click="RemoveFormatting_Click">
-												<MenuItem.Icon>
-													<PathIcon Data="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" Width="11" Height="11" Foreground="#9CA3AF"/>
-												</MenuItem.Icon>
-											</MenuItem>
-										</ContextMenu>
-									</avedit:TextEditor.ContextMenu>
-								</avedit:TextEditor>
+					<StackPanel Grid.Row="2" Margin="0,16,0,0">
+						<!-- БАННЕР ГОЛОСОВОГО ВВОДУ / РОЗПІЗНАВАННЯ (АКТИВНИЙ ПІД ЧАС ЗАПИСУ ТА ТРАНСКРИПЦІЇ) -->
+						<Border IsVisible="{Binding IsRecordingVoice}"
+						        Background="#22060B" BorderBrush="#7E0018" BorderThickness="1"
+						        CornerRadius="8" Padding="12,7" Margin="0,0,0,10">
+							<Grid ColumnDefinitions="Auto, *">
+								<Ellipse Grid.Column="0" Width="9" Height="9" Fill="#E11D48" Classes="pulsingDot" Margin="0,0,10,0" VerticalAlignment="Center">
+									<Ellipse.RenderTransform>
+										<ScaleTransform/>
+									</Ellipse.RenderTransform>
+								</Ellipse>
+								<TextBlock Grid.Column="1" Text="🎙️ Запис голосу... Говоріть дію (натисніть кнопку або Enter для завершення)"
+								           Foreground="#FDA4AF" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
 							</Grid>
 						</Border>
 
-						<StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Bottom" Margin="12,0,0,0">
-							<Button Command="{Binding SendCommand}"
-							        IsEnabled="{Binding !IsTyping}"
-							        Classes="sendBtn"
-							        Cursor="Hand"
-							        ToolTip.Tip="Відправити (Enter)">
-								<PathIcon Data="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" Foreground="White" Width="18" Height="18" Margin="4,4,0,0"/>
-							</Button>
+						<Border IsVisible="{Binding IsTranscribingVoice}"
+						        Background="#160D1E" BorderBrush="#5B21B6" BorderThickness="1"
+						        CornerRadius="8" Padding="12,7" Margin="0,0,0,10">
+							<StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+								<TextBlock Text="🔮 Перетворення голосу в текст через ШІ..."
+								           Foreground="#DDD6FE" FontSize="12" FontStyle="Italic"/>
+							</StackPanel>
+						</Border>
+
+						<Grid ColumnDefinitions="*, Auto">
+							<Border Grid.Column="0" Classes="inputBox" CornerRadius="10" BorderThickness="1" Padding="16,14" VerticalAlignment="Stretch">
+								<Grid>
+									<TextBlock x:Name="WatermarkText" Text="Введіть дію, думку або фразу..." Foreground="#555555" IsHitTestVisible="False" Margin="4,0,0,0" FontStyle="Italic"/>
+									<avedit:TextEditor x:Name="ChatInputEditor"
+									                   IsEnabled="{Binding !IsTyping}"
+									                   Background="Transparent" Foreground="#E5E7EB"
+									                   WordWrap="True" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto"
+									                   FontSize="15" MinHeight="20" MaxHeight="120">
+										<avedit:TextEditor.ContextMenu>
+											<ContextMenu>
+												<MenuItem Header="Вирізати" InputGesture="Ctrl+X" Click="ChatCut_Click">
+													<MenuItem.Icon>
+														<PathIcon Data="M9.64 7.64c.23-.5.36-1.05.36-1.64 0-2.21-1.79-4-4-4S2 3.79 2 6s1.79 4 4 4c.59 0 1.14-.13 1.64-.36L10 12l-2.36 2.36C7.14 14.13 6.59 14 6 14c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4c0-.59-.13-1.14-.36-1.64L12 14l7 7h3v-1L9.64 7.64zM6 8c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm0 12c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm6-7.5c-.28 0-.5-.22-.5-.5s.22-.5.5-.5.5.22.5.5-.22.5-.5.5zM19 3l-6 6 2 2 7-7V3h-3z" Width="11" Height="11" Foreground="#9CA3AF"/>
+													</MenuItem.Icon>
+												</MenuItem>
+												<MenuItem Header="Копіювати" InputGesture="Ctrl+C" Click="ChatCopy_Click">
+													<MenuItem.Icon>
+														<PathIcon Data="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" Width="11" Height="11" Foreground="#9CA3AF"/>
+													</MenuItem.Icon>
+												</MenuItem>
+												<MenuItem Header="Вставити" InputGesture="Ctrl+V" Click="ChatPaste_Click">
+													<MenuItem.Icon>
+														<PathIcon Data="M19 2h-4.18C14.4 0.84 13.3 0 12 0c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm7 18H5V4h2v3h10V4h2v16z" Width="11" Height="11" Foreground="#9CA3AF"/>
+													</MenuItem.Icon>
+												</MenuItem>
+												<Separator Background="#262626" Height="1" Margin="4,2"/>
+												<MenuItem Header="Скасувати форматування" Click="RemoveFormatting_Click">
+													<MenuItem.Icon>
+														<PathIcon Data="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" Width="11" Height="11" Foreground="#9CA3AF"/>
+													</MenuItem.Icon>
+												</MenuItem>
+											</ContextMenu>
+										</avedit:TextEditor.ContextMenu>
+									</avedit:TextEditor>
+								</Grid>
+							</Border>
+
+							<StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Bottom" Margin="12,0,0,0">
+								<Button Command="{Binding SendOrRecordCommand}"
+								        IsEnabled="{Binding CanSendOrRecord}"
+								        Classes="sendBtn"
+								        Classes.recording="{Binding IsRecordingVoice}"
+								        Cursor="Hand"
+								        ToolTip.Tip="{Binding SendButtonToolTip}">
+									<Panel Width="22" Height="22">
+										<!-- Стрілка відправки (плавна анімація появи/зникнення) -->
+										<PathIcon Classes="btnIcon"
+										          Classes.active="{Binding ShowSendIcon}"
+										          Data="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"
+										          Foreground="White" Width="18" Height="18" Margin="3,3,0,0"/>
+
+										<!-- Мікрофон (плавна анімація появи/зникнення) -->
+										<PathIcon Classes="btnIcon"
+										          Classes.active="{Binding ShowMicIcon}"
+										          Data="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5-3c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"
+										          Foreground="#E5E7EB" Width="18" Height="18"/>
+
+										<!-- Пульсуючий скруглений квадрат зупинки запису (менший розмір та плавне дихання) -->
+										<Border Classes="stopSquare"
+										        Classes.active="{Binding IsRecordingVoice}"
+										        Width="11" Height="11"
+										        Background="#FECDD3"
+										        CornerRadius="2.5"
+										        HorizontalAlignment="Center" VerticalAlignment="Center">
+											<Border.RenderTransform>
+												<ScaleTransform/>
+											</Border.RenderTransform>
+										</Border>
+									</Panel>
+								</Button>
 
 							<!-- ІКОНКА-ПІДКАЗКА СИНТАКСИСУ З ФІРМОВИМИ КОЛЬОРАМИ ТА ХОВЕРОМ -->
 							<Border Classes="helpIconBtn" Width="26" Height="26" Margin="12,0,0,11" VerticalAlignment="Bottom" Cursor="Help">
@@ -1853,6 +1980,7 @@
 							</Border>
 						</StackPanel>
 					</Grid>
+					</StackPanel>
 				</Grid>
 
 				<!-- 2. ЕКРАН СТВОРЕННЯ ГЕРОЯ: ТВОРЕЦЬ ДОЛІ (ПОВНІСТЮ ЗАМІЩУЄ ПРАВУ ЧАСТИНУ ВІД БІЧНОГО МЕНЮ) -->
@@ -1990,36 +2118,89 @@
 							</Border>
 
 							<!-- Поле вводу репліки Творцю Долі -->
-							<Grid Grid.Row="1" ColumnDefinitions="*, Auto">
-								<TextBox x:Name="WizardInputBox" Grid.Column="0" Classes="wizardInputBox"
-								         PlaceholderText="Відповідайте Творцю Долі (ім'я, клас, особливості, спорядження)..."
-								         Text="{Binding WizardInput, Mode=TwoWay}"
-								         AcceptsReturn="True" MaxHeight="80" Margin="0,0,10,0"
-								         ContextFlyout="{x:Null}">
-									<TextBox.ContextMenu>
-										<ContextMenu Placement="Pointer">
-											<MenuItem Header="Вирізати" InputGesture="Ctrl+X" Command="{Binding $parent[TextBox].Cut}">
-												<MenuItem.Icon>
-													<PathIcon Data="M9.64 7.64c.23-.5.36-1.05.36-1.64 0-2.21-1.79-4-4-4S2 3.79 2 6s1.79 4 4 4c.59 0 1.14-.13 1.64-.36L10 12l-2.36 2.36C7.14 14.13 6.59 14 6 14c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4c0-.59-.13-1.14-.36-1.64L12 14l7 7h3v-1L9.64 7.64zM6 8c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm0 12c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm6-7.5c-.28 0-.5-.22-.5-.5s.22-.5.5-.5.5.22.5.5-.22.5-.5.5zM19 3l-6 6 2 2 7-7V3h-3z" Width="11" Height="11" Foreground="#9CA3AF"/>
-												</MenuItem.Icon>
-											</MenuItem>
-											<MenuItem Header="Копіювати" InputGesture="Ctrl+C" Command="{Binding $parent[TextBox].Copy}">
-												<MenuItem.Icon>
-													<PathIcon Data="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" Width="11" Height="11" Foreground="#9CA3AF"/>
-												</MenuItem.Icon>
-											</MenuItem>
-											<MenuItem Header="Вставити" InputGesture="Ctrl+V" Command="{Binding $parent[TextBox].Paste}">
-												<MenuItem.Icon>
-													<PathIcon Data="M19 2h-4.18C14.4 0.84 13.3 0 12 0c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm7 18H5V4h2v3h10V4h2v16z" Width="11" Height="11" Foreground="#9CA3AF"/>
-												</MenuItem.Icon>
-											</MenuItem>
-										</ContextMenu>
-									</TextBox.ContextMenu>
-								</TextBox>
-								<Button Grid.Column="1" Classes="sendBtn" Command="{Binding SendWizardMessageCommand}" ToolTip.Tip="Відправити Творцю Долі" Cursor="Hand">
-									<PathIcon Data="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" Foreground="#F3F4F6" Width="14" Height="14"/>
-								</Button>
-							</Grid>
+							<StackPanel Grid.Row="1">
+								<!-- БАННЕР ГОЛОСОВОГО ВВОДУ У ВІЗАРДІ -->
+								<Border IsVisible="{Binding IsRecordingVoice}"
+								        Background="#22060B" BorderBrush="#7E0018" BorderThickness="1"
+								        CornerRadius="8" Padding="10,6" Margin="0,0,0,8">
+									<Grid ColumnDefinitions="Auto, *">
+										<Ellipse Grid.Column="0" Width="8" Height="8" Fill="#E11D48" Classes="pulsingDot" Margin="0,0,8,0" VerticalAlignment="Center">
+											<Ellipse.RenderTransform>
+												<ScaleTransform/>
+											</Ellipse.RenderTransform>
+										</Ellipse>
+										<TextBlock Grid.Column="1" Text="🎙️ Запис голосу... Говоріть репліку Творцю Долі (клік або Enter для завершення)"
+										           Foreground="#FDA4AF" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
+									</Grid>
+								</Border>
+
+								<Border IsVisible="{Binding IsTranscribingVoice}"
+								        Background="#160D1E" BorderBrush="#5B21B6" BorderThickness="1"
+								        CornerRadius="8" Padding="10,6" Margin="0,0,0,8">
+									<TextBlock Text="🔮 Розпізнавання відповіді через ШІ..."
+									           Foreground="#DDD6FE" FontSize="11" FontStyle="Italic"/>
+								</Border>
+
+								<Grid ColumnDefinitions="*, Auto">
+									<TextBox x:Name="WizardInputBox" Grid.Column="0" Classes="wizardInputBox"
+									         PlaceholderText="Відповідайте Творцю Долі (ім'я, клас, особливості, спорядження)..."
+									         Text="{Binding WizardInput, Mode=TwoWay}"
+									         AcceptsReturn="True" MaxHeight="80" Margin="0,0,10,0"
+									         ContextFlyout="{x:Null}">
+										<TextBox.ContextMenu>
+											<ContextMenu Placement="Pointer">
+												<MenuItem Header="Вирізати" InputGesture="Ctrl+X" Command="{Binding $parent[TextBox].Cut}">
+													<MenuItem.Icon>
+														<PathIcon Data="M9.64 7.64c.23-.5.36-1.05.36-1.64 0-2.21-1.79-4-4-4S2 3.79 2 6s1.79 4 4 4c.59 0 1.14-.13 1.64-.36L10 12l-2.36 2.36C7.14 14.13 6.59 14 6 14c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4c0-.59-.13-1.14-.36-1.64L12 14l7 7h3v-1L9.64 7.64zM6 8c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm0 12c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm6-7.5c-.28 0-.5-.22-.5-.5s.22-.5.5-.5.5.22.5.5-.22.5-.5.5zM19 3l-6 6 2 2 7-7V3h-3z" Width="11" Height="11" Foreground="#9CA3AF"/>
+													</MenuItem.Icon>
+												</MenuItem>
+												<MenuItem Header="Копіювати" InputGesture="Ctrl+C" Command="{Binding $parent[TextBox].Copy}">
+													<MenuItem.Icon>
+														<PathIcon Data="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" Width="11" Height="11" Foreground="#9CA3AF"/>
+													</MenuItem.Icon>
+												</MenuItem>
+												<MenuItem Header="Вставити" InputGesture="Ctrl+V" Command="{Binding $parent[TextBox].Paste}">
+													<MenuItem.Icon>
+														<PathIcon Data="M19 2h-4.18C14.4 0.84 13.3 0 12 0c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm7 18H5V4h2v3h10V4h2v16z" Width="11" Height="11" Foreground="#9CA3AF"/>
+													</MenuItem.Icon>
+												</MenuItem>
+											</ContextMenu>
+										</TextBox.ContextMenu>
+									</TextBox>
+									<Button Grid.Column="1" Classes="sendBtn"
+									        Classes.recording="{Binding IsRecordingVoice}"
+									        Command="{Binding SendOrRecordWizardCommand}"
+									        IsEnabled="{Binding CanWizardSendOrRecord}"
+									        ToolTip.Tip="{Binding WizardSendButtonToolTip}"
+									        Cursor="Hand">
+										<Panel Width="18" Height="18">
+											<!-- Стрілка відправки (плавна анімація появи/зникнення) -->
+											<PathIcon Classes="btnIcon"
+											          Classes.active="{Binding ShowWizardSendIcon}"
+											          Data="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"
+											          Foreground="#F3F4F6" Width="14" Height="14" Margin="2,2,0,0"/>
+
+											<!-- Мікрофон (плавна анімація появи/зникнення) -->
+											<PathIcon Classes="btnIcon"
+											          Classes.active="{Binding ShowWizardMicIcon}"
+											          Data="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5-3c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"
+											          Foreground="#E5E7EB" Width="14" Height="14"/>
+
+											<!-- Пульсуючий скруглений квадрат зупинки запису (менший розмір) -->
+											<Border Classes="stopSquare"
+											        Classes.active="{Binding IsRecordingVoice}"
+											        Width="9" Height="9"
+											        Background="#FECDD3"
+											        CornerRadius="2"
+											        HorizontalAlignment="Center" VerticalAlignment="Center">
+												<Border.RenderTransform>
+													<ScaleTransform/>
+												</Border.RenderTransform>
+											</Border>
+										</Panel>
+									</Button>
+								</Grid>
+							</StackPanel>
 						</Grid>
 					</Grid>
 				</Grid>

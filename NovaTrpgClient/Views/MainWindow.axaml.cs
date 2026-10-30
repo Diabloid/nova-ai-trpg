@@ -193,6 +193,15 @@ namespace NovaTrpgClient.Views
                 
                 if (this.DataContext is MainWindowViewModel vm)
                 {
+                    if (vm.IsRecordingVoice)
+                    {
+                        if (vm.SendOrRecordCommand.CanExecute(null))
+                        {
+                            vm.SendOrRecordCommand.Execute(null);
+                        }
+                        return;
+                    }
+
                     var text = ChatInputEditor?.Text?.Trim();
                     if (!string.IsNullOrWhiteSpace(text))
                     {
@@ -217,6 +226,15 @@ namespace NovaTrpgClient.Views
 
                 if (sender is TextBox tb && this.DataContext is MainWindowViewModel vm)
                 {
+                    if (vm.IsRecordingVoice)
+                    {
+                        if (vm.SendOrRecordWizardCommand.CanExecute(null))
+                        {
+                            vm.SendOrRecordWizardCommand.Execute(null);
+                        }
+                        return;
+                    }
+
                     var text = tb.Text?.Trim();
                     if (!string.IsNullOrWhiteSpace(text) && !vm.IsWizardTyping)
                     {

@@ -428,5 +428,38 @@ namespace NovaTrpgClient.Services
                 return null;
             }
         }
+
+        public async Task<string?> TranscribeAudioAsync(byte[] audioBytes, string fileName = "recording.wav", CancellationToken cancellationToken = default)
+        {
+            if (audioBytes == null || audioBytes.Length == 0) return null;
+
+            try
+            {
+                using var content = new MultipartFormDataContent();
+                using var byteContent = new ByteArrayContent(audioBytes);
+                byteContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("audio/wav");
+                content.Add(byteContent, "file", fileName);
+
+                var response = await _httpClient.PostAsync("api/v1/voice/transcribe", content, cancellationToken);
+                if (!response.IsSuccessStatusCode)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[TranscribeAudioAsync HTTP status]: {response.StatusCode}");
+                    return null;
+                }
+
+                var json = await response.Content.ReadAsStringAsync(cancellationToken);
+                using var doc = JsonDocument.Parse(json);
+                if (doc.RootElement.TryGetProperty("text", out var textProp))
+                {
+                    return textProp.GetString();
+                }
+                return null;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[TranscribeAudioAsync error]: {ex.Message}");
+                return null;
+            }
+        }
     }
 }
