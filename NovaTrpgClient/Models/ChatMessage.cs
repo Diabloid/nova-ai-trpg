@@ -20,5 +20,8 @@ namespace NovaTrpgClient.Models
 
         [ObservableProperty]
         private bool _canRollback = false;
+
+        [ObservableProperty]
+        private bool _isPlayer = false;
     }
 }
