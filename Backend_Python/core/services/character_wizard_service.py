@@ -134,3 +134,57 @@ class CharacterWizardService:
         except Exception as e:
             print(f"⚠️ Помилка строгої валідації finalizer JSON ({e}): {cleaned}")
             raise ValueError(f"Невалідний формат листа персонажа від ШІ: {e}")
+
+    async def sync_character_draft(self, current_state: PlayerState) -> PlayerState:
+        """
+        Аналізує ручні правки гравця у PlayerState та інтелектуально узгоджує
+        взаємопов'язані характеристики (здібності, травми/шрами, спорядження, титули).
+        У разі збою повертає вхідний стан без втрати користувацьких даних.
+        """
+        system_instruction = (
+            "Ти — системний модуль балансування та синхронізації концепту персонажа для текстової RPG гри.\n"
+            "Гравець щойно вручну відредагував або доповнив окремі поля картки персонажа (ім'я, біографію, зовнішність, передісторію тощо).\n"
+            "Твоє завдання — проаналізувати поточний стан, зберегти ВСІ явні правки гравця та інтелектуально узгодити взаємопов'язані атрибути:\n"
+            "1. Якщо в біографії чи передісторії згадуються магічні вміння, бойовий фах чи навички — додай або актуалізуй відповідні вміння в 'abilities' [{'name': '...', 'desc': '...'}] (якщо їх ще немає).\n"
+            "2. Якщо в зовнішності чи біографії згадуються травми, каліцтва, шрами — відобрази їх у 'anatomy_and_health.injuries' [{'location': '...', 'type': '...', 'description': '...'}].\n"
+            "3. Якщо згадується специфічний одяг, артефакти чи книги — додай або збережи їх у 'storage_and_equipment'.\n"
+            "4. Якщо ім'я містить титули або прізвище — коректно розбий/заповни first_name, last_name, titles у 'meta'.\n"
+            "5. НЕ ВИДАЛЯЙ дані, які гравець ввів явно. Зберігай баланс та логіку світу.\n\n"
+            "Поверни ВИКЛЮЧНО валідний JSON-об'єкт PlayerState (із ключами meta, anatomy_and_health, storage_and_equipment, abilities, custom_blocks)."
+        )
+
+        messages = [
+            {"role": "system", "content": system_instruction},
+            {"role": "user", "content": f"ПОТОЧНИЙ СТАН ПЕРСОНАЖА З РУЧНИМИ ПРАВКАМИ:\n{current_state.model_dump_json(indent=2)}"}
+        ]
+
+        try:
+            raw_json = await self.provider_service.execute_with_fallback(
+                provider_type="state",
+                messages=messages,
+                temperature=0.2,
+                max_tokens=1500,
+                response_format={"type": "json_object"}
+            )
+
+            cleaned = raw_json.strip()
+            if cleaned.startswith("```json"):
+                cleaned = cleaned[7:]
+            if cleaned.startswith("```"):
+                cleaned = cleaned[3:]
+            if cleaned.endswith("```"):
+                cleaned = cleaned[:-3]
+            cleaned = cleaned.strip()
+
+            start = cleaned.find("{")
+            end = cleaned.rfind("}")
+            if start != -1 and end != -1:
+                cleaned = cleaned[start:end+1]
+
+            parsed = json.loads(cleaned)
+            if isinstance(parsed, dict) and "error" not in parsed:
+                return PlayerState.model_validate(parsed)
+        except Exception as e:
+            print(f"⚠️ [CharacterWizardService] Помилка синхронізації драфту ({e}). Повертаємо вихідний стан гравця.")
+
+        return current_state

@@ -189,6 +189,10 @@ class LLMController:
         """Перетворює узгоджений діалог створення на валідний об'єкт PlayerState."""
         return await self.character_wizard_service.finalize_character_concept(dialog_summary, history)
 
+    async def sync_character_draft(self, current_state: PlayerState) -> PlayerState:
+        """Синхронізує та перераховує залежні поля після ручного редагування прев'ю (Live Sync, v1.5.0)."""
+        return await self.character_wizard_service.sync_character_draft(current_state)
+
     # 🎙️ Voice-to-Text (Голосове розпізнавання дій)
     async def transcribe_audio(
         self,
