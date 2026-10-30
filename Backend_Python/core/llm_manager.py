@@ -26,6 +26,7 @@ from core.services.chat_log_service import ChatLogService
 from core.services.narrator_service import NarratorService
 from core.services.state_analyzer_service import StateAnalyzerService
 from core.services.character_wizard_service import CharacterWizardService
+from core.services.voice_service import VoiceService
 from core.character_manager import CharacterManager
 from core.campaign_manager import CampaignManager
 from schemas.game_dto import PlayerState
@@ -56,6 +57,7 @@ class LLMController:
         self.prompt_service = PromptService(self.prompts_dir, self.lore_dir)
         self.analyzer_service = StateAnalyzerService(self.provider_service, self.prompt_service)
         self.character_wizard_service = CharacterWizardService(self.provider_service, self.prompt_service)
+        self.voice_service = VoiceService()
 
         # 2. Менеджери сутностей (Персонажі та Кампанії)
         self.character_manager = CharacterManager(os.path.join(self.base_dir, "data", "characters"))
@@ -186,6 +188,20 @@ class LLMController:
     ) -> PlayerState:
         """Перетворює узгоджений діалог створення на валідний об'єкт PlayerState."""
         return await self.character_wizard_service.finalize_character_concept(dialog_summary, history)
+
+    # 🎙️ Voice-to-Text (Голосове розпізнавання дій)
+    async def transcribe_audio(
+        self,
+        audio_bytes: bytes,
+        filename: str = "audio.wav",
+        content_type: Optional[str] = None
+    ) -> str:
+        """Перетворює аудіозапис мови гравця на текст (Voice-to-Text)."""
+        return await self.voice_service.transcribe_audio(
+            audio_bytes=audio_bytes,
+            filename=filename,
+            content_type=content_type
+        )
 
     # Гаряче оновлення
     async def refresh_ai_models(self) -> List[str]:

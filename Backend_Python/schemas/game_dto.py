@@ -275,6 +275,17 @@ class CharacterFinalizeRequest(BaseModel):
     char_id: Optional[str] = Field(default=None, description="Бажаний унікальний ID заготовки героя")
 
 
+# =========================================================================
+# 7. Voice-to-Text (Голосове розпізнавання, v1.5.0)
+# =========================================================================
+
+class VoiceTranscriptionResponse(BaseModel):
+    """Відповідь на розпізнавання голосу (v1.5.0)."""
+    model_config = ConfigDict(extra="allow")
+
+    text: str = Field(..., description="Розпізнаний текст дії гравця")
+
+
 # Для сумісності зі старими викликами
 class SessionInfo(BaseModel):
     """Інформація про збережену ігрову сесію (аліас до CampaignSummary)."""

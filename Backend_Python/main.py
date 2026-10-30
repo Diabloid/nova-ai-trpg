@@ -5,7 +5,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Dict, Any, Union, List, AsyncGenerator, Optional
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, status, Query, HTTPException, Path
+from fastapi import FastAPI, status, Query, HTTPException, Path, UploadFile, File
 from fastapi.responses import JSONResponse, StreamingResponse
 import uvicorn
 
@@ -36,6 +36,7 @@ from schemas.game_dto import (
     CampaignPinRequest,
     HistoryMessage,
     RollbackResponse,
+    VoiceTranscriptionResponse,
     CharacterDialogRequest,
     CharacterDialogResponse,
     CharacterFinalizeRequest,
@@ -480,7 +481,34 @@ async def get_current_state(session_id: str = Query(default="default", descripti
 
 
 # =========================================================================
-# 7. Зворотна сумісність для сесій (Старі роути)
+# 7. Голосові сервіси (Voice-to-Text, v1.5.0)
+# =========================================================================
+
+@app.post(
+    "/api/v1/voice/transcribe",
+    response_model=VoiceTranscriptionResponse,
+    tags=["Голосові сервіси"],
+    summary="Розпізнавання голосового запису гравця у текст дії (Voice-to-Text)"
+)
+async def transcribe_voice(file: UploadFile = File(..., description="Аудіофайл (WAV або OGG)")):
+    try:
+        audio_bytes = await file.read()
+        if not audio_bytes:
+            return VoiceTranscriptionResponse(text="")
+
+        recognized_text = await llm_controller.transcribe_audio(
+            audio_bytes=audio_bytes,
+            filename=file.filename or "audio.wav",
+            content_type=file.content_type
+        )
+        return VoiceTranscriptionResponse(text=recognized_text)
+    except Exception as e:
+        logger.error(f"❌ Помилка розпізнавання аудіо: {e}", exc_info=True)
+        return VoiceTranscriptionResponse(text="")
+
+
+# =========================================================================
+# 8. Зворотна сумісність для сесій (Старі роути)
 # =========================================================================
 
 @app.get(
