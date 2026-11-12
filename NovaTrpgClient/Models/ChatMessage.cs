@@ -23,5 +23,8 @@ namespace NovaTrpgClient.Models
 
         [ObservableProperty]
         private bool _isPlayer = false;
+
+        [ObservableProperty]
+        private bool _isSystem = false;
     }
 }

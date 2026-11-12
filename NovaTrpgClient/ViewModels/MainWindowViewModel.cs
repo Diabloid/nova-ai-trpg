@@ -446,12 +446,7 @@ namespace NovaTrpgClient.ViewModels
         public void OpenSettings()
         {
             IsAccountMenuOpen = false;
-            ChatMessages.Add(new ChatMessage
-            {
-                Sender = "Система:",
-                Text = "⚙ Меню налаштувань у розробці.",
-                SenderColor = "#10B981"
-            });
+            AddEphemeralSystemMessage("⚙ Меню налаштувань у розробці.", ChatMessages, "#10B981");
         }
 
         [RelayCommand]
@@ -463,6 +458,7 @@ namespace NovaTrpgClient.ViewModels
             {
                 PromptUnfinishedWizardExit(async () =>
                 {
+                    CancelAndDisposeWizardCts();
                     IsCharacterCreationActive = false;
                     await ExecuteSelectCharacterWithoutChatAsync(character);
                 });
@@ -573,6 +569,7 @@ namespace NovaTrpgClient.ViewModels
             {
                 PromptUnfinishedWizardExit(async () =>
                 {
+                    CancelAndDisposeWizardCts();
                     IsCharacterCreationActive = false;
                     await ExecuteSelectCampaignAsync(campaign);
                 });
@@ -625,6 +622,11 @@ namespace NovaTrpgClient.ViewModels
                 {
                     foreach (var msg in history)
                     {
+                        if (msg.Role.Equals("system", StringComparison.OrdinalIgnoreCase))
+                        {
+                            continue; // Не додаємо технічні системні логи в історію чату гри
+                        }
+
                         var senderName = msg.Role.ToLower() switch
                         {
                             "player" => "Ти:",
@@ -673,6 +675,7 @@ namespace NovaTrpgClient.ViewModels
             {
                 PromptUnfinishedWizardExit(() =>
                 {
+                    CancelAndDisposeWizardCts();
                     IsCharacterCreationActive = false;
                     var name = SelectedCharacter?.Name ?? Characters.FirstOrDefault()?.Name ?? "Герой";
                     NewCampaignTitle = $"Пригода {name} #{Campaigns.Count + 1}";
@@ -713,24 +716,14 @@ namespace NovaTrpgClient.ViewModels
 
             if (string.IsNullOrEmpty(charId))
             {
-                ChatMessages.Add(new ChatMessage
-                {
-                    Sender = "Система:",
-                    Text = "⚠️ Спочатку створіть або оберіть героя для запуску нової кампанії.",
-                    SenderColor = "#EF4444"
-                });
+                AddEphemeralSystemMessage("⚠️ Спочатку створіть або оберіть героя для запуску нової кампанії.", ChatMessages);
                 IsNewCampaignModalOpen = false;
                 return;
             }
 
             IsNewCampaignModalOpen = false;
 
-            ChatMessages.Add(new ChatMessage
-            {
-                Sender = "Система:",
-                Text = $"⏳ Створення нової кампанії '{title}' для героя '{SelectedCharacter?.Name}'...",
-                SenderColor = "#10B981"
-            });
+            AddEphemeralSystemMessage($"⏳ Створення нової кампанії '{title}' для героя '{SelectedCharacter?.Name}'...", ChatMessages, "#10B981");
 
             var newCamp = await _gameApiService.CreateCampaignAsync(charId, title);
             if (newCamp != null)
@@ -741,12 +734,7 @@ namespace NovaTrpgClient.ViewModels
             }
             else
             {
-                ChatMessages.Add(new ChatMessage
-                {
-                    Sender = "Система:",
-                    Text = "⚠️ Не вдалося створити кампанію на сервері.",
-                    SenderColor = "#EF4444"
-                });
+                AddEphemeralSystemMessage("⚠️ Не вдалося створити кампанію на сервері.", ChatMessages);
             }
         }
 
@@ -853,6 +841,69 @@ namespace NovaTrpgClient.ViewModels
 
         private PlayerState? _lastWizardDraftState;
         private int _wizardWornItemsCount;
+        private CancellationTokenSource? _wizardCts;
+
+        private CancellationToken PrepareWizardCancellationToken()
+        {
+            _wizardCts?.Cancel();
+            _wizardCts?.Dispose();
+            _wizardCts = new CancellationTokenSource();
+            return _wizardCts.Token;
+        }
+
+        private void CancelAndDisposeWizardCts()
+        {
+            try
+            {
+                _wizardCts?.Cancel();
+                _wizardCts?.Dispose();
+            }
+            catch { }
+            finally
+            {
+                _wizardCts = null;
+                IsWizardTyping = false;
+                IsSyncingDraft = false;
+            }
+        }
+
+        public void AddEphemeralSystemMessage(string text, ObservableCollection<ChatMessage>? targetCollection = null, string color = "#EF4444")
+        {
+            var collection = targetCollection ?? ChatMessages;
+            var msg = new ChatMessage
+            {
+                Sender = "Система:",
+                Text = text,
+                SenderColor = color,
+                IsSystem = true,
+                TimeText = DateTime.Now.ToString("HH:mm")
+            };
+
+            collection.Add(msg);
+
+            // Тимчасове повідомлення зникає автоматично через 11 секунд без збереження в історію
+            _ = RemoveEphemeralMessageAfterDelayAsync(msg, collection, TimeSpan.FromSeconds(11));
+        }
+
+        private async Task RemoveEphemeralMessageAfterDelayAsync(ChatMessage msg, ObservableCollection<ChatMessage> collection, TimeSpan delay)
+        {
+            try
+            {
+                await Task.Delay(delay);
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                {
+                    collection.Remove(msg);
+                    if (collection == ChatMessages)
+                    {
+                        UpdateRollbackAvailability();
+                    }
+                });
+            }
+            catch
+            {
+                // Ігноруємо якщо вікно закрито
+            }
+        }
 
         public void UpdateLivePreviewFromDraft(PlayerState draft)
         {
@@ -1026,8 +1077,9 @@ namespace NovaTrpgClient.ViewModels
             IsSyncingDraft = true;
             try
             {
+                var ct = PrepareWizardCancellationToken();
                 var draft = BuildCurrentWizardDraftState();
-                var harmonized = await _gameApiService.SyncCharacterDraftAsync(draft);
+                var harmonized = await _gameApiService.SyncCharacterDraftAsync(draft, cancellationToken: ct);
                 if (harmonized != null)
                 {
                     UpdateLivePreviewFromDraft(harmonized);
@@ -1040,22 +1092,16 @@ namespace NovaTrpgClient.ViewModels
                 }
                 else
                 {
-                    WizardMessages.Add(new ChatMessage
-                    {
-                        Sender = "Система:",
-                        Text = "⚠️ Не вдалося синхронізувати драфт із ШІ. Спробуйте пізніше.",
-                        SenderColor = "#EF4444"
-                    });
+                    AddEphemeralSystemMessage("⚠️ Не вдалося синхронізувати драфт із ШІ. Спробуйте пізніше.", WizardMessages);
                 }
+            }
+            catch (OperationCanceledException)
+            {
+                // Скасовано користувачем або виходом з візарда
             }
             catch (Exception ex)
             {
-                WizardMessages.Add(new ChatMessage
-                {
-                    Sender = "Система:",
-                    Text = $"⚠️ Помилка синхронізації драфту: {ex.Message}",
-                    SenderColor = "#EF4444"
-                });
+                AddEphemeralSystemMessage($"⚠️ Помилка синхронізації драфту: {ex.Message}", WizardMessages);
             }
             finally
             {
@@ -1070,11 +1116,13 @@ namespace NovaTrpgClient.ViewModels
             {
                 PromptUnfinishedWizardExit(() =>
                 {
+                    CancelAndDisposeWizardCts();
                     IsCharacterCreationActive = false;
                     return Task.CompletedTask;
                 });
                 return;
             }
+            CancelAndDisposeWizardCts();
             IsCharacterCreationActive = false;
         }
 
@@ -1103,13 +1151,14 @@ namespace NovaTrpgClient.ViewModels
 
             try
             {
-                var history = WizardMessages.Select(m => new CharacterDialogHistoryItem
+                var ct = PrepareWizardCancellationToken();
+                var history = WizardMessages.Where(m => !m.IsSystem).Select(m => new CharacterDialogHistoryItem
                 {
                     Role = m.Sender.Contains("Творець Долі") ? "narrator" : "player",
                     Content = m.Text
                 }).ToList();
 
-                var dialogResponse = await _gameApiService.SendCharacterDialogMessageAsync(userText, history, includeDraft: true);
+                var dialogResponse = await _gameApiService.SendCharacterDialogMessageAsync(userText, history, includeDraft: true, cancellationToken: ct);
                 var reply = dialogResponse?.Reply;
 
                 if (string.IsNullOrWhiteSpace(reply))
@@ -1149,14 +1198,13 @@ namespace NovaTrpgClient.ViewModels
                     }
                 }
             }
+            catch (OperationCanceledException)
+            {
+                // Запит скасовано гравцем або закриттям майстра створення персонажа
+            }
             catch (Exception ex)
             {
-                WizardMessages.Add(new ChatMessage
-                {
-                    Sender = "Система:",
-                    Text = $"⚠️ Помилка зв'язку з Творцем Долі: {ex.Message}",
-                    SenderColor = "#EF4444"
-                });
+                AddEphemeralSystemMessage($"⚠️ Помилка зв'язку з Творцем Долі: {ex.Message}", WizardMessages);
             }
             finally
             {
@@ -1176,19 +1224,15 @@ namespace NovaTrpgClient.ViewModels
 
             try
             {
-                var summary = string.Join("\n", WizardMessages.Select(m => $"{m.Sender} {m.Text}"));
+                var ct = PrepareWizardCancellationToken();
+                var summary = string.Join("\n", WizardMessages.Where(m => !m.IsSystem).Select(m => $"{m.Sender} {m.Text}"));
                 var currentDraft = BuildCurrentWizardDraftState();
-                var playerState = await _gameApiService.FinalizeCharacterAsync(summary, currentDraft);
+                var playerState = await _gameApiService.FinalizeCharacterAsync(summary, currentDraft, cancellationToken: ct);
 
                 // 1. Обробка помилки при фіналізації: якщо бекенд повернув 503/null
                 if (playerState == null || playerState.Meta == null)
                 {
-                    WizardMessages.Add(new ChatMessage
-                    {
-                        Sender = "Система:",
-                        Text = "⚠️ ШІ тимчасово перевантажений або ліміт запитів вичерпано, зачекайте 15–20 секунд і спробуйте знову.",
-                        SenderColor = "#EF4444"
-                    });
+                    AddEphemeralSystemMessage("⚠️ ШІ тимчасово перевантажений або ліміт запитів вичерпано, зачекайте 15–20 секунд і спробуйте знову.", WizardMessages);
                     return; // Залишаємо користувача у майстрі створення персонажа
                 }
 
@@ -1215,26 +1259,21 @@ namespace NovaTrpgClient.ViewModels
                         await SelectCampaignAsync(campObj);
                     }
 
+                    CancelAndDisposeWizardCts();
                     IsCharacterCreationActive = false;
                 }
                 else
                 {
-                    WizardMessages.Add(new ChatMessage
-                    {
-                        Sender = "Система:",
-                        Text = "⚠️ Не вдалося знайти збереженого персонажа у списку.",
-                        SenderColor = "#EF4444"
-                    });
+                    AddEphemeralSystemMessage("⚠️ Не вдалося знайти збереженого персонажа у списку.", WizardMessages);
                 }
+            }
+            catch (OperationCanceledException)
+            {
+                // Скасовано користувачем
             }
             catch (Exception ex)
             {
-                WizardMessages.Add(new ChatMessage
-                {
-                    Sender = "Система:",
-                    Text = $"⚠️ Помилка створення героя: {ex.Message}",
-                    SenderColor = "#EF4444"
-                });
+                AddEphemeralSystemMessage($"⚠️ Помилка створення героя: {ex.Message}", WizardMessages);
             }
             finally
             {
@@ -1372,12 +1411,7 @@ namespace NovaTrpgClient.ViewModels
         {
             IsAccountMenuOpen = false;
             ChatMessages.Clear();
-            ChatMessages.Add(new ChatMessage
-            {
-                Sender = "Система:",
-                Text = "🚪 Вихід з акаунту здійснено. Дані сесії скинуто.",
-                SenderColor = "#10B981"
-            });
+            AddEphemeralSystemMessage("🚪 Вихід з акаунту здійснено. Дані сесії скинуто.", ChatMessages, "#10B981");
             IsMenuOpen = false;
         }
 
@@ -1628,13 +1662,7 @@ namespace NovaTrpgClient.ViewModels
                             break;
 
                         case SseEventType.Error:
-                            ChatMessages.Add(new ChatMessage
-                            {
-                                Sender = "Система:",
-                                Text = sse.ErrorMessage ?? "Помилка під час генерації ходу.",
-                                SenderColor = "#EF4444",
-                                TimeText = DateTime.Now.ToString("HH:mm")
-                            });
+                            AddEphemeralSystemMessage(sse.ErrorMessage ?? "Помилка під час генерації ходу.", ChatMessages);
                             break;
                     }
                 }
@@ -1644,13 +1672,7 @@ namespace NovaTrpgClient.ViewModels
                 System.Diagnostics.Debug.WriteLine($"[SendAsync Exception]: {ex}");
                 Console.WriteLine($"[SendAsync Exception]: {ex}");
 
-                ChatMessages.Add(new ChatMessage
-                {
-                    Sender = "Система:",
-                    Text = $"Помилка підключення або обробки: {ex.Message}",
-                    SenderColor = "#EF4444",
-                    TimeText = DateTime.Now.ToString("HH:mm")
-                });
+                AddEphemeralSystemMessage($"Помилка підключення або обробки: {ex.Message}", ChatMessages);
             }
             finally
             {
@@ -1759,8 +1781,8 @@ namespace NovaTrpgClient.ViewModels
                 ChatMessages[i].CanRollback = false;
             }
 
-            var lastMsg = ChatMessages.LastOrDefault();
-            if (lastMsg != null && lastMsg.Sender.StartsWith("Оповідач") && ChatMessages.Count > 1)
+            var lastMsg = ChatMessages.LastOrDefault(m => !m.IsSystem);
+            if (lastMsg != null && lastMsg.Sender.StartsWith("Оповідач") && ChatMessages.Count(m => !m.IsSystem) > 1)
             {
                 lastMsg.CanRollback = true;
             }
