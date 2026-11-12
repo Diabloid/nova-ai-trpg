@@ -184,10 +184,15 @@ class LLMController:
     async def finalize_character_concept(
         self,
         dialog_summary: Optional[str] = None,
-        history: Optional[List[Dict[str, str]]] = None
+        history: Optional[List[Dict[str, str]]] = None,
+        draft_state: Optional[PlayerState] = None
     ) -> PlayerState:
         """Перетворює узгоджений діалог створення на валідний об'єкт PlayerState."""
-        return await self.character_wizard_service.finalize_character_concept(dialog_summary, history)
+        return await self.character_wizard_service.finalize_character_concept(
+            dialog_summary=dialog_summary,
+            history=history,
+            draft_state=draft_state
+        )
 
     async def sync_character_draft(self, current_state: PlayerState) -> PlayerState:
         """Синхронізує та перераховує залежні поля після ручного редагування прев'ю (Live Sync, v1.5.0)."""

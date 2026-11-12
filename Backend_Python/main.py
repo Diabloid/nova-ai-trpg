@@ -68,14 +68,15 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="NOVA AI TRPG Engine API",
-    version="1.4.0",
+    version="1.5.1",
     lifespan=lifespan,
     description=(
-        "Офіційний бекенд дипломного проєкту NOVA AI TRPG (API v1.4.0).\n\n"
+        "Офіційний бекенд дипломного проєкту NOVA AI TRPG (API v1.5.1).\n\n"
         "Архітектура:\n"
-        "- Персонажі (Blueprints): створення, редагування, Character Wizard з AI Творцем Долі.\n"
-        "- Кампанії (Campaigns / Чати): мультисесійність за кожним героєм, авто-генерація вступного наративу (Intro Post), закріплення (Pin).\n"
-        "- Ігровий цикл: суворо послідовний пайплайн (Гравець -> Оповідач -> Аналізатор -> Стан) з транзакційним відкатом (Unit of Work) та SSE-стрімінгом."
+        "- Персонажі (Blueprints): створення, редагування, Character Wizard з AI Творцем Долі, Live Preview та Live Sync.\n"
+        "- Кампанії (Campaigns / Чати): мультисесійність за кожним героєм, авто-генерація вступного наративу (Intro Post), закріплення (Pin), відкат ходу (Rollback).\n"
+        "- Ігровий цикл: суворо послідовний пайплайн (Гравець -> Оповідач -> Аналізатор -> Стан) з транзакційним відкатом (Unit of Work) та SSE-стрімінгом.\n"
+        "- Голосові сервіси: Voice-to-Text розпізнавання дій гравця."
     )
 )
 
@@ -177,13 +178,14 @@ async def character_wizard_sync_draft(request: PlayerState):
     "/api/v1/character/finalize",
     response_model=PlayerState,
     tags=["Character Wizard"],
-    summary="Згенерувати та зберегти фінальний лист героя за результатами діалогу"
+    summary="Згенерувати та зберегти фінальний лист героя за результатами діалогу (з підтримкою draft_state)"
 )
 async def character_wizard_finalize(request: CharacterFinalizeRequest):
     try:
         player_state = await llm_controller.finalize_character_concept(
             dialog_summary=request.dialog_summary,
-            history=request.history
+            history=request.history,
+            draft_state=request.draft_state
         )
     except Exception as e:
         logger.error(f"❌ Помилка генерації листа героя через ШІ: {e}")

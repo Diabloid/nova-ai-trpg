@@ -89,7 +89,7 @@ class NarratorService:
             provider_type="story",
             messages=messages,
             temperature=0.7,
-            max_tokens=1000
+            max_tokens=2000
         ):
             # Санітизація окремих токенів
             clean_chunk = chunk.replace("μ", "м").replace("ვ", "в")

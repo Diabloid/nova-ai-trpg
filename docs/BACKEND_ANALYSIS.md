@@ -1,6 +1,6 @@
 # 🏛️ NOVA AI TRPG — Завдання розробки Backend (Фаза 3.1.1: Стабілізація та інтеграція фіналізації драфту)
 
-**Статус:** В роботі (Багфікс-етап Фази 3.1.1)  
+**Статус:** Виконано (Фаза 3.1.1 готова до коміту)  
 **Версія API:** 1.5.1  
 **Директорія:** `Backend_Python/`
 
@@ -9,14 +9,14 @@
 ## 1. Завдання в роботі (Фаза 3.1.1 — за підсумками аудиту)
 
 ### 🛠️ 1.1. Підтримка `draft_state` у фіналізації персонажа (`/api/v1/character/finalize`)
-- [ ] Оновити `CharacterFinalizeRequest` у `schemas/game_dto.py`: додати опціональне поле `draft_state: Optional[PlayerState] = Field(default=None, description="Актуальний драфт з ручними правками прев'ю")`.
-- [ ] Оновити `finalize_character_concept` у `core/services/character_wizard_service.py` та виклик у `main.py` / `core/llm_manager.py`:
+- [x] Оновити `CharacterFinalizeRequest` у `schemas/game_dto.py`: додати опціональне поле `draft_state: Optional[PlayerState] = Field(default=None, description="Актуальний драфт з ручними правками прев'ю")`.
+- [x] Оновити `finalize_character_concept` у `core/services/character_wizard_service.py` та виклик у `main.py` / `core/llm_manager.py`:
   - Якщо передано `draft_state`, включати його JSON у контекст промпту фіналізатора з суворою інструкцією **зберегти всі явні правки гравця з прев'ю** (ім'я, титули, вік, деталі зовнішності, біографію, здібності, кастомні блоки) та заповнити лише те, що ще не сформовано;
   - Гарантувати збереження `custom_blocks` та `appearance_details` при фіналізації (якщо ШІ їх повернув порожніми, підтягувати з переданого `draft_state`).
 
 ### 🔖 1.2. Актуалізація метаданих та локальних змін
-- [ ] Оновити `version="1.5.1"` у `FastAPI(...)` та описі в `Backend_Python/main.py` (зараз вказано `1.4.0`).
-- [ ] Проверити коректність поточних невідкомічених правок у `core/services/narrator_service.py` (`max_tokens=2000`) та `data/prompts/character_creator_system.txt` (пункт адаптації відомих персонажів під всесвіт) і бути готовим включити їх у наступний погоджений коміт.
+- [x] Оновити `version="1.5.1"` у `FastAPI(...)` та описі в `Backend_Python/main.py` (зараз вказано `1.4.0`).
+- [x] Проверити коректність поточних невідкомічених правок у `core/services/narrator_service.py` (`max_tokens=2000`) та `data/prompts/character_creator_system.txt` (пункт адаптації відомих персонажів під всесвіт) і бути готовим включити їх у наступний погоджений коміт.
 
 ---
 

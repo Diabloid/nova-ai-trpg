@@ -264,7 +264,7 @@ class CharacterDialogResponse(BaseModel):
 
 
 class CharacterFinalizeRequest(BaseModel):
-    """Запит на фінальну генерацію заготовки персонажа на основі діалогу."""
+    """Запит на фінальну генерацію заготовки персонажа на основі діалогу (v1.5.1)."""
     model_config = ConfigDict(extra="allow")
 
     dialog_summary: Optional[str] = Field(default=None, description="Підсумок діалогу створення")
@@ -273,6 +273,10 @@ class CharacterFinalizeRequest(BaseModel):
         description="Повна історія діалогу створення, якщо summary немає"
     )
     char_id: Optional[str] = Field(default=None, description="Бажаний унікальний ID заготовки героя")
+    draft_state: Optional[PlayerState] = Field(
+        default=None,
+        description="Актуальний драфт з ручними правками прев'ю"
+    )
 
 
 # =========================================================================

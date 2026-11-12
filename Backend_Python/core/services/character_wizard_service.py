@@ -82,9 +82,10 @@ class CharacterWizardService:
     async def finalize_character_concept(
         self,
         dialog_summary: Optional[str] = None,
-        history: Optional[List[Dict[str, str]]] = None
+        history: Optional[List[Dict[str, str]]] = None,
+        draft_state: Optional[PlayerState] = None
     ) -> PlayerState:
-        """Перетворює узгоджений діалог створення на валідний об'єкт PlayerState."""
+        """Перетворює узгоджений діалог створення на валідний об'єкт PlayerState (з урахуванням draft_state)."""
         finalizer_prompt = self.prompt_service.get_prompt("character_finalizer_system.txt")
 
         if dialog_summary:
@@ -96,6 +97,16 @@ class CharacterWizardService:
                 lines.append(f"{r}: {m.get('content') or m.get('text', '')}")
             context = "ДІАЛОГ СТВОРЕННЯ ГЕРОЯ:\n" + "\n".join(lines)
 
+        if draft_state:
+            draft_json = draft_state.model_dump_json(indent=2)
+            context += (
+                "\n\nАКТУАЛЬНИЙ ДРАФТ З РУЧНИМИ ПРАВКАМИ ПРЕВ'Ю:\n"
+                f"{draft_json}\n\n"
+                "СУВОРІ ІНСТРУКЦІЇ ЩОДО ДРАФТУ:\n"
+                "1. Збережи ВСІ явні правки гравця з актуального драфту (ім'я, титули, вік, біографію, деталі зовнішності appearance_details, здібності abilities, кастомні блоки custom_blocks).\n"
+                "2. Заповни лише ті системні поля шаблону, які ще не сформовані або порожні, не змінюючи введені гравцем дані."
+            )
+
         messages = [
             {"role": "system", "content": finalizer_prompt},
             {"role": "user", "content": context}
@@ -105,7 +116,7 @@ class CharacterWizardService:
             provider_type="state",
             messages=messages,
             temperature=0.0,
-            max_tokens=1000,
+            max_tokens=1500,
             response_format={"type": "json_object"}
         )
 
@@ -130,10 +141,48 @@ class CharacterWizardService:
             raise RuntimeError(f"ШІ-провайдер повернув помилку: {parsed['error']}")
 
         try:
-            return PlayerState.model_validate(parsed)
+            result = PlayerState.model_validate(parsed)
         except Exception as e:
             print(f"⚠️ Помилка строгої валідації finalizer JSON ({e}): {cleaned}")
             raise ValueError(f"Невалідний формат листа персонажа від ШІ: {e}")
+
+        # Якщо було передано draft_state, гарантуємо збереження полів
+        if draft_state:
+            # 1. custom_blocks
+            if draft_state.custom_blocks:
+                merged_blocks = dict(draft_state.custom_blocks)
+                if result.custom_blocks:
+                    merged_blocks.update(result.custom_blocks)
+                result.custom_blocks = merged_blocks
+
+            # 2. appearance_details
+            if draft_state.meta.appearance_details:
+                if not result.meta.appearance_details:
+                    result.meta.appearance_details = draft_state.meta.appearance_details
+                else:
+                    for k, v in draft_state.meta.appearance_details.items():
+                        if k not in result.meta.appearance_details or not result.meta.appearance_details[k]:
+                            result.meta.appearance_details[k] = v
+
+            # 3. Базові мета-поля гравця
+            if draft_state.meta.name and (not result.meta.name or result.meta.name == "Невідомий мандрівник"):
+                result.meta.name = draft_state.meta.name
+            if draft_state.meta.first_name and not result.meta.first_name:
+                result.meta.first_name = draft_state.meta.first_name
+            if draft_state.meta.last_name and not result.meta.last_name:
+                result.meta.last_name = draft_state.meta.last_name
+            if draft_state.meta.titles and not result.meta.titles:
+                result.meta.titles = draft_state.meta.titles
+            if draft_state.meta.age is not None and (result.meta.age is None or result.meta.age == ""):
+                result.meta.age = draft_state.meta.age
+            if draft_state.meta.biography and not result.meta.biography:
+                result.meta.biography = draft_state.meta.biography
+
+            # 4. Здібності
+            if draft_state.abilities and not result.abilities:
+                result.abilities = draft_state.abilities
+
+        return result
 
     async def sync_character_draft(self, current_state: PlayerState) -> PlayerState:
         """
