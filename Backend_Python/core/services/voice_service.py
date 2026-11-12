@@ -81,7 +81,8 @@ class VoiceService:
         filename: str
     ) -> str:
         """
-        Транскрипція через надшвидкий Groq Whisper API (whisper-large-v3-turbo, латентність ~0.3–0.5 с).
+        Транскрипція через високоточний Groq Whisper API (whisper-large-v3, латентність ~0.4–0.5 с).
+        Використовує словниковий праймінг українською мовою для запобігання мовної суміші та суржику.
         """
         if not self.groq_api_key:
             return ""
@@ -97,9 +98,12 @@ class VoiceService:
         if not any(upload_filename.lower().endswith(ext) for ext in valid_exts):
             upload_filename = f"{upload_filename}.wav"
 
+        model_name = os.getenv("GROQ_WHISPER_MODEL", "whisper-large-v3")
+
         data = {
-            "model": "whisper-large-v3-turbo",
+            "model": model_name,
             "language": "uk",
+            "prompt": "Текстова рольова гра фентезі українською мовою. Гравець описує свої дії, рухи, спорядження, закляття та репліки українською мовою.",
             "temperature": "0.0"
         }
         files = {
@@ -114,7 +118,7 @@ class VoiceService:
                     raw_text = result.get("text", "")
                     clean_text = self._sanitize_transcription(raw_text)
                     if clean_text:
-                        print(f"⚡ [VoiceService] Успішно розпізнано через Groq Whisper: '{clean_text}'")
+                        print(f"⚡ [VoiceService] Успішно розпізнано через Groq {model_name}: '{clean_text}'")
                         return clean_text
                 else:
                     print(f"⚠️ [VoiceService] Groq Whisper API статус {resp.status_code}: {resp.text[:120]}")
