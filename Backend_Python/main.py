@@ -68,15 +68,15 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="NOVA AI TRPG Engine API",
-    version="1.5.1",
+    version="1.5.2",
     lifespan=lifespan,
     description=(
-        "Офіційний бекенд дипломного проєкту NOVA AI TRPG (API v1.5.1).\n\n"
+        "Офіційний бекенд дипломного проєкту NOVA AI TRPG (API v1.5.2).\n\n"
         "Архітектура:\n"
         "- Персонажі (Blueprints): створення, редагування, Character Wizard з AI Творцем Долі, Live Preview та Live Sync.\n"
         "- Кампанії (Campaigns / Чати): мультисесійність за кожним героєм, авто-генерація вступного наративу (Intro Post), закріплення (Pin), відкат ходу (Rollback).\n"
         "- Ігровий цикл: суворо послідовний пайплайн (Гравець -> Оповідач -> Аналізатор -> Стан) з транзакційним відкатом (Unit of Work) та SSE-стрімінгом.\n"
-        "- Голосові сервіси: Voice-to-Text розпізнавання дій гравця."
+        "- Голосові сервіси: надшвидке Voice-to-Text розпізнавання дій гравця (Groq Whisper ~0.3–0.5с та мультимодальний Odirouter фолбек)."
     )
 )
 
