@@ -1,5 +1,5 @@
 # 📜 NOVA AI TRPG — Єдиний контракт взаємодії (API & Game Step Contract)
-**Версія контракту:** 1.5.0 (Роздільний скоринг ШІ-моделей, Голосове введення Voice-to-Text, Синхронізація драфту, Динамічний рендер шаблонів)  
+**Версія контракту:** 1.5.1 (Підтримка `draft_state` у `/api/v1/character/finalize` для збереження ручних правок прев'ю)  
 **Статус:** Обов'язковий до дотримання чатами **Backend** та **Client**.
 
 ---
@@ -95,7 +95,7 @@ $$\text{Гравець} \longrightarrow \text{Оповідач (GM)} \longrighta
 | :--- | :--- | :--- | :--- | :--- |
 | `POST` | `/api/v1/character/dialog` | Діалог створення героя з Live Preview | `CharacterDialogRequest` | `CharacterDialogResponse` |
 | `POST` | `/api/v1/character/sync-draft` | Синхронізувати та перерахувати залежні поля після ручного редагування прев'ю | `PlayerState` | `PlayerState` |
-| `POST` | `/api/v1/character/finalize` | Згенерувати фінальний лист героя та зберегти на диск | `{"dialog_summary": "..."}` | `PlayerState` |
+| `POST` | `/api/v1/character/finalize` | Згенерувати фінальний лист героя та зберегти на диск (з урахуванням `draft_state` з прев'ю, якщо передано) | `{"dialog_summary": "...", "draft_state": PlayerState?}` | `PlayerState` |
 
 ### 4.3. Кампанії (Campaigns)
 | Метод | URL | Опис | Request | Response |
