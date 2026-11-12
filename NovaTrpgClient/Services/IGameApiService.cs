@@ -31,6 +31,7 @@ namespace NovaTrpgClient.Services
         Task<CharacterDialogResponse?> SendCharacterDialogMessageAsync(string message, List<CharacterDialogHistoryItem> history, bool includeDraft = true, CancellationToken cancellationToken = default);
         Task<CharacterDialogResponse?> SendCharacterDialogAsync(string message, List<CharacterDialogHistoryItem> history, bool includeDraft = true, CancellationToken cancellationToken = default);
         Task<PlayerState?> FinalizeCharacterAsync(string dialogSummary, CancellationToken cancellationToken = default);
+        Task<PlayerState?> SyncCharacterDraftAsync(PlayerState draft, CancellationToken cancellationToken = default);
 
         // Голосові сервіси (Voice-to-Text, v1.5.0)
         Task<string?> TranscribeAudioAsync(byte[] audioBytes, string fileName = "recording.wav", CancellationToken cancellationToken = default);

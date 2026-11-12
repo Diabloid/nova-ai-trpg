@@ -1708,7 +1708,8 @@
 						<!-- ВИСУВНА ДЕТАЛЬНА ШТОРКА СТАНУ ПЕРСОНАЖА -->
 						<Border Classes="drawerSheet" Classes.open="{Binding IsCharacterSheetOpen}"
 						        Background="#181818" CornerRadius="10" BorderBrush="#2A2A2A" Margin="0,4,0,0" Padding="16">
-							<Grid ColumnDefinitions="0.8*, 0.85*, 1.1*, 1.25*">
+							<StackPanel Spacing="10">
+								<Grid ColumnDefinitions="0.8*, 0.85*, 1.1*, 1.25*">
 
 								<!-- Колонка 1: Анатомія та Травми -->
 								<Border Grid.Column="0" Background="#1C1C1C" CornerRadius="8" Padding="12" Margin="0,0,6,0" BorderBrush="#2A2A2A" BorderThickness="1" MaxHeight="340">
@@ -1828,6 +1829,111 @@
 									</Grid>
 								</Border>
 							</Grid>
+
+							<!-- 5. ДОДАТКОВІ ВІДОМОСТІ ТА СВІТ (ТИТУЛИ, ЗОВНІШНІСТЬ, БІОГРАФІЯ, CUSTOM BLOCKS) -->
+							<Expander IsExpanded="{Binding IsDrawerDetailsExpanded, Mode=TwoWay}"
+							          IsVisible="{Binding HasDrawerDetails}"
+							          Background="#141414" BorderBrush="#262626" BorderThickness="1" CornerRadius="8" Margin="0,4,0,0">
+								<Expander.Header>
+									<StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+										<TextBlock Text="📜" FontSize="12" VerticalAlignment="Center"/>
+										<TextBlock Text="ДЕТАЛІ ПЕРСОНАЖА, РИСИ ТА СВІТ" FontWeight="Bold" Foreground="#F59E0B" FontSize="11" LetterSpacing="0.5" VerticalAlignment="Center"/>
+									</StackPanel>
+								</Expander.Header>
+								<StackPanel Spacing="10" Margin="4,4,4,4">
+									<!-- Титули та вік -->
+									<Grid ColumnDefinitions="*, *" Margin="0,0,0,2">
+										<StackPanel Grid.Column="0" Spacing="2" Margin="0,0,6,0" IsVisible="{Binding CharacterTitles.Length}">
+											<TextBlock Text="Титули та звання:" Foreground="#9CA3AF" FontSize="10"/>
+											<TextBlock Text="{Binding CharacterTitles}" Foreground="#FBBF24" FontSize="11" FontWeight="SemiBold" TextWrapping="Wrap"/>
+										</StackPanel>
+										<StackPanel Grid.Column="1" Spacing="2" Margin="6,0,0,0" IsVisible="{Binding CharacterAge.Length}">
+											<TextBlock Text="Вік:" Foreground="#9CA3AF" FontSize="10"/>
+											<TextBlock Text="{Binding CharacterAge}" Foreground="#E5E7EB" FontSize="11" FontWeight="SemiBold"/>
+										</StackPanel>
+									</Grid>
+
+									<!-- Деталі зовнішності -->
+									<WrapPanel Margin="0,0,0,2">
+										<Border Background="#1C1C1C" CornerRadius="4" Padding="6,3" Margin="0,0,6,4" IsVisible="{Binding CharacterPhysique.Length}">
+											<TextBlock Text="{Binding CharacterPhysique, StringFormat='Статура: {0}'}" Foreground="#D1D5DB" FontSize="10"/>
+										</Border>
+										<Border Background="#1C1C1C" CornerRadius="4" Padding="6,3" Margin="0,0,6,4" IsVisible="{Binding CharacterHeight.Length}">
+											<TextBlock Text="{Binding CharacterHeight, StringFormat='Зріст: {0}'}" Foreground="#D1D5DB" FontSize="10"/>
+										</Border>
+										<Border Background="#1C1C1C" CornerRadius="4" Padding="6,3" Margin="0,0,6,4" IsVisible="{Binding CharacterEyes.Length}">
+											<TextBlock Text="{Binding CharacterEyes, StringFormat='Очі: {0}'}" Foreground="#D1D5DB" FontSize="10"/>
+										</Border>
+										<Border Background="#1C1C1C" CornerRadius="4" Padding="6,3" Margin="0,0,6,4" IsVisible="{Binding CharacterHair.Length}">
+											<TextBlock Text="{Binding CharacterHair, StringFormat='Волосся: {0}'}" Foreground="#D1D5DB" FontSize="10"/>
+										</Border>
+										<Border Background="#1C1C1C" CornerRadius="4" Padding="6,3" Margin="0,0,6,4" IsVisible="{Binding CharacterRaceTraits.Length}">
+											<TextBlock Text="{Binding CharacterRaceTraits, StringFormat='Расові риси: {0}'}" Foreground="#D1D5DB" FontSize="10"/>
+										</Border>
+									</WrapPanel>
+
+									<!-- Біографія -->
+									<StackPanel Spacing="2" IsVisible="{Binding CharacterBiography.Length}">
+										<TextBlock Text="Хроніка та біографія:" Foreground="#9CA3AF" FontSize="10"/>
+										<Border Background="#111111" BorderBrush="#222222" BorderThickness="1" CornerRadius="6" Padding="8,6">
+											<TextBlock Text="{Binding CharacterBiography}" Foreground="#D1D5DB" FontSize="11" TextWrapping="Wrap" LineHeight="18"/>
+										</Border>
+									</StackPanel>
+
+									<!-- Додаткові динамічні блоки (Custom Blocks) -->
+									<ItemsControl ItemsSource="{Binding CharacterCustomBlocks}">
+										<ItemsControl.ItemTemplate>
+											<DataTemplate>
+												<Border Background="#161616" BorderBrush="#2A2A2A" BorderThickness="1" CornerRadius="6" Padding="10,8" Margin="0,0,0,6">
+													<StackPanel Spacing="6">
+														<StackPanel Orientation="Horizontal" Spacing="6">
+															<TextBlock Text="{Binding Icon}" FontSize="11" VerticalAlignment="Center"/>
+															<TextBlock Text="{Binding Title}" Foreground="{Binding HeaderColor}" FontWeight="Bold" FontSize="11" LetterSpacing="0.5" VerticalAlignment="Center"/>
+														</StackPanel>
+														<ItemsControl ItemsSource="{Binding Fields}" IsVisible="{Binding HasFields}">
+															<ItemsControl.ItemTemplate>
+																<DataTemplate>
+																	<Grid ColumnDefinitions="Auto, *" Margin="0,2">
+																		<TextBlock Grid.Column="0" Text="{Binding Label, StringFormat='{}{0}: '}" Foreground="#9CA3AF" FontSize="11" Margin="0,0,6,0"/>
+																		<TextBlock Grid.Column="1" Text="{Binding Value}" Foreground="#E5E7EB" FontSize="11" TextWrapping="Wrap"/>
+																	</Grid>
+																</DataTemplate>
+															</ItemsControl.ItemTemplate>
+														</ItemsControl>
+														<ItemsControl ItemsSource="{Binding Tags}" IsVisible="{Binding HasTags}">
+															<ItemsControl.ItemsPanel>
+																<ItemsPanelTemplate>
+																	<WrapPanel/>
+																</ItemsPanelTemplate>
+															</ItemsControl.ItemsPanel>
+															<ItemsControl.ItemTemplate>
+																<DataTemplate>
+																	<Border Background="#222222" CornerRadius="4" Padding="6,2" Margin="0,0,6,4">
+																		<TextBlock Text="{Binding}" Foreground="#F3F4F6" FontSize="10"/>
+																	</Border>
+																</DataTemplate>
+															</ItemsControl.ItemTemplate>
+														</ItemsControl>
+														<ItemsControl ItemsSource="{Binding Items}" IsVisible="{Binding HasItems}">
+															<ItemsControl.ItemTemplate>
+																<DataTemplate>
+																	<Border Background="#111111" BorderBrush="#262626" BorderThickness="1" CornerRadius="5" Padding="6,4" Margin="0,0,0,4">
+																		<StackPanel>
+																			<TextBlock Text="{Binding Name}" Foreground="#E5E7EB" FontSize="11" FontWeight="SemiBold"/>
+																			<TextBlock Text="{Binding Desc}" Foreground="#9CA3AF" FontSize="10" TextWrapping="Wrap"/>
+																		</StackPanel>
+																	</Border>
+																</DataTemplate>
+															</ItemsControl.ItemTemplate>
+														</ItemsControl>
+													</StackPanel>
+												</Border>
+											</DataTemplate>
+										</ItemsControl.ItemTemplate>
+									</ItemsControl>
+								</StackPanel>
+							</Expander>
+							</StackPanel>
 						</Border>
 					</StackPanel>
 
@@ -2002,37 +2108,122 @@
 						<!-- Ліва колонка: Картка попереднього перегляду героя та кнопка старту гри -->
 						<Border Grid.Column="0" Background="#161616" BorderBrush="#262626" BorderThickness="1" CornerRadius="10" Padding="16,16,6,16" Margin="0,0,16,0">
 							<Grid RowDefinitions="Auto, *, Auto">
-								<TextBlock Grid.Row="0" Text="ПОПЕРЕДНІЙ ПЕРЕГЛЯД" Foreground="#9CA3AF" FontSize="11" FontWeight="Bold" LetterSpacing="1" Margin="0,0,10,12"/>
+								<!-- Заголовок прев'ю + Кнопка ручної синхронізації з ШІ (Live Sync, v1.5.0) -->
+								<Grid Grid.Row="0" ColumnDefinitions="*, Auto" Margin="0,0,10,12">
+									<TextBlock Grid.Column="0" Text="ПОПЕРЕДНІЙ ПЕРЕГЛЯД" Foreground="#9CA3AF" FontSize="11" FontWeight="Bold" LetterSpacing="1" VerticalAlignment="Center"/>
+									<Button Grid.Column="1" Command="{Binding SyncDraftCommand}"
+									        ToolTip.Tip="Синхронізувати ручні правки з ШІ (узгоджує характеристики, здібності та спорядження)"
+									        Cursor="Hand"
+									        Padding="7,3"
+									        Background="#1A1A1A" BorderBrush="#333333" BorderThickness="1" CornerRadius="6">
+										<StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+											<TextBlock Text="🔄" FontSize="10" VerticalAlignment="Center"/>
+											<TextBlock Text="{Binding SyncDraftButtonText}" Foreground="#D1D5DB" FontSize="10" FontWeight="SemiBold" VerticalAlignment="Center"/>
+										</StackPanel>
+									</Button>
+								</Grid>
 
-								<!-- Сайдбар скролу зміщений у правий коридор, не перекриваючи плашки -->
-								<ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0">
-									<StackPanel Spacing="14" Margin="0,0,10,0">
+								<!-- Сайдбар скролу з м'яким градієнтним розсіюванням зверху та знизу (Fade Mask) -->
+								<ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,4,0,4">
+									<ScrollViewer.OpacityMask>
+										<LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+											<GradientStop Color="#00000000" Offset="0.0"/>
+											<GradientStop Color="#FF000000" Offset="0.03"/>
+											<GradientStop Color="#FF000000" Offset="0.97"/>
+											<GradientStop Color="#00000000" Offset="1.0"/>
+										</LinearGradientBrush>
+									</ScrollViewer.OpacityMask>
+									<StackPanel Spacing="12" Margin="0,0,10,0">
+										<!-- 1. Ім'я героя -->
 										<StackPanel Spacing="4">
 											<TextBlock Text="Ім'я героя:" Foreground="#9CA3AF" FontSize="11"/>
 											<TextBox Classes="modalInput" Text="{Binding WizardCharName, Mode=TwoWay}" PlaceholderText="Буде виведено з діалогу..."/>
 										</StackPanel>
 
+										<!-- 2. Титули та вік (_template.json) -->
+										<Grid ColumnDefinitions="*, *">
+											<StackPanel Grid.Column="0" Spacing="4" Margin="0,0,4,0">
+												<TextBlock Text="Титули / Звання:" Foreground="#9CA3AF" FontSize="11"/>
+												<TextBox Classes="modalInput" Text="{Binding WizardCharTitles, Mode=TwoWay}" PlaceholderText="Звання, епітет..."/>
+											</StackPanel>
+											<StackPanel Grid.Column="1" Spacing="4" Margin="4,0,0,0">
+												<TextBlock Text="Вік:" Foreground="#9CA3AF" FontSize="11"/>
+												<TextBox Classes="modalInput" Text="{Binding WizardCharAge, Mode=TwoWay}" PlaceholderText="25 років..."/>
+											</StackPanel>
+										</Grid>
+
+										<!-- 3. Походження / Архетип -->
 										<StackPanel Spacing="4">
 											<TextBlock Text="Походження / Архетип:" Foreground="#9CA3AF" FontSize="11"/>
 											<TextBox Classes="modalInput" Text="{Binding WizardCharBackground, Mode=TwoWay}"
 											         PlaceholderText="Буде сформовано ШІ..."
 											         TextWrapping="Wrap" AcceptsReturn="True"
-											         MinHeight="56" MaxHeight="140"
+											         MinHeight="50" MaxHeight="120"
 											         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
 											         ScrollViewer.VerticalScrollBarVisibility="Auto"/>
 										</StackPanel>
 
+										<!-- 4. Загальна зовнішність -->
 										<StackPanel Spacing="4">
 											<TextBlock Text="Зовнішність:" Foreground="#9CA3AF" FontSize="11"/>
 											<TextBox Classes="modalInput" Text="{Binding WizardCharAppearance, Mode=TwoWay}"
 											         PlaceholderText="Буде сформовано ШІ..."
 											         TextWrapping="Wrap" AcceptsReturn="True"
-											         MinHeight="56" MaxHeight="140"
+											         MinHeight="50" MaxHeight="120"
 											         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
 											         ScrollViewer.VerticalScrollBarVisibility="Auto"/>
 										</StackPanel>
 
-										<!-- ПОЧАТКОВА ЛОКАЦІЯ ТА ФІЗИЧНИЙ СТАН (З LIVE PREVIEW ДРАФТУ) -->
+										<!-- 5. Деталі зовнішності (розгортний блок) -->
+										<Border Background="#141414" BorderBrush="#262626" BorderThickness="1" CornerRadius="6" Padding="8,6">
+											<StackPanel Spacing="6">
+												<Button Command="{Binding ToggleWizardAppearanceDetailsCommand}" Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand" HorizontalAlignment="Stretch">
+													<Grid ColumnDefinitions="*, Auto">
+														<TextBlock Grid.Column="0" Text="🎭 Деталі зовнішності та риси" Foreground="#9CA3AF" FontSize="11" FontWeight="SemiBold"/>
+														<TextBlock Grid.Column="1" Text="▼" Foreground="#6B7280" FontSize="10"/>
+													</Grid>
+												</Button>
+												<StackPanel Spacing="6" IsVisible="{Binding IsWizardAppearanceDetailsExpanded}">
+													<Grid ColumnDefinitions="*, *">
+														<StackPanel Grid.Column="0" Spacing="2" Margin="0,0,4,0">
+															<TextBlock Text="Статура:" Foreground="#6B7280" FontSize="10"/>
+															<TextBox Classes="modalInput" Text="{Binding WizardPhysique, Mode=TwoWay}" PlaceholderText="Атлетична..."/>
+														</StackPanel>
+														<StackPanel Grid.Column="1" Spacing="2" Margin="4,0,0,0">
+															<TextBlock Text="Зріст:" Foreground="#6B7280" FontSize="10"/>
+															<TextBox Classes="modalInput" Text="{Binding WizardHeight, Mode=TwoWay}" PlaceholderText="185 см..."/>
+														</StackPanel>
+													</Grid>
+													<Grid ColumnDefinitions="*, *">
+														<StackPanel Grid.Column="0" Spacing="2" Margin="0,0,4,0">
+															<TextBlock Text="Очі:" Foreground="#6B7280" FontSize="10"/>
+															<TextBox Classes="modalInput" Text="{Binding WizardEyes, Mode=TwoWay}" PlaceholderText="Сіро-блакитні..."/>
+														</StackPanel>
+														<StackPanel Grid.Column="1" Spacing="2" Margin="4,0,0,0">
+															<TextBlock Text="Волосся:" Foreground="#6B7280" FontSize="10"/>
+															<TextBox Classes="modalInput" Text="{Binding WizardHair, Mode=TwoWay}" PlaceholderText="Темне..."/>
+														</StackPanel>
+													</Grid>
+													<StackPanel Spacing="2">
+														<TextBlock Text="Расові ознаки / Шрами:" Foreground="#6B7280" FontSize="10"/>
+														<TextBox Classes="modalInput" Text="{Binding WizardRaceTraits, Mode=TwoWay}" PlaceholderText="Гострі вуха, татуювання..."/>
+													</StackPanel>
+												</StackPanel>
+											</StackPanel>
+										</Border>
+
+										<!-- 6. Біографія та хроніка -->
+										<StackPanel Spacing="4">
+											<TextBlock Text="Біографія та хронологія:" Foreground="#9CA3AF" FontSize="11"/>
+											<TextBox Classes="modalInput" Text="{Binding WizardBiography, Mode=TwoWay}"
+											         PlaceholderText="Ключові події життя або передісторія..."
+											         TextWrapping="Wrap" AcceptsReturn="True"
+											         MinHeight="50" MaxHeight="120"
+											         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+											         ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+										</StackPanel>
+
+										<!-- 7. Початкова локація та стан -->
 										<StackPanel Spacing="4" IsVisible="{Binding HasWizardLocation}">
 											<TextBlock Text="Початкова локація:" Foreground="#9CA3AF" FontSize="11"/>
 											<Border Background="#141414" BorderBrush="#262626" BorderThickness="1" CornerRadius="6" Padding="10,8">
@@ -2047,7 +2238,24 @@
 											</Border>
 										</StackPanel>
 
-										<!-- ЗДІБНОСТІ ТА НАВИЧКИ (LIVE З ДРАФТУ ШІ) -->
+										<!-- 8. Травми (якщо сформовані у драфті) -->
+										<StackPanel Spacing="4" IsVisible="{Binding HasWizardInjuries}">
+											<TextBlock Text="🩸 Травми та ушкодження:" Foreground="#EF4444" FontSize="11" FontWeight="SemiBold"/>
+											<ItemsControl ItemsSource="{Binding WizardInjuries}">
+												<ItemsControl.ItemTemplate>
+													<DataTemplate>
+														<Border Background="#2A1414" CornerRadius="6" Padding="8,5" Margin="0,0,0,4" BorderBrush="#4A1818" BorderThickness="1">
+															<StackPanel>
+																<TextBlock Text="{Binding Location}" FontWeight="SemiBold" Foreground="#FCA5A5" FontSize="11"/>
+																<TextBlock Text="{Binding Description}" Foreground="#F87171" FontSize="10" TextWrapping="Wrap" Margin="0,1,0,0"/>
+															</StackPanel>
+														</Border>
+													</DataTemplate>
+												</ItemsControl.ItemTemplate>
+											</ItemsControl>
+										</StackPanel>
+
+										<!-- 9. Здібності та магія -->
 										<StackPanel Spacing="6" IsVisible="{Binding WizardAbilities.Count}">
 											<TextBlock Text="⚡ Здібності та магія:" Foreground="#C084FC" FontSize="11" FontWeight="SemiBold"/>
 											<ItemsControl ItemsSource="{Binding WizardAbilities}">
@@ -2064,7 +2272,7 @@
 											</ItemsControl>
 										</StackPanel>
 
-										<!-- ПОЧАТКОВЕ СПОРЯДЖЕННЯ (LIVE З ДРАФТУ ШІ) -->
+										<!-- 10. Початкове спорядження -->
 										<StackPanel Spacing="6" IsVisible="{Binding WizardEquipment.Count}">
 											<TextBlock Text="🎒 Початкове спорядження:" Foreground="#34D399" FontSize="11" FontWeight="SemiBold"/>
 											<ItemsControl ItemsSource="{Binding WizardEquipment}">
@@ -2081,15 +2289,69 @@
 											</ItemsControl>
 										</StackPanel>
 
+										<!-- 11. Динамічні довільні блоки (Custom Blocks) -->
+										<ItemsControl ItemsSource="{Binding WizardCustomBlocks}" IsVisible="{Binding HasWizardCustomBlocks}">
+											<ItemsControl.ItemTemplate>
+												<DataTemplate>
+													<Border Background="#161616" BorderBrush="#2A2A2A" BorderThickness="1" CornerRadius="6" Padding="10,8" Margin="0,0,0,4">
+														<StackPanel Spacing="6">
+															<StackPanel Orientation="Horizontal" Spacing="6">
+																<TextBlock Text="{Binding Icon}" FontSize="11" VerticalAlignment="Center"/>
+																<TextBlock Text="{Binding Title}" Foreground="{Binding HeaderColor}" FontWeight="Bold" FontSize="11" LetterSpacing="0.5" VerticalAlignment="Center"/>
+															</StackPanel>
+															<ItemsControl ItemsSource="{Binding Fields}" IsVisible="{Binding HasFields}">
+																<ItemsControl.ItemTemplate>
+																	<DataTemplate>
+																		<Grid ColumnDefinitions="Auto, *" Margin="0,2">
+																			<TextBlock Grid.Column="0" Text="{Binding Label, StringFormat='{}{0}: '}" Foreground="#9CA3AF" FontSize="11" Margin="0,0,6,0"/>
+																			<TextBlock Grid.Column="1" Text="{Binding Value}" Foreground="#E5E7EB" FontSize="11" TextWrapping="Wrap"/>
+																		</Grid>
+																	</DataTemplate>
+																</ItemsControl.ItemTemplate>
+															</ItemsControl>
+															<ItemsControl ItemsSource="{Binding Tags}" IsVisible="{Binding HasTags}">
+																<ItemsControl.ItemsPanel>
+																	<ItemsPanelTemplate>
+																		<WrapPanel/>
+																	</ItemsPanelTemplate>
+																</ItemsControl.ItemsPanel>
+																<ItemsControl.ItemTemplate>
+																	<DataTemplate>
+																		<Border Background="#222222" CornerRadius="4" Padding="6,2" Margin="0,0,6,4">
+																			<TextBlock Text="{Binding}" Foreground="#F3F4F6" FontSize="10"/>
+																		</Border>
+																	</DataTemplate>
+																</ItemsControl.ItemTemplate>
+															</ItemsControl>
+															<ItemsControl ItemsSource="{Binding Items}" IsVisible="{Binding HasItems}">
+																<ItemsControl.ItemTemplate>
+																	<DataTemplate>
+																		<Border Background="#111111" BorderBrush="#262626" BorderThickness="1" CornerRadius="5" Padding="6,4" Margin="0,0,0,4">
+																			<StackPanel>
+																				<TextBlock Text="{Binding Name}" Foreground="#E5E7EB" FontSize="11" FontWeight="SemiBold"/>
+																				<TextBlock Text="{Binding Desc}" Foreground="#9CA3AF" FontSize="10" TextWrapping="Wrap"/>
+																			</StackPanel>
+																		</Border>
+																	</DataTemplate>
+																</ItemsControl.ItemTemplate>
+															</ItemsControl>
+														</StackPanel>
+													</Border>
+												</DataTemplate>
+											</ItemsControl.ItemTemplate>
+										</ItemsControl>
+
+										<!-- Підказка -->
 										<Border Background="#1A0D0E" BorderBrush="#4A1218" BorderThickness="1" CornerRadius="8" Padding="10">
-											<TextBlock Text="💡 Можна вести діалог із Творцем Долі у вільному стилі, або за бажанням підкоригувати параметри вручну." Foreground="#FCA5A5" FontSize="11" TextWrapping="Wrap"/>
+											<TextBlock Text="💡 Можна вести діалог із Творцем Долі у вільному стилі, або за бажанням підкоригувати параметри вручну та натиснути кнопку «Синхронізувати» для узгодження з ШІ." Foreground="#FCA5A5" FontSize="11" TextWrapping="Wrap"/>
 										</Border>
 									</StackPanel>
 								</ScrollViewer>
 
+								<!-- Кнопка завершення створення персонажа -->
 								<Button Grid.Row="2" Classes="primaryCreateBtn"
 								        Command="{Binding FinalizeAndStartGameCommand}"
-								        Content="🚀 Затвердити та почати гру"
+								        Content="Завершити створення ➔"
 								        HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
 								        Margin="0,12,0,0" Cursor="Hand"/>
 							</Grid>
