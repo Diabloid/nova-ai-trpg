@@ -8,6 +8,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -124,10 +125,43 @@ namespace NovaTrpgClient.ViewModels
         private string _wizardCharName = "";
 
         [ObservableProperty]
+        private string _wizardCharTitles = "";
+
+        [ObservableProperty]
+        private string _wizardCharAge = "";
+
+        [ObservableProperty]
         private string _wizardCharBackground = "";
 
         [ObservableProperty]
         private string _wizardCharAppearance = "";
+
+        [ObservableProperty]
+        private string _wizardPhysique = "";
+
+        [ObservableProperty]
+        private string _wizardHeight = "";
+
+        [ObservableProperty]
+        private string _wizardEyes = "";
+
+        [ObservableProperty]
+        private string _wizardHair = "";
+
+        [ObservableProperty]
+        private string _wizardRaceTraits = "";
+
+        [ObservableProperty]
+        private string _wizardBiography = "";
+
+        [ObservableProperty]
+        private bool _isWizardAppearanceDetailsExpanded = false;
+
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(SyncDraftButtonText))]
+        private bool _isSyncingDraft = false;
+
+        public string SyncDraftButtonText => IsSyncingDraft ? "Синхронізація..." : "Синхронізувати";
 
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(HasWizardLocation))]
@@ -139,8 +173,53 @@ namespace NovaTrpgClient.ViewModels
         private string _wizardCharHealth = "";
         public bool HasWizardHealth => !string.IsNullOrWhiteSpace(WizardCharHealth);
 
+        public ObservableCollection<Injury> WizardInjuries { get; } = new();
         public ObservableCollection<AbilityInfo> WizardAbilities { get; } = new();
         public ObservableCollection<ItemInfo> WizardEquipment { get; } = new();
+        public ObservableCollection<DynamicCustomBlock> WizardCustomBlocks { get; } = new();
+
+        public bool HasWizardCustomBlocks => WizardCustomBlocks.Count > 0;
+        public bool HasWizardInjuries => WizardInjuries.Count > 0;
+
+        // Поля для повного відображення _template.json у висувній шторці персонажа
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(HasDrawerDetails))]
+        private string _characterTitles = "";
+
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(HasDrawerDetails))]
+        private string _characterAge = "";
+
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(HasDrawerDetails))]
+        private string _characterBiography = "";
+
+        [ObservableProperty]
+        private string _characterPhysique = "";
+
+        [ObservableProperty]
+        private string _characterHeight = "";
+
+        [ObservableProperty]
+        private string _characterEyes = "";
+
+        [ObservableProperty]
+        private string _characterHair = "";
+
+        [ObservableProperty]
+        private string _characterRaceTraits = "";
+
+        [ObservableProperty]
+        private bool _isDrawerDetailsExpanded = false;
+
+        public ObservableCollection<DynamicCustomBlock> CharacterCustomBlocks { get; } = new();
+
+        public bool HasDrawerDetails => !string.IsNullOrWhiteSpace(CharacterBiography) ||
+                                       !string.IsNullOrWhiteSpace(CharacterTitles) ||
+                                       !string.IsNullOrWhiteSpace(CharacterAge) ||
+                                       !string.IsNullOrWhiteSpace(CharacterPhysique) ||
+                                       !string.IsNullOrWhiteSpace(CharacterRaceTraits) ||
+                                       CharacterCustomBlocks.Count > 0;
 
         // Модальні вікна (Створення/редагування персонажа, створення кампанії)
         [ObservableProperty]
@@ -729,12 +808,25 @@ namespace NovaTrpgClient.ViewModels
             IsMenuOpen = false;
             WizardMessages.Clear();
             WizardCharName = "";
+            WizardCharTitles = "";
+            WizardCharAge = "";
             WizardCharBackground = "";
             WizardCharAppearance = "";
+            WizardPhysique = "";
+            WizardHeight = "";
+            WizardEyes = "";
+            WizardHair = "";
+            WizardRaceTraits = "";
+            WizardBiography = "";
             WizardCharLocation = "";
             WizardCharHealth = "";
+            IsWizardAppearanceDetailsExpanded = false;
+            IsSyncingDraft = false;
+            WizardInjuries.Clear();
             WizardAbilities.Clear();
             WizardEquipment.Clear();
+            WizardCustomBlocks.Clear();
+            _lastWizardDraftState = null;
             WizardInput = "";
             WizardStatusText = "Творець Долі слухає...";
 
@@ -745,6 +837,189 @@ namespace NovaTrpgClient.ViewModels
                 Text = "Вітаю у чертогах буття, Мандрівнику. Я — Творець Долі. Розкажи, ким ти бачиш свого героя? Яке його ім'я, фах або ремесло? Які таємниці чи випробування несе його минуле?",
                 SenderColor = "#C084FC"
             });
+        }
+
+        [RelayCommand]
+        public void ToggleWizardAppearanceDetails()
+        {
+            IsWizardAppearanceDetailsExpanded = !IsWizardAppearanceDetailsExpanded;
+        }
+
+        [RelayCommand]
+        public void ToggleDrawerDetails()
+        {
+            IsDrawerDetailsExpanded = !IsDrawerDetailsExpanded;
+        }
+
+        private PlayerState? _lastWizardDraftState;
+
+        public void UpdateLivePreviewFromDraft(PlayerState draft)
+        {
+            if (draft == null) return;
+            _lastWizardDraftState = draft;
+
+            if (!string.IsNullOrWhiteSpace(draft.Meta?.Name))
+                WizardCharName = draft.Meta.Name;
+
+            if (!string.IsNullOrWhiteSpace(draft.Meta?.Titles))
+                WizardCharTitles = draft.Meta.Titles;
+
+            if (!string.IsNullOrWhiteSpace(draft.Meta?.Age))
+                WizardCharAge = draft.Meta.Age;
+
+            if (!string.IsNullOrWhiteSpace(draft.Meta?.Background))
+                WizardCharBackground = draft.Meta.Background;
+
+            if (!string.IsNullOrWhiteSpace(draft.Meta?.Appearance))
+                WizardCharAppearance = draft.Meta.Appearance;
+
+            if (draft.Meta?.AppearanceDetails != null)
+            {
+                if (!string.IsNullOrWhiteSpace(draft.Meta.AppearanceDetails.Physique))
+                    WizardPhysique = draft.Meta.AppearanceDetails.Physique;
+                if (!string.IsNullOrWhiteSpace(draft.Meta.AppearanceDetails.Height))
+                    WizardHeight = draft.Meta.AppearanceDetails.Height;
+                if (!string.IsNullOrWhiteSpace(draft.Meta.AppearanceDetails.Eyes))
+                    WizardEyes = draft.Meta.AppearanceDetails.Eyes;
+                if (!string.IsNullOrWhiteSpace(draft.Meta.AppearanceDetails.Hair))
+                    WizardHair = draft.Meta.AppearanceDetails.Hair;
+                if (!string.IsNullOrWhiteSpace(draft.Meta.AppearanceDetails.RaceTraits))
+                    WizardRaceTraits = draft.Meta.AppearanceDetails.RaceTraits;
+            }
+
+            if (!string.IsNullOrWhiteSpace(draft.Meta?.Biography))
+                WizardBiography = draft.Meta.Biography;
+
+            if (!string.IsNullOrWhiteSpace(draft.Meta?.Location))
+                WizardCharLocation = draft.Meta.Location;
+
+            if (!string.IsNullOrWhiteSpace(draft.AnatomyAndHealth?.OverallState))
+                WizardCharHealth = draft.AnatomyAndHealth.OverallState;
+
+            WizardInjuries.Clear();
+            if (draft.AnatomyAndHealth?.Injuries != null)
+            {
+                foreach (var inj in draft.AnatomyAndHealth.Injuries)
+                {
+                    WizardInjuries.Add(inj);
+                }
+            }
+
+            WizardAbilities.Clear();
+            if (draft.Abilities != null)
+            {
+                foreach (var ab in draft.Abilities)
+                {
+                    WizardAbilities.Add(ab);
+                }
+            }
+
+            WizardEquipment.Clear();
+            if (draft.StorageAndEquipment?.Worn != null)
+            {
+                foreach (var w in draft.StorageAndEquipment.Worn)
+                {
+                    WizardEquipment.Add(w);
+                }
+            }
+            if (draft.StorageAndEquipment?.Containers != null)
+            {
+                foreach (var kvp in draft.StorageAndEquipment.Containers)
+                {
+                    if (kvp.Value != null)
+                    {
+                        foreach (var item in kvp.Value)
+                        {
+                            WizardEquipment.Add(item);
+                        }
+                    }
+                }
+            }
+
+            WizardCustomBlocks.Clear();
+            var parsedBlocks = DynamicSheetHelper.ParseCustomBlocks(draft.CustomBlocks, draft.ExtraProperties);
+            foreach (var block in parsedBlocks)
+            {
+                WizardCustomBlocks.Add(block);
+            }
+
+            OnPropertyChanged(nameof(HasWizardCustomBlocks));
+            OnPropertyChanged(nameof(HasWizardInjuries));
+        }
+
+        public PlayerState BuildCurrentWizardDraftState()
+        {
+            var state = _lastWizardDraftState != null
+                ? JsonSerializer.Deserialize<PlayerState>(JsonSerializer.Serialize(_lastWizardDraftState)) ?? new PlayerState()
+                : new PlayerState();
+
+            state.Meta.Name = WizardCharName;
+            state.Meta.Titles = WizardCharTitles;
+            state.Meta.Age = WizardCharAge;
+            state.Meta.Background = WizardCharBackground;
+            state.Meta.Appearance = WizardCharAppearance;
+
+            state.Meta.AppearanceDetails.Physique = WizardPhysique;
+            state.Meta.AppearanceDetails.Height = WizardHeight;
+            state.Meta.AppearanceDetails.Eyes = WizardEyes;
+            state.Meta.AppearanceDetails.Hair = WizardHair;
+            state.Meta.AppearanceDetails.RaceTraits = WizardRaceTraits;
+
+            state.Meta.Biography = WizardBiography;
+            state.Meta.Location = string.IsNullOrWhiteSpace(WizardCharLocation) ? "Невідомий ліс" : WizardCharLocation;
+
+            state.AnatomyAndHealth.OverallState = string.IsNullOrWhiteSpace(WizardCharHealth) ? "Повний сил" : WizardCharHealth;
+            state.AnatomyAndHealth.Injuries = new List<Injury>(WizardInjuries);
+
+            state.Abilities = new List<AbilityInfo>(WizardAbilities);
+            state.StorageAndEquipment.Worn = new List<ItemInfo>(WizardEquipment);
+
+            return state;
+        }
+
+        [RelayCommand]
+        public async Task SyncDraftAsync()
+        {
+            if (IsSyncingDraft || IsWizardTyping) return;
+
+            IsSyncingDraft = true;
+            try
+            {
+                var draft = BuildCurrentWizardDraftState();
+                var harmonized = await _gameApiService.SyncCharacterDraftAsync(draft);
+                if (harmonized != null)
+                {
+                    UpdateLivePreviewFromDraft(harmonized);
+                    WizardMessages.Add(new ChatMessage
+                    {
+                        Sender = "Творець Долі:",
+                        Text = "✨ Картку персонажа гармонізовано! Характеристики та навички узгоджено з вашими правками.",
+                        SenderColor = "#A78BFA"
+                    });
+                }
+                else
+                {
+                    WizardMessages.Add(new ChatMessage
+                    {
+                        Sender = "Система:",
+                        Text = "⚠️ Не вдалося синхронізувати драфт із ШІ. Спробуйте пізніше.",
+                        SenderColor = "#EF4444"
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                WizardMessages.Add(new ChatMessage
+                {
+                    Sender = "Система:",
+                    Text = $"⚠️ Помилка синхронізації драфту: {ex.Message}",
+                    SenderColor = "#EF4444"
+                });
+            }
+            finally
+            {
+                IsSyncingDraft = false;
+            }
         }
 
         [RelayCommand]
@@ -811,61 +1086,10 @@ namespace NovaTrpgClient.ViewModels
                     SenderColor = "#C084FC"
                 });
 
-                // Автоматичне оновлення правої панелі Live Preview при отриманні draft_state (API v1.3.0)
+                // Автоматичне оновлення панелі Live Preview при отриманні draft_state (API v1.5.0)
                 if (dialogResponse?.DraftState != null)
                 {
-                    var draft = dialogResponse.DraftState;
-                    if (!string.IsNullOrWhiteSpace(draft.Meta?.Name))
-                    {
-                        WizardCharName = draft.Meta.Name;
-                    }
-                    if (!string.IsNullOrWhiteSpace(draft.Meta?.Background))
-                    {
-                        WizardCharBackground = draft.Meta.Background;
-                    }
-                    if (!string.IsNullOrWhiteSpace(draft.Meta?.Appearance))
-                    {
-                        WizardCharAppearance = draft.Meta.Appearance;
-                    }
-                    if (!string.IsNullOrWhiteSpace(draft.Meta?.Location))
-                    {
-                        WizardCharLocation = draft.Meta.Location;
-                    }
-                    if (!string.IsNullOrWhiteSpace(draft.AnatomyAndHealth?.OverallState))
-                    {
-                        WizardCharHealth = draft.AnatomyAndHealth.OverallState;
-                    }
-
-                    WizardAbilities.Clear();
-                    if (draft.Abilities != null)
-                    {
-                        foreach (var ab in draft.Abilities)
-                        {
-                            WizardAbilities.Add(ab);
-                        }
-                    }
-
-                    WizardEquipment.Clear();
-                    if (draft.StorageAndEquipment?.Worn != null)
-                    {
-                        foreach (var w in draft.StorageAndEquipment.Worn)
-                        {
-                            WizardEquipment.Add(w);
-                        }
-                    }
-                    if (draft.StorageAndEquipment?.Containers != null)
-                    {
-                        foreach (var kvp in draft.StorageAndEquipment.Containers)
-                        {
-                            if (kvp.Value != null)
-                            {
-                                foreach (var item in kvp.Value)
-                                {
-                                    WizardEquipment.Add(item);
-                                }
-                            }
-                        }
-                    }
+                    UpdateLivePreviewFromDraft(dialogResponse.DraftState);
                 }
                 else
                 {
@@ -1604,6 +1828,37 @@ namespace NovaTrpgClient.ViewModels
                     AbilitiesList.Add(ability);
                 }
             }
+
+            // Додаткові метадані та деталі зовнішності (_template.json)
+            CharacterTitles = state.Meta?.Titles ?? string.Empty;
+            CharacterAge = state.Meta?.Age ?? string.Empty;
+            CharacterBiography = state.Meta?.Biography ?? string.Empty;
+
+            if (state.Meta?.AppearanceDetails != null)
+            {
+                CharacterPhysique = state.Meta.AppearanceDetails.Physique ?? string.Empty;
+                CharacterHeight = state.Meta.AppearanceDetails.Height ?? string.Empty;
+                CharacterEyes = state.Meta.AppearanceDetails.Eyes ?? string.Empty;
+                CharacterHair = state.Meta.AppearanceDetails.Hair ?? string.Empty;
+                CharacterRaceTraits = state.Meta.AppearanceDetails.RaceTraits ?? string.Empty;
+            }
+            else
+            {
+                CharacterPhysique = "";
+                CharacterHeight = "";
+                CharacterEyes = "";
+                CharacterHair = "";
+                CharacterRaceTraits = "";
+            }
+
+            // Динамічні довільні блоки (Custom Blocks)
+            CharacterCustomBlocks.Clear();
+            var parsedBlocks = DynamicSheetHelper.ParseCustomBlocks(state.CustomBlocks, state.ExtraProperties);
+            foreach (var b in parsedBlocks)
+            {
+                CharacterCustomBlocks.Add(b);
+            }
+            OnPropertyChanged(nameof(HasDrawerDetails));
 
             InventoryText = allItemNames.Any() ? string.Join(", ", allItemNames) : "порожньо";
         }

@@ -429,6 +429,32 @@ namespace NovaTrpgClient.Services
             }
         }
 
+        public async Task<PlayerState?> SyncCharacterDraftAsync(PlayerState draft, CancellationToken cancellationToken = default)
+        {
+            if (draft == null) return null;
+
+            try
+            {
+                var jsonContent = JsonSerializer.Serialize(draft, JsonOptions);
+                using var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+
+                var response = await _httpClient.PostAsync("api/v1/character/sync-draft", content, cancellationToken);
+                if (!response.IsSuccessStatusCode)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[SyncCharacterDraftAsync HTTP status]: {response.StatusCode}");
+                    return null;
+                }
+
+                var json = await response.Content.ReadAsStringAsync(cancellationToken);
+                return JsonSerializer.Deserialize<PlayerState>(json, JsonOptions);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[SyncCharacterDraftAsync error]: {ex.Message}");
+                return null;
+            }
+        }
+
         public async Task<string?> TranscribeAudioAsync(byte[] audioBytes, string fileName = "recording.wav", CancellationToken cancellationToken = default)
         {
             if (audioBytes == null || audioBytes.Length == 0) return null;
