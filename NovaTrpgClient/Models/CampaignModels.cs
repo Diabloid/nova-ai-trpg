@@ -122,6 +122,9 @@ namespace NovaTrpgClient.Models
     {
         [JsonPropertyName("dialog_summary")]
         public string DialogSummary { get; set; } = string.Empty;
+
+        [JsonPropertyName("draft_state")]
+        public PlayerState? DraftState { get; set; }
     }
 
     public class SimpleStatusResponse

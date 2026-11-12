@@ -1,6 +1,6 @@
 # 📱 NOVA AI TRPG — Завдання розробки Client (Фаза 3.1.1: Багфікси за підсумками сквозного аудиту)
 
-**Статус:** В роботі (Багфікс-етап Фази 3.1.1)  
+**Статус:** Завершено (Фаза 3.1.1 готова до коміту)  
 **Версія клієнту:** 1.5.1  
 **Директорія:** `NovaTrpgClient/`
 
@@ -9,24 +9,28 @@
 ## 1. Завдання в роботі (Фаза 3.1.1 — за підсумками аудиту)
 
 ### 🛡️ 1.1. Усунення `NullReferenceException` та збереження ручних правок у прев'ю
-- [ ] **Null-safety у `BuildCurrentWizardDraftState()` (`MainWindowViewModel.cs`) та `ApiResponse.cs`:**
+- [x] **Null-safety у `BuildCurrentWizardDraftState()` (`MainWindowViewModel.cs`) та `ApiResponse.cs`:**
   - Перед записом властивостей гарантовано ініціалізувати вкладені об'єкти (`state.Meta ??= new()`, `state.Meta.AppearanceDetails ??= new()`, `state.AnatomyAndHealth ??= new()`, `state.StorageAndEquipment ??= new()`), оскільки бекенд може повертати `"appearance_details": null` (через що `System.Text.Json` затирає дефолтний `= new()` у `null`).
-- [ ] **Запобігання дублюванню інвентарю та втраті кастомних блоків:**
+- [x] **Запобігання дублюванню інвентарю та втраті кастомних блоків:**
   - У `BuildCurrentWizardDraftState()` не перезаписувати `state.StorageAndEquipment.Worn` об'єднаним списком `Worn + Containers` (розділяти спорядження і контейнери або коректно синхронізувати лише змінене);
-  - Додати зворотну серіалізацію правок із `WizardCustomBlocks` (`Fields`) у `state.CustomBlocks`.
-- [ ] **Передача `draft_state` при фіналізації (`FinalizeAndStartGameAsync()`, `GameApiService.cs`, `ApiResponse.cs`):**
+  - Додати зворотну серіалізацію правок із `WizardCustomBlocks` (`Fields`, `Tags`, `Items`) у `state.CustomBlocks`.
+- [x] **Передача `draft_state` при фіналізації (`FinalizeAndStartGameAsync()`, `GameApiService.cs`, `ApiResponse.cs`):**
   - Додати опціональне поле `[JsonPropertyName("draft_state")] public PlayerState? DraftState { get; set; }` у `CharacterFinalizeRequest` згідно з API v1.5.1;
   - Передавати результат `BuildCurrentWizardDraftState()` у `FinalizeCharacterAsync`, щоб ручні правки гравця в прев'ю не губилися при натисканні `Завершити створення ➔`.
 
 ### 🧹 1.2. Очищення службових полів у `DynamicSheetHelper` (`DynamicSheetModels.cs`)
-- [ ] У методі `ParseCustomBlocks` додати `created_at` та `updated_at` до переліку ігнорованих кореневих ключів `extraProps`, щоб у шторці та прев'ю не відображався зайвий системний блок `🌐 Created at`.
-- [ ] Виправити одруківку у словнику `KnownBlockStyles`: `"ТИВУЛИ ТА ЗВАННЯ"` ➔ `"ТИТУЛИ ТА ЗВАННЯ"`.
+- [x] У методі `ParseCustomBlocks` додати `created_at` та `updated_at` до переліку ігнорованих кореневих ключів `extraProps`, щоб у шторці та прев'ю не відображався зайвий системний блок `🌐 Created at`.
+- [x] Виправити одруківку у словнику `KnownBlockStyles`: `"ТИВУЛИ ТА ЗВАННЯ"` ➔ `"ТИТУЛИ ТА ЗВАННЯ"`.
 
 ### 📜 1.3. Скрол верхньої шторки персонажа (`MainWindow.axaml`)
-- [ ] Обгорнути внутрішній контент `Border.drawerSheet` (4 колонки характеристик та `Expander` «ДЕТАЛІ ПЕРСОНАЖА, РИСИ ТА СВІТ») у зовнішній `ScrollViewer` з `VerticalScrollBarVisibility="Auto"`, щоб при розгортанні деталей персонажа контент не обрізався жорстким обмеженням `MaxHeight="450"`.
+- [x] Обгорнути внутрішній контент `Border.drawerSheet` (4 колонки характеристик та `Expander` «ДЕТАЛІ ПЕРСОНАЖА, РИСИ ТА СВІТ») у зовнішній `ScrollViewer` з `VerticalScrollBarVisibility="Auto"`, щоб при розгортанні деталей персонажа контент не обрізався жорстким обмеженням `MaxHeight="450"`.
 
 ### 🎙️ 1.4. Захист від deadlock у записі звуку (`AudioRecordingService.cs`)
-- [ ] У `StopRecordingAsync()` винести виклик `_waveIn?.StopRecording()` за межі `lock (_lock)` (перед блоком блокування фіналізації `_writer`/`_outputStream`) або перейти на `WaveInEvent`, щоб фоновий обробник `DataAvailable` не блокував потік зупинки запису.
+- [x] У `StopRecordingAsync()` винести виклик `_waveIn?.StopRecording()` за межі `lock (_lock)` (перед блоком блокування фіналізації `_writer`/`_outputStream`), щоб фоновий обробник `DataAvailable` не блокував потік зупинки запису.
+
+### 🎯 1.5. Позиціонування та стилі контекстного меню (`MainWindow.axaml`, `App.axaml`, `MainWindow.axaml.cs`)
+- [x] Позиціонування контекстного меню біля курсору миші через `PlacementMode.AnchorAndGravity`, `PopupAnchor.TopLeft`, `PopupGravity.BottomRight` та `PlacementRect = new Rect(point.X, point.Y, 1, 1)` на основі `e.TryGetPosition(...)` замість спливання по центру елемента.
+- [x] Унифікація зовнішнього вигляду та відступів контекстного меню: додано `MinWidth="180"` та `Padding="10,6" MinHeight="28"` для пунктів меню, щоб одиночний пункт «Копіювати» не був стиснутий.
 
 ---
 

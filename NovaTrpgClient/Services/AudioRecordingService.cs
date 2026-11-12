@@ -81,20 +81,26 @@ namespace NovaTrpgClient.Services
                 return Task.FromResult(result);
             }
 
+            WaveIn? waveInToStop = null;
             lock (_lock)
             {
                 if (!IsRecording) return Task.FromResult(result);
                 IsRecording = false;
+                waveInToStop = _waveIn;
+            }
 
-                try
-                {
-                    _waveIn?.StopRecording();
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"[WaveIn StopRecording warning]: {ex.Message}");
-                }
+            // Зупиняємо запис ПОЗА lock, щоб усунути будь-який ризик взаємного блокування (deadlock) з потоком DataAvailable
+            try
+            {
+                waveInToStop?.StopRecording();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[WaveIn StopRecording warning]: {ex.Message}");
+            }
 
+            lock (_lock)
+            {
                 try
                 {
                     _writer?.Flush();
@@ -113,7 +119,7 @@ namespace NovaTrpgClient.Services
                     System.Diagnostics.Debug.WriteLine($"[Audio buffer flush error]: {ex.Message}");
                 }
 
-                _waveIn?.Dispose();
+                waveInToStop?.Dispose();
                 _waveIn = null;
             }
 
@@ -124,14 +130,27 @@ namespace NovaTrpgClient.Services
         {
             if (!OperatingSystem.IsWindows()) return;
 
+            WaveIn? waveInToStop = null;
             lock (_lock)
             {
                 if (IsRecording)
                 {
-                    try { _waveIn?.StopRecording(); } catch { }
+                    IsRecording = false;
+                    waveInToStop = _waveIn;
                 }
+            }
+
+            try
+            {
+                waveInToStop?.StopRecording();
+            }
+            catch { }
+
+            lock (_lock)
+            {
                 _writer?.Dispose();
                 _outputStream?.Dispose();
+                waveInToStop?.Dispose();
                 _waveIn?.Dispose();
                 _writer = null;
                 _outputStream = null;

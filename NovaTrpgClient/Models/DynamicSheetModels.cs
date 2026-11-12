@@ -58,7 +58,7 @@ namespace NovaTrpgClient.Models
                 { "blessings", ("БЛАГОСЛОВЕННЯ ТА АУРИ", "#34D399", "✨") },
                 { "status_effects", ("СТАТУСИ ТА ЕФЕКТИ", "#38BDF8", "⚡") },
                 { "lore", ("ЗНАННЯ СВІТУ ТА ТАЄМНИЦІ", "#A78BFA", "📜") },
-                { "titles_and_ranks", ("ТИВУЛИ ТА ЗВАННЯ", "#FBBF24", "👑") }
+                { "titles_and_ranks", ("ТИТУЛИ ТА ЗВАННЯ", "#FBBF24", "👑") }
             };
 
         public static List<DynamicCustomBlock> ParseCustomBlocks(
@@ -70,6 +70,13 @@ namespace NovaTrpgClient.Models
             void ProcessEntry(string key, JsonElement val)
             {
                 if (string.IsNullOrWhiteSpace(key)) return;
+
+                // Ігноруємо службові мітки часу
+                if (key.Equals("created_at", StringComparison.OrdinalIgnoreCase) ||
+                    key.Equals("updated_at", StringComparison.OrdinalIgnoreCase))
+                {
+                    return;
+                }
 
                 var block = new DynamicCustomBlock
                 {
@@ -178,7 +185,9 @@ namespace NovaTrpgClient.Models
                         kvp.Key.Equals("anatomy_and_health", StringComparison.OrdinalIgnoreCase) ||
                         kvp.Key.Equals("storage_and_equipment", StringComparison.OrdinalIgnoreCase) ||
                         kvp.Key.Equals("abilities", StringComparison.OrdinalIgnoreCase) ||
-                        kvp.Key.Equals("custom_blocks", StringComparison.OrdinalIgnoreCase))
+                        kvp.Key.Equals("custom_blocks", StringComparison.OrdinalIgnoreCase) ||
+                        kvp.Key.Equals("created_at", StringComparison.OrdinalIgnoreCase) ||
+                        kvp.Key.Equals("updated_at", StringComparison.OrdinalIgnoreCase))
                     {
                         continue;
                     }

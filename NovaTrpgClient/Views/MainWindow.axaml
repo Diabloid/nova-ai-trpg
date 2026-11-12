@@ -380,6 +380,7 @@
 			<Setter Property="BorderThickness" Value="1"/>
 			<Setter Property="CornerRadius" Value="8"/>
 			<Setter Property="Padding" Value="4"/>
+			<Setter Property="MinWidth" Value="180"/>
 			<Setter Property="Placement" Value="Pointer"/>
 		</Style>
 		<Style Selector="MenuFlyoutPresenter">
@@ -388,13 +389,15 @@
 			<Setter Property="BorderThickness" Value="1"/>
 			<Setter Property="CornerRadius" Value="8"/>
 			<Setter Property="Padding" Value="4"/>
+			<Setter Property="MinWidth" Value="180"/>
 		</Style>
 		<Style Selector="MenuItem">
 			<Setter Property="Background" Value="Transparent"/>
 			<Setter Property="Foreground" Value="#E5E7EB"/>
 			<Setter Property="BorderThickness" Value="0"/>
 			<Setter Property="CornerRadius" Value="6"/>
-			<Setter Property="Padding" Value="8,5"/>
+			<Setter Property="Padding" Value="10,6"/>
+			<Setter Property="MinHeight" Value="28"/>
 			<Setter Property="FontSize" Value="12"/>
 			<Setter Property="Cursor" Value="Hand"/>
 		</Style>
@@ -1707,8 +1710,9 @@
 
 						<!-- ВИСУВНА ДЕТАЛЬНА ШТОРКА СТАНУ ПЕРСОНАЖА -->
 						<Border Classes="drawerSheet" Classes.open="{Binding IsCharacterSheetOpen}"
-						        Background="#181818" CornerRadius="10" BorderBrush="#2A2A2A" Margin="0,4,0,0" Padding="16">
-							<StackPanel Spacing="10">
+						        Background="#181818" CornerRadius="10" BorderBrush="#2A2A2A" Margin="0,4,0,0" Padding="16,16,8,16">
+							<ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,8,0">
+								<StackPanel Spacing="10">
 								<Grid ColumnDefinitions="0.8*, 0.85*, 1.1*, 1.25*">
 
 								<!-- Колонка 1: Анатомія та Травми -->
@@ -1933,7 +1937,8 @@
 									</ItemsControl>
 								</StackPanel>
 							</Expander>
-							</StackPanel>
+								</StackPanel>
+							</ScrollViewer>
 						</Border>
 					</StackPanel>
 
