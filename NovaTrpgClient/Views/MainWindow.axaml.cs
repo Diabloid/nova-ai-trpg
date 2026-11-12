@@ -56,8 +56,20 @@ namespace NovaTrpgClient.Views
                 _lastActiveSelectableTextBlock = stb;
                 if (stb.ContextMenu != null)
                 {
-                    stb.ContextMenu.Placement = PlacementMode.Pointer;
-                    stb.ContextMenu.Open(stb);
+                    if (e.TryGetPosition(stb, out var point))
+                    {
+                        stb.ContextMenu.PlacementTarget = stb;
+                        stb.ContextMenu.Placement = PlacementMode.AnchorAndGravity;
+                        stb.ContextMenu.PlacementAnchor = Avalonia.Controls.Primitives.PopupPositioning.PopupAnchor.TopLeft;
+                        stb.ContextMenu.PlacementGravity = Avalonia.Controls.Primitives.PopupPositioning.PopupGravity.BottomRight;
+                        stb.ContextMenu.PlacementRect = new Rect(point.X, point.Y, 1, 1);
+                        stb.ContextMenu.Open(stb);
+                    }
+                    else
+                    {
+                        stb.ContextMenu.Placement = PlacementMode.Pointer;
+                        stb.ContextMenu.Open(stb);
+                    }
                     e.Handled = true;
                 }
             });
@@ -67,8 +79,20 @@ namespace NovaTrpgClient.Views
             {
                 if (tb.ContextMenu != null)
                 {
-                    tb.ContextMenu.Placement = PlacementMode.Pointer;
-                    tb.ContextMenu.Open(tb);
+                    if (e.TryGetPosition(tb, out var point))
+                    {
+                        tb.ContextMenu.PlacementTarget = tb;
+                        tb.ContextMenu.Placement = PlacementMode.AnchorAndGravity;
+                        tb.ContextMenu.PlacementAnchor = Avalonia.Controls.Primitives.PopupPositioning.PopupAnchor.TopLeft;
+                        tb.ContextMenu.PlacementGravity = Avalonia.Controls.Primitives.PopupPositioning.PopupGravity.BottomRight;
+                        tb.ContextMenu.PlacementRect = new Rect(point.X, point.Y, 1, 1);
+                        tb.ContextMenu.Open(tb);
+                    }
+                    else
+                    {
+                        tb.ContextMenu.Placement = PlacementMode.Pointer;
+                        tb.ContextMenu.Open(tb);
+                    }
                     e.Handled = true;
                 }
             });

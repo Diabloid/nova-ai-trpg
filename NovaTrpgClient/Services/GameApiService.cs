@@ -408,11 +408,15 @@ namespace NovaTrpgClient.Services
             return SendCharacterDialogMessageAsync(message, history, includeDraft, cancellationToken);
         }
 
-        public async Task<PlayerState?> FinalizeCharacterAsync(string dialogSummary, CancellationToken cancellationToken = default)
+        public async Task<PlayerState?> FinalizeCharacterAsync(string dialogSummary, PlayerState? draftState = null, CancellationToken cancellationToken = default)
         {
             try
             {
-                var req = new CharacterFinalizeRequest { DialogSummary = dialogSummary };
+                var req = new CharacterFinalizeRequest
+                {
+                    DialogSummary = dialogSummary,
+                    DraftState = draftState
+                };
                 var jsonContent = JsonSerializer.Serialize(req, JsonOptions);
                 using var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
 

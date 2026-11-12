@@ -852,11 +852,13 @@ namespace NovaTrpgClient.ViewModels
         }
 
         private PlayerState? _lastWizardDraftState;
+        private int _wizardWornItemsCount;
 
         public void UpdateLivePreviewFromDraft(PlayerState draft)
         {
             if (draft == null) return;
             _lastWizardDraftState = draft;
+            _wizardWornItemsCount = draft.StorageAndEquipment?.Worn?.Count ?? 0;
 
             if (!string.IsNullOrWhiteSpace(draft.Meta?.Name))
                 WizardCharName = draft.Meta.Name;
@@ -953,6 +955,12 @@ namespace NovaTrpgClient.ViewModels
                 ? JsonSerializer.Deserialize<PlayerState>(JsonSerializer.Serialize(_lastWizardDraftState)) ?? new PlayerState()
                 : new PlayerState();
 
+            state.Meta ??= new();
+            state.Meta.AppearanceDetails ??= new();
+            state.AnatomyAndHealth ??= new();
+            state.StorageAndEquipment ??= new();
+            state.CustomBlocks ??= new();
+
             state.Meta.Name = WizardCharName;
             state.Meta.Titles = WizardCharTitles;
             state.Meta.Age = WizardCharAge;
@@ -972,7 +980,40 @@ namespace NovaTrpgClient.ViewModels
             state.AnatomyAndHealth.Injuries = new List<Injury>(WizardInjuries);
 
             state.Abilities = new List<AbilityInfo>(WizardAbilities);
-            state.StorageAndEquipment.Worn = new List<ItemInfo>(WizardEquipment);
+
+            // Зберігаємо контейнери; у Worn записуємо тільки елементи персонального екіпірування
+            if (_wizardWornItemsCount > 0 && WizardEquipment.Count >= _wizardWornItemsCount)
+            {
+                state.StorageAndEquipment.Worn = WizardEquipment.Take(_wizardWornItemsCount).ToList();
+            }
+            else if (state.StorageAndEquipment.Containers == null || state.StorageAndEquipment.Containers.Count == 0)
+            {
+                state.StorageAndEquipment.Worn = new List<ItemInfo>(WizardEquipment);
+            }
+
+            // Зворотна серіалізація динамічних блоків кастомного шаблону з WizardCustomBlocks у state.CustomBlocks
+            foreach (var block in WizardCustomBlocks)
+            {
+                if (string.IsNullOrWhiteSpace(block.Key)) continue;
+
+                if (block.HasFields)
+                {
+                    var dict = new Dictionary<string, object>();
+                    foreach (var field in block.Fields)
+                    {
+                        dict[field.Key] = field.Value;
+                    }
+                    state.CustomBlocks[block.Key] = JsonSerializer.SerializeToElement(dict);
+                }
+                else if (block.HasTags)
+                {
+                    state.CustomBlocks[block.Key] = JsonSerializer.SerializeToElement(block.Tags);
+                }
+                else if (block.HasItems)
+                {
+                    state.CustomBlocks[block.Key] = JsonSerializer.SerializeToElement(block.Items);
+                }
+            }
 
             return state;
         }
@@ -1136,7 +1177,8 @@ namespace NovaTrpgClient.ViewModels
             try
             {
                 var summary = string.Join("\n", WizardMessages.Select(m => $"{m.Sender} {m.Text}"));
-                var playerState = await _gameApiService.FinalizeCharacterAsync(summary);
+                var currentDraft = BuildCurrentWizardDraftState();
+                var playerState = await _gameApiService.FinalizeCharacterAsync(summary, currentDraft);
 
                 // 1. Обробка помилки при фіналізації: якщо бекенд повернув 503/null
                 if (playerState == null || playerState.Meta == null)
