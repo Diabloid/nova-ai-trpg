@@ -73,10 +73,11 @@
 						</StackPanel>
 					</Border>
 
-					<!-- Основне тіло плашки з текстом повідомлення -->
+					<!-- Основне тіло плашки з текстом повідомлення (MinWidth="140" гарантує, що тіло ширше за верхнє вушко) -->
 					<Border Classes="chatBubbleBody"
 					        Classes.playerBubbleBody="{Binding IsPlayer}"
-					        Classes.narratorBubbleBody="{Binding !IsPlayer}">
+					        Classes.narratorBubbleBody="{Binding !IsPlayer}"
+					        MinWidth="140">
 						<SelectableTextBlock Classes="chatBubbleText"
 						                     Text="{Binding Text}"
 						                     TextWrapping="Wrap"
@@ -290,6 +291,7 @@
 			<Setter Property="Padding" Value="0"/>
 			<Setter Property="CornerRadius" Value="0,8,8,8"/>
 			<Setter Property="BorderThickness" Value="1"/>
+			<Setter Property="MinWidth" Value="140"/>
 			<Setter Property="ZIndex" Value="1"/>
 		</Style>
 		<Style Selector="Border.chatBubbleBody.narratorBubbleBody">
@@ -1946,9 +1948,11 @@
 					<Border Grid.Row="1" Background="#111111" CornerRadius="10" BorderBrush="#2A2A2A" BorderThickness="1" Padding="20,10,4,10">
 						<ScrollViewer x:Name="ChatScroll" Padding="0,0,16,0">
 							<ScrollViewer.OpacityMask>
-								<LinearGradientBrush StartPoint="0,0" EndPoint="0,16">
+								<LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
 									<GradientStop Color="#00000000" Offset="0.0"/>
-									<GradientStop Color="#FF000000" Offset="1.0"/>
+									<GradientStop Color="#FF000000" Offset="0.02"/>
+									<GradientStop Color="#FF000000" Offset="0.98"/>
+									<GradientStop Color="#00000000" Offset="1.0"/>
 								</LinearGradientBrush>
 							</ScrollViewer.OpacityMask>
 							<StackPanel Margin="0,18,0,0">
@@ -2368,9 +2372,11 @@
 							<Border Grid.Row="0" Background="#111111" BorderBrush="#262626" BorderThickness="1" CornerRadius="10" Padding="18,14" Margin="0,0,0,12">
 								<ScrollViewer x:Name="WizardScroll" VerticalScrollBarVisibility="Auto">
 									<ScrollViewer.OpacityMask>
-										<LinearGradientBrush StartPoint="0,0" EndPoint="0,16">
+										<LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
 											<GradientStop Color="#00000000" Offset="0.0"/>
-											<GradientStop Color="#FF000000" Offset="1.0"/>
+											<GradientStop Color="#FF000000" Offset="0.02"/>
+											<GradientStop Color="#FF000000" Offset="0.98"/>
+											<GradientStop Color="#00000000" Offset="1.0"/>
 										</LinearGradientBrush>
 									</ScrollViewer.OpacityMask>
 									<StackPanel Margin="0,18,0,0">

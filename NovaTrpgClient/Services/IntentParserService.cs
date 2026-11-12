@@ -39,6 +39,15 @@ namespace NovaTrpgClient.Services
                 intents.Add(new IntentToken { Type = "speech", Content = m.Groups[1].Value.Trim() });
             }
 
+            // Розумний фолбек синтаксису (Default Action):
+            // Якщо гравець не ввів жодного спецсимволу (**, ", -, ()), тобто intents.Count == 0,
+            // автоматично вважаємо весь введений текст дією (action: rawAction.Trim()).
+            // Це дозволяє легко використовувати голосове введення або звичайний текст без обов'язкових **.
+            if (intents.Count == 0 && !string.IsNullOrWhiteSpace(rawAction))
+            {
+                intents.Add(new IntentToken { Type = "action", Content = rawAction.Trim() });
+            }
+
             return intents;
         }
 
