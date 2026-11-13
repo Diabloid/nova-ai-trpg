@@ -23,7 +23,7 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
   if (!headers.has('Accept')) {
     headers.set('Accept', 'application/json');
   }
-  if (!headers.has('Content-Type') && !(options.body instanceof FormData)) {
+  if (options.body && !headers.has('Content-Type') && !(options.body instanceof FormData)) {
     headers.set('Content-Type', 'application/json');
   }
 

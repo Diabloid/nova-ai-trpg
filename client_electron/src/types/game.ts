@@ -7,9 +7,11 @@ export interface ChatMessage {
   senderColor?: string;
   timeText?: string;
   isPlayer: boolean;
+  role?: 'player' | 'narrator' | 'system';
   isSystem?: boolean;
   canRollback?: boolean;
   isStreaming?: boolean;
+  createdAt?: string;
 }
 
 export interface SystemAlert {
