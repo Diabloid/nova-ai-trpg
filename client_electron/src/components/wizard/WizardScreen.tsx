@@ -1,0 +1,58 @@
+import React from 'react';
+import { useGameStore } from '../../store/useGameStore';
+import { LivePreview } from './LivePreview';
+import { WizardChat } from './WizardChat';
+import { Button } from '../ui/Button';
+
+export const WizardScreen: React.FC = () => {
+  const { isWizardOpen, closeWizard, wizardMessages, wizardDraft, wizardInput } = useGameStore();
+
+  if (!isWizardOpen) return null;
+
+  const handleCancel = () => {
+    // Якщо користувач вже щось написав або є історія діалогу — підтвердження
+    const hasUnsavedProgress =
+      wizardMessages.length > 1 ||
+      !!wizardDraft.charName ||
+      !!wizardDraft.charBackground ||
+      !!wizardInput.trim();
+
+    if (hasUnsavedProgress) {
+      if (window.confirm('Ви впевнені, що хочете перервати створення персонажа? Увесь прогрес чернетки буде втрачено.')) {
+        closeWizard();
+      }
+    } else {
+      closeWizard();
+    }
+  };
+
+  return (
+    <div className="fixed top-[30px] inset-x-0 bottom-0 z-30 bg-[#121212] flex flex-col px-8 py-6 select-none animate-in fade-in duration-200">
+      {/* 1. Верхня панель екрану створення */}
+      <div className="flex items-center justify-between pb-4 border-b border-[#222222] mb-4">
+        <div className="space-y-1">
+          <h1 className="text-base font-bold text-[#F3F4F6] tracking-wide">
+            ТВОРЕЦЬ ДОЛІ: СТВОРЕННЯ ПЕРСОНАЖА
+          </h1>
+          <p className="text-xs text-[#9CA3AF]">
+            Опишіть свого героя у вільній формі. Штучний інтелект допоможе викувати характер, походження та здібності.
+          </p>
+        </div>
+
+        <Button
+          variant="secondary"
+          onClick={handleCancel}
+          className="text-xs px-3 py-1.5 text-[#9CA3AF] hover:text-[#EF4444] hover:bg-[#201014] border-[#333333] hover:border-[#7E0018] cursor-pointer transition-colors"
+        >
+          ✕ Скасувати
+        </Button>
+      </div>
+
+      {/* 2. Центральна частина: Спліт Прев'ю ліворуч (340px) + Чат праворуч (flex-1) */}
+      <div className="flex-1 flex gap-4 min-h-0 overflow-hidden">
+        <LivePreview />
+        <WizardChat />
+      </div>
+    </div>
+  );
+};

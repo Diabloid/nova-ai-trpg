@@ -6,7 +6,7 @@ export interface ChatMessage {
   text: string;
   senderColor?: string;
   timeText?: string;
-  isPlayer: boolean;
+  isPlayer?: boolean;
   role?: 'player' | 'narrator' | 'system';
   isSystem?: boolean;
   canRollback?: boolean;
@@ -47,5 +47,9 @@ export interface CharacterWizardDraft {
   raceTraits: string;
   biography: string;
   overallHealth: string;
+  injuries: Array<any>;
+  abilities: Array<any>;
+  equipment: Array<any>;
+  customBlocks: Record<string, any>;
   rawState?: PlayerState | null;
 }

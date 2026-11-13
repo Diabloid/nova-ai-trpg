@@ -4,27 +4,30 @@ import { HeaderStatusBar } from './components/character-drawer/HeaderStatusBar';
 import { DrawerSheet } from './components/character-drawer/DrawerSheet';
 import { ChatContainer } from './components/chat/ChatContainer';
 import { ChatInput } from './components/input/ChatInput';
-import { Modal } from './components/ui/Modal';
-import { Button } from './components/ui/Button';
-import { Input } from './components/ui/Input';
+import { WizardScreen } from './components/wizard/WizardScreen';
+import { EditHeroModal } from './components/modals/EditHeroModal';
+import { NewCampaignModal } from './components/modals/NewCampaignModal';
+import { ConfirmModal } from './components/modals/ConfirmModal';
 import { useGameStore } from './store/useGameStore';
 import type { CharacterSummary, CampaignSummary } from './types/api';
 
 export const App: React.FC = () => {
   const {
     loadCharacters,
-    createCampaign,
     deleteCampaign,
     deleteCharacter,
+    openWizard,
     setSystemAlert,
   } = useGameStore();
 
   // Стан модальних вікон
   const [isNewCampaignModalOpen, setIsNewCampaignModalOpen] = useState(false);
-  const [newCampaignTitle, setNewCampaignTitle] = useState('');
+  const [isEditHeroModalOpen, setIsEditHeroModalOpen] = useState(false);
+  const [editingCharId, setEditingCharId] = useState<string | null>(null);
 
   const [campaignToDelete, setCampaignToDelete] = useState<CampaignSummary | null>(null);
   const [characterToDelete, setCharacterToDelete] = useState<CharacterSummary | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Завантаження персонажів на старті
   useEffect(() => {
@@ -33,50 +36,51 @@ export const App: React.FC = () => {
     });
   }, [loadCharacters]);
 
-  // Створення нової кампанії
-  const handleCreateCampaign = async () => {
-    const title = newCampaignTitle.trim();
-    setIsNewCampaignModalOpen(false);
-    setNewCampaignTitle('');
-    try {
-      await createCampaign(title || undefined);
-    } catch (err: any) {
-      setSystemAlert(`Помилка створення кампанії: ${err.message}`, 'error');
-    }
+  // Редагування героя
+  const handleEditCharacter = (char: CharacterSummary) => {
+    setEditingCharId(char.char_id);
+    setIsEditHeroModalOpen(true);
   };
 
   // Видалення кампанії
   const handleConfirmDeleteCampaign = async () => {
-    if (!campaignToDelete) return;
+    if (!campaignToDelete || isDeleting) return;
     const campId = campaignToDelete.campaign_id;
-    setCampaignToDelete(null);
     try {
+      setIsDeleting(true);
       await deleteCampaign(campId);
+      setCampaignToDelete(null);
+      setSystemAlert('Кампанію успішно видалено', 'info');
     } catch (err: any) {
       setSystemAlert(`Помилка видалення кампанії: ${err.message}`, 'error');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
   // Видалення персонажа
   const handleConfirmDeleteCharacter = async () => {
-    if (!characterToDelete) return;
+    if (!characterToDelete || isDeleting) return;
     const charId = characterToDelete.char_id;
-    setCharacterToDelete(null);
     try {
+      setIsDeleting(true);
       await deleteCharacter(charId);
+      setCharacterToDelete(null);
+      setSystemAlert('Персонажа успішно видалено', 'info');
     } catch (err: any) {
       setSystemAlert(`Помилка видалення героя: ${err.message}`, 'error');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
   return (
     <AppLayout
-      onOpenWizard={() => {
-        setSystemAlert('Візард Творця Долі заплановано на Фазу 4', 'info');
-      }}
+      onOpenWizard={openWizard}
+      onEditCharacter={handleEditCharacter}
+      onRequestDeleteCharacter={(char) => setCharacterToDelete(char)}
       onNewCampaign={() => setIsNewCampaignModalOpen(true)}
       onRequestDeleteCampaign={(camp) => setCampaignToDelete(camp)}
-      onRequestDeleteCharacter={(char) => setCharacterToDelete(char)}
       onOpenSettings={() => {
         setSystemAlert('Налаштування клієнта активні', 'info');
       }}
@@ -103,98 +107,48 @@ export const App: React.FC = () => {
         </div>
       </div>
 
-      {/* Модальне вікно: Створення нової кампанії */}
-      <Modal
+      {/* 2. ПОВНОЕКРАННИЙ ВІЗАРД ТВОРЦЯ ДОЛІ */}
+      <WizardScreen />
+
+      {/* 3. МОДАЛЬНЕ ВІКНО: ШВИДКЕ РЕДАГУВАННЯ ГЕРОЯ */}
+      <EditHeroModal
+        isOpen={isEditHeroModalOpen}
+        onClose={() => {
+          setIsEditHeroModalOpen(false);
+          setEditingCharId(null);
+        }}
+        charId={editingCharId}
+      />
+
+      {/* 4. МОДАЛЬНЕ ВІКНО: СТВОРЕННЯ НОВОЇ КАМПАНІЇ */}
+      <NewCampaignModal
         isOpen={isNewCampaignModalOpen}
         onClose={() => setIsNewCampaignModalOpen(false)}
-        title="НОВА КАМПАНІЯ"
-        description="Введіть назву для нової пригоди обраного героя."
-        footer={
-          <>
-            <Button
-              variant="ghost"
-              onClick={() => setIsNewCampaignModalOpen(false)}
-            >
-              Скасувати
-            </Button>
-            <Button
-              variant="primary"
-              onClick={handleCreateCampaign}
-            >
-              Створити
-            </Button>
-          </>
-        }
-      >
-        <div className="flex flex-col gap-2 pt-2">
-          <label className="text-xs text-[#9CA3AF]">Назва кампанії:</label>
-          <Input
-            value={newCampaignTitle}
-            onChange={(e) => setNewCampaignTitle(e.target.value)}
-            placeholder="Наприклад: Похід на Північні пагорби"
-            autoFocus
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') handleCreateCampaign();
-            }}
-          />
-        </div>
-      </Modal>
+      />
 
-      {/* Модальне вікно: Підтвердження видалення кампанії (безпечна смарагдова кнопка «Ні») */}
-      <Modal
+      {/* 5. УНІВЕРСАЛЬНЕ МОДАЛЬНЕ ВІКНО: ПІДТВЕРДЖЕННЯ ВИДАЛЕННЯ КАМПАНІЇ */}
+      <ConfirmModal
         isOpen={!!campaignToDelete}
         onClose={() => setCampaignToDelete(null)}
-        title="ВИДАЛИТИ КАМПАНІЮ?"
-        description={`Ви впевнені, що бажаєте безповоротно видалити кампанію «${campaignToDelete?.title}»?`}
-        footer={
-          <>
-            <Button
-              variant="emerald"
-              onClick={() => setCampaignToDelete(null)}
-            >
-              Ні, залишити
-            </Button>
-            <Button
-              variant="danger"
-              onClick={handleConfirmDeleteCampaign}
-            >
-              Видалити
-            </Button>
-          </>
-        }
-      >
-        <div className="p-3 bg-[#7E0018]/10 border border-[#7E0018]/30 rounded-lg text-xs text-[#E5E7EB]">
-          Увесь збережений прогрес та історія чату цієї кампанії будуть втрачені.
-        </div>
-      </Modal>
+        onConfirm={handleConfirmDeleteCampaign}
+        title="Видалити кампанію?"
+        message={`Ви впевнені, що бажаєте безповоротно видалити кампанію «${campaignToDelete?.title}»? Увесь збережений прогрес та історія чату цієї кампанії будуть втрачені.`}
+        confirmText="Так, видалити"
+        cancelText="Ні, залишити"
+        isLoading={isDeleting}
+      />
 
-      {/* Модальне вікно: Підтвердження видалення персонажа */}
-      <Modal
+      {/* 6. УНІВЕРСАЛЬНЕ МОДАЛЬНЕ ВІКНО: ПІДТВЕРДЖЕННЯ ВИДАЛЕННЯ ПЕРСОНАЖА */}
+      <ConfirmModal
         isOpen={!!characterToDelete}
         onClose={() => setCharacterToDelete(null)}
-        title="ВИДАЛИТИ ПЕРСОНАЖА?"
-        description={`Ви впевнені, що бажаєте видалити персонажа «${characterToDelete?.name}»?`}
-        footer={
-          <>
-            <Button
-              variant="emerald"
-              onClick={() => setCharacterToDelete(null)}
-            >
-              Ні, скасувати
-            </Button>
-            <Button
-              variant="danger"
-              onClick={handleConfirmDeleteCharacter}
-            >
-              Видалити
-            </Button>
-          </>
-        }
-      >
-        <div className="p-3 bg-[#7E0018]/10 border border-[#7E0018]/30 rounded-lg text-xs text-[#E5E7EB]">
-          Разом із персонажем будуть видалені всі його пов'язані кампанії та збереження.
-        </div>
-      </Modal>
+        onConfirm={handleConfirmDeleteCharacter}
+        title="Видалити персонажа?"
+        message={`Ви впевнені, що бажаєте видалити героя «${characterToDelete?.name}» та всі пов'язані з ним кампанії?`}
+        confirmText="Так, видалити"
+        cancelText="Ні, залишити"
+        isLoading={isDeleting}
+      />
     </AppLayout>
   );
 };

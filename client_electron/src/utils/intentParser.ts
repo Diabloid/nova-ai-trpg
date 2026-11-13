@@ -1,9 +1,9 @@
 import type { IntentItem } from '../types/api';
 
 const ACTION_REGEX = /(?<!\\)\*\*(?![\u200B])(.*?)(?<!\\)\*\*/g;
-const THOUGHT_REGEX = /(?<!\\)\"(?![\u200B])(.*?)(?<!\\)\"/g;
+const THOUGHT_REGEX = /(?<!\\)"(?![\u200B])(.*?)(?<!\\)"/g;
 const OOC_REGEX = /(?<!\\)\((?![\u200B])(.*?)(?<!\\)\)/g;
-const SPEECH_REGEX = /(?<!\\)[\-\u2013\u2014](?![\u200B])(.*)$/gm;
+const SPEECH_REGEX = /(?<!\\)[-\u2013\u2014](?![\u200B])(.*)$/gm;
 
 /**
  * Парсер намірів гравця (конвенція Default Action v1.5.2)
