@@ -10,6 +10,7 @@ import { charactersApi } from '../api/charactersApi';
 import { campaignsApi } from '../api/campaignsApi';
 import { gameApi } from '../api/gameApi';
 import { parseIntents, cleanDisplayAction } from '../utils/intentParser';
+import { sanitizeStory } from '../utils/textSanitizer';
 
 export interface GameState {
   // --- Сутності ---
@@ -191,6 +192,18 @@ function updateDraftFromPlayerState(prev: CharacterWizardDraft, state: PlayerSta
   };
 }
 
+function loadInitialExpandedContainers(): Record<string, boolean> {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      const raw = localStorage.getItem('nova_expanded_containers');
+      if (raw) return JSON.parse(raw);
+    }
+  } catch {
+    // fallback
+  }
+  return {};
+}
+
 export const useGameStore = create<GameState>((set, get) => ({
   characters: [],
   activeCharacterId: null,
@@ -212,7 +225,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   isSidebarOpen: false,
   isHeroSelectorOpen: false,
   activeDrawerTab: 'injuries',
-  expandedContainers: {},
+  expandedContainers: loadInitialExpandedContainers(),
 
   systemAlert: null,
 
@@ -233,10 +246,15 @@ export const useGameStore = create<GameState>((set, get) => ({
       const chars = await charactersApi.getCharacters();
       set({ characters: chars });
 
-      // Якщо є персонажі, але жоден не обраний — обираємо першого
+      // Якщо є збережений останній ID героя в localStorage або беремо першого
       const { activeCharacterId } = get();
+      const lastCharId = typeof localStorage !== 'undefined' ? localStorage.getItem('nova_last_char_id') : null;
+      const targetChar =
+        (lastCharId && chars.find((c) => c.char_id === lastCharId)) ||
+        chars[0];
+
       if (chars.length > 0 && (!activeCharacterId || !chars.some((c) => c.char_id === activeCharacterId))) {
-        await get().selectCharacter(chars[0].char_id);
+        await get().selectCharacter(targetChar.char_id);
       }
     } catch (err: any) {
       get().setSystemAlert(`Помилка завантаження персонажів: ${err.message}`, 'error');
@@ -248,6 +266,9 @@ export const useGameStore = create<GameState>((set, get) => ({
   // --- ВИБІР ПЕРСОНАЖА ---
   selectCharacter: async (charId: string) => {
     try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('nova_last_char_id', charId);
+      }
       set({ isLoading: true, activeCharacterId: charId, isHeroSelectorOpen: false });
       const [charDetails] = await Promise.all([
         charactersApi.getCharacter(charId),
@@ -273,8 +294,13 @@ export const useGameStore = create<GameState>((set, get) => ({
 
       set({ campaigns: sorted });
 
+      const lastCampId = typeof localStorage !== 'undefined' ? localStorage.getItem('nova_last_camp_id') : null;
+      const targetCamp =
+        (lastCampId && sorted.find((c) => c.campaign_id === lastCampId)) ||
+        sorted[0];
+
       if (autoSelectFirst && sorted.length > 0) {
-        await get().selectCampaign(sorted[0].campaign_id);
+        await get().selectCampaign(targetCamp.campaign_id);
       } else if (sorted.length === 0) {
         set({
           activeCampaignId: null,
@@ -291,6 +317,9 @@ export const useGameStore = create<GameState>((set, get) => ({
   // --- ВИБІР КАМПАНІЇ ---
   selectCampaign: async (campaignId: string) => {
     try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('nova_last_camp_id', campaignId);
+      }
       set({ isLoading: true, activeCampaignId: campaignId });
       const currentCamp = get().campaigns.find((c) => c.campaign_id === campaignId) || null;
       set({ activeCampaign: currentCamp });
@@ -320,7 +349,7 @@ export const useGameStore = create<GameState>((set, get) => ({
           return {
             id: `msg-${index}-${Date.now()}`,
             sender: isPlayer ? 'Ти:' : 'Оповідач:',
-            text: isPlayer ? cleanDisplayAction(msg.text) : msg.text,
+            text: isPlayer ? cleanDisplayAction(msg.text) : sanitizeStory(msg.text),
             senderColor: isPlayer ? '#60A5FA' : '#EAB308',
             timeText: timeStr,
             isPlayer,
@@ -498,7 +527,7 @@ export const useGameStore = create<GameState>((set, get) => ({
           m.id === narratorMsgId
             ? {
                 ...m,
-                text: result.story || m.text,
+                text: sanitizeStory(result.story || m.text),
                 isStreaming: false,
                 canRollback: true,
               }
@@ -579,12 +608,20 @@ export const useGameStore = create<GameState>((set, get) => ({
   setActiveDrawerTab: (tab: DrawerTab) => set({ activeDrawerTab: tab }),
 
   toggleContainerExpanded: (containerName: string) =>
-    set((state) => ({
-      expandedContainers: {
+    set((state) => {
+      const nextExpanded = {
         ...state.expandedContainers,
         [containerName]: !state.expandedContainers[containerName],
-      },
-    })),
+      };
+      try {
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem('nova_expanded_containers', JSON.stringify(nextExpanded));
+        }
+      } catch {
+        // ignore
+      }
+      return { expandedContainers: nextExpanded };
+    }),
 
   setUserInput: (text: string) => set({ userInput: text }),
 

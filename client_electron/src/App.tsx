@@ -82,10 +82,10 @@ export const App: React.FC = () => {
       onNewCampaign={() => setIsNewCampaignModalOpen(true)}
       onRequestDeleteCampaign={(camp) => setCampaignToDelete(camp)}
       onOpenSettings={() => {
-        setSystemAlert('Налаштування клієнта активні', 'info');
+        setSystemAlert('⚙️ Меню налаштувань у розробці.', 'info');
       }}
       onLogout={() => {
-        setSystemAlert('Сесію завершено', 'info');
+        setSystemAlert('🚪 Вихід з акаунту здійснено. Дані сесії скинуто.', 'info');
       }}
     >
       {/* 1. ІГРОВИЙ ЕКРАН 1-в-1 з Avalonia Grid Margin="42,40,24,24" */}

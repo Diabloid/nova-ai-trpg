@@ -1,16 +1,18 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useGameStore } from '../../store/useGameStore';
 import { LivePreview } from './LivePreview';
 import { WizardChat } from './WizardChat';
 import { Button } from '../ui/Button';
+import { ConfirmModal } from '../modals/ConfirmModal';
 
 export const WizardScreen: React.FC = () => {
   const { isWizardOpen, closeWizard, wizardMessages, wizardDraft, wizardInput } = useGameStore();
+  const [isConfirmCancelOpen, setIsConfirmCancelOpen] = useState(false);
 
   if (!isWizardOpen) return null;
 
   const handleCancel = () => {
-    // Якщо користувач вже щось написав або є історія діалогу — підтвердження
+    // Якщо користувач вже щось написав або є історія діалогу — відкриваємо фірмову модалку
     const hasUnsavedProgress =
       wizardMessages.length > 1 ||
       !!wizardDraft.charName ||
@@ -18,9 +20,7 @@ export const WizardScreen: React.FC = () => {
       !!wizardInput.trim();
 
     if (hasUnsavedProgress) {
-      if (window.confirm('Ви впевнені, що хочете перервати створення персонажа? Увесь прогрес чернетки буде втрачено.')) {
-        closeWizard();
-      }
+      setIsConfirmCancelOpen(true);
     } else {
       closeWizard();
     }
@@ -53,6 +53,20 @@ export const WizardScreen: React.FC = () => {
         <LivePreview />
         <WizardChat />
       </div>
+
+      {/* 3. Фірмове модальне вікно підтвердження скасування створення */}
+      <ConfirmModal
+        isOpen={isConfirmCancelOpen}
+        onClose={() => setIsConfirmCancelOpen(false)}
+        onConfirm={() => {
+          setIsConfirmCancelOpen(false);
+          closeWizard();
+        }}
+        title="ПЕРЕРВАТИ СТВОРЕННЯ?"
+        message="Ви впевнені, що бажаєте перервати створення персонажа? Увесь прогрес чернетки буде втрачено."
+        confirmText="Так, вийти"
+        cancelText="Ні, продовжити"
+      />
     </div>
   );
 };
