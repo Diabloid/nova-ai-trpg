@@ -1,6 +1,7 @@
 import type { StateCreator } from 'zustand';
 import type { HistoryMessage, PlayerState } from '../../types/api';
 import type { ChatMessage } from '../../types/game';
+import { ApiError } from '../../api/client';
 import { charactersApi } from '../../api/charactersApi';
 import { campaignsApi } from '../../api/campaignsApi';
 import { cleanDisplayAction } from '../../utils/intentParser';
@@ -22,7 +23,20 @@ export const createEntitySlice: StateCreator<GameState, [], [], EntitySlice> = (
     try {
       set({ isLoading: true });
       const chars = await charactersApi.getCharacters();
-      set({ characters: chars });
+      set({ characters: chars, backendOffline: false });
+
+      if (chars.length === 0) {
+        set({
+          activeCharacterId: null,
+          activeCharacter: null,
+          campaigns: [],
+          activeCampaignId: null,
+          activeCampaign: null,
+          playerState: null,
+          messages: [],
+        });
+        return;
+      }
 
       // Якщо є збережений останній ID героя в localStorage або беремо першого
       const { activeCharacterId } = get();
@@ -30,14 +44,16 @@ export const createEntitySlice: StateCreator<GameState, [], [], EntitySlice> = (
         typeof localStorage !== 'undefined' ? localStorage.getItem('nova_last_char_id') : null;
       const targetChar = (lastCharId && chars.find((c) => c.char_id === lastCharId)) || chars[0];
 
-      if (
-        chars.length > 0 &&
-        (!activeCharacterId || !chars.some((c) => c.char_id === activeCharacterId))
-      ) {
+      if (!activeCharacterId || !chars.some((c) => c.char_id === activeCharacterId)) {
         await get().selectCharacter(targetChar.char_id);
       }
-    } catch (err: any) {
-      get().setSystemAlert(`Помилка завантаження персонажів: ${err.message}`, 'error');
+    } catch (err: unknown) {
+      const isNetworkFailure = !(err instanceof ApiError) || err.status === 0;
+      if (isNetworkFailure) {
+        set({ backendOffline: true });
+      }
+      const message = err instanceof Error ? err.message : 'Невідома помилка';
+      get().setSystemAlert(`Помилка завантаження персонажів: ${message}`, 'error');
     } finally {
       set({ isLoading: false });
     }

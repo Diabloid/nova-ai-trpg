@@ -1,16 +1,21 @@
 import type { PlayerState } from './api';
+import type { SyntaxSelectionRange } from '../utils/novaSyntax';
 
 export interface ChatMessage {
   id: string;
-  sender: 'Ти:' | 'Оповідач:' | 'Система:' | 'Творець Долі:' | string;
+  sender: 'Ти:' | 'Оповідач:' | 'Творець Долі:' | string;
   text: string;
   senderColor?: string;
   timeText?: string;
   isPlayer?: boolean;
   role?: 'player' | 'narrator' | 'system';
-  isSystem?: boolean;
   canRollback?: boolean;
   isStreaming?: boolean;
+  isFailed?: boolean;
+  retryPayload?: {
+    rawText: string;
+    suppressedSpans: SyntaxSelectionRange[];
+  };
   createdAt?: string;
 }
 

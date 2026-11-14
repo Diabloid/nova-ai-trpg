@@ -100,7 +100,7 @@ export const App: React.FC = () => {
 
         {/* ЛОГ ПОВІДОМЛЕНЬ + ІНДИКАТОР: Border.chatContainer (Row="1") */}
         <div className="flex-1 overflow-hidden flex flex-col min-h-0">
-          <ChatContainer />
+          <ChatContainer onNewCampaign={() => setIsNewCampaignModalOpen(true)} />
         </div>
 
         {/* ПОЛЕ ВВОДУ ТА ЕЛЕМЕНТИ (Row="2" Margin="0,16,0,0") */}

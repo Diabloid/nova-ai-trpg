@@ -1,7 +1,7 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { useGameStore } from '../../store/useGameStore';
 import { useWizardStore } from '../../store/useWizardStore';
-import { gameApi } from '../../api/gameApi';
+import { useVoiceRecorder } from '../../hooks/useVoiceRecorder';
 import { SendOrMicButton } from '../input/SendOrMicButton';
 import { VoiceBanner } from '../input/VoiceBanner';
 
@@ -16,15 +16,32 @@ export const WizardChat: React.FC = () => {
   } = useWizardStore();
   const setSystemAlert = useGameStore((s) => s.setSystemAlert);
 
-  const [isRecording, setIsRecording] = useState(false);
-  const [isTranscribing, setIsTranscribing] = useState(false);
   const [isInputOverflowing, setIsInputOverflowing] = useState(false);
-  const [animatedDots, setAnimatedDots] = useState('');
+  const [animatedDots, setAnimatedDots] = useState('.');
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
+
+  const handleTranscribed = useCallback(
+    (text: string) => {
+      const currentInput = useWizardStore.getState().wizardInput;
+      setWizardInput(currentInput ? `${currentInput} ${text}` : text);
+    },
+    [setWizardInput]
+  );
+
+  const handleVoiceError = useCallback(
+    (message: string) => {
+      setSystemAlert(message, 'error');
+    },
+    [setSystemAlert]
+  );
+
+  const { isRecording, isTranscribing, startRecording, stopRecording } = useVoiceRecorder({
+    filename: 'wizard_recording.webm',
+    onTranscribed: handleTranscribed,
+    onError: handleVoiceError,
+  });
 
   // Автоскрол донизу при зміні повідомлень або друку
   useEffect(() => {
@@ -36,10 +53,8 @@ export const WizardChat: React.FC = () => {
   // Анімація точок статусу ШІ (...)
   useEffect(() => {
     if (!isWizardTyping) return;
-    let count = 0;
     const interval = setInterval(() => {
-      count = (count + 1) % 4;
-      setAnimatedDots('.'.repeat(count));
+      setAnimatedDots((prev) => (prev.length >= 3 ? '.' : prev + '.'));
     }, 400);
     return () => clearInterval(interval);
   }, [isWizardTyping]);
@@ -67,59 +82,6 @@ export const WizardChat: React.FC = () => {
     }
   };
 
-  // Робота з аудіозаписом (Web MediaRecorder + Whisper)
-  const startRecording = async () => {
-    try {
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        setSystemAlert('Аудіозапис не підтримується у цьому середовищі', 'error');
-        return;
-      }
-
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      audioChunksRef.current = [];
-
-      const recorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = recorder;
-
-      recorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
-        }
-      };
-
-      recorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, {
-          type: recorder.mimeType || 'audio/webm',
-        });
-        stream.getTracks().forEach((track) => track.stop());
-
-        setIsTranscribing(true);
-        try {
-          const text = await gameApi.transcribeAudio(audioBlob, 'wizard_recording.webm');
-          if (text) {
-            setWizardInput(wizardInput ? `${wizardInput} ${text}` : text);
-          }
-        } catch (err: any) {
-          setSystemAlert(`Помилка розпізнавання: ${err.message}`, 'error');
-        } finally {
-          setIsTranscribing(false);
-        }
-      };
-
-      recorder.start();
-      setIsRecording(true);
-    } catch (err: any) {
-      setSystemAlert(`Не вдалося отримати доступ до мікрофона: ${err.message}`, 'error');
-    }
-  };
-
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-    }
-  };
-
   const handleSendOrRecordClick = () => {
     if (isRecording) {
       stopRecording();
@@ -142,7 +104,6 @@ export const WizardChat: React.FC = () => {
       >
         {wizardMessages.map((msg) => {
           const isPlayer = msg.isPlayer || msg.sender === 'Ти:';
-          const isSystem = msg.isSystem || msg.sender.includes('Система');
           const senderColor = msg.senderColor || (isPlayer ? '#60A5FA' : '#C084FC');
 
           return (
@@ -168,9 +129,7 @@ export const WizardChat: React.FC = () => {
               <div
                 data-context-copy={msg.text}
                 className={`rounded-xl px-4 py-3 text-sm leading-relaxed max-w-[85%] border shadow-sm ${
-                  isSystem
-                    ? 'bg-[#220D12] border-[#5A141E] text-[#FCA5A5]'
-                    : isPlayer
+                  isPlayer
                     ? 'bg-[#18202F] border-[#253248] text-[#F3F4F6]'
                     : 'bg-[#161616] border-[#2A2A2A] text-[#E5E7EB]'
                 }`}
@@ -184,9 +143,9 @@ export const WizardChat: React.FC = () => {
 
         {/* Пульсуючий індикатор роздумів ШІ */}
         {isWizardTyping && (
-          <div className="flex items-center gap-1.5 text-xs text-[#C084FC] italic pt-1 animate-pulse">
-            <span>{wizardStatusText || 'Творець Долі розмірковує'}</span>
-            <span className="w-5 inline-block font-mono">{animatedDots}</span>
+          <div className="text-xs text-[#C084FC] italic pt-1 animate-pulse">
+            <span>{(wizardStatusText || 'Творець Долі розмірковує').replace(/[.…]+$/, '').trim()}</span>
+            <span className="w-4 inline-block text-left">{animatedDots}</span>
           </div>
         )}
       </div>

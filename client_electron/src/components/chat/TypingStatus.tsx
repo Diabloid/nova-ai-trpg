@@ -1,35 +1,42 @@
 import React, { useState, useEffect } from 'react';
 import { useGameStore } from '../../store/useGameStore';
 
-export const TypingStatus: React.FC = () => {
-  const { isLoading, isStreaming, statusText } = useGameStore();
-  const [dots, setDots] = useState('');
+interface TypingStatusProps {
+  hasText?: boolean;
+}
+
+export const TypingStatus: React.FC<TypingStatusProps> = ({ hasText = false }) => {
+  const { isStreaming, statusText } = useGameStore();
+  const [dots, setDots] = useState('.');
 
   useEffect(() => {
-    if (!isLoading && !isStreaming) return;
+    if (!isStreaming) return;
 
     const interval = setInterval(() => {
-      setDots((prev) => (prev.length >= 3 ? '' : prev + '.'));
+      setDots((prev) => (prev.length >= 3 ? '.' : prev + '.'));
     }, 400);
 
     return () => clearInterval(interval);
-  }, [isLoading, isStreaming]);
+  }, [isStreaming]);
 
-  if (!isLoading && !isStreaming) return null;
+  if (!isStreaming) return null;
 
-  const currentText = statusText || (isStreaming ? 'Створює оповідь...' : 'Розмірковує над дією');
+  // Знімаємо завершальні крапки з рядка статусу, щоб анімовані крапки не накладалися
+  const rawStatus = statusText || 'Створює оповідь';
+  const cleanStatus = rawStatus.replace(/[.…]+$/, '').trim() || 'Створює оповідь';
+  const displayStatus =
+    hasText && cleanStatus === 'Розмірковує над дією'
+      ? 'Створює оповідь'
+      : cleanStatus;
 
   return (
-    <div className="flex flex-col gap-1 py-2 px-1 animate-fade-in select-none">
-      <span className="text-sm font-bold text-[#EAB308]">
-        Оповідач:
-      </span>
-      <div className="flex items-center gap-1 text-sm italic text-[#9CA3AF] animate-pulse">
-        <span>{currentText}</span>
-        <span className="inline-block w-6 font-mono font-bold text-[#EAB308]">
-          {dots}
-        </span>
-      </div>
+    <div
+      className={`italic text-[#9CA3AF] animate-pulse select-none ${
+        hasText ? 'mt-2 text-xs' : 'text-[14px] leading-[24px]'
+      }`}
+    >
+      <span>{displayStatus}</span>
+      <span className="inline-block w-4 text-left">{dots}</span>
     </div>
   );
 };

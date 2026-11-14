@@ -30,6 +30,7 @@ export const ChatInput: React.FC = () => {
     suppressedSpans,
     setSuppressedSpans,
     sendPlayerAction,
+    activeCampaignId,
     isLoading,
     isStreaming,
     setSystemAlert,
@@ -69,7 +70,10 @@ export const ChatInput: React.FC = () => {
   });
 
   const hasText = userInput.trim().length > 0;
-  const isInputDisabled = isLoading || isStreaming || isTranscribing;
+  const isInputDisabled = isLoading || isStreaming || isTranscribing || !activeCampaignId;
+  const placeholderText = !activeCampaignId
+    ? 'Створіть або оберіть кампанію, щоб розпочати гру...'
+    : 'Введіть дію, думку або фразу...';
 
   const recalculateLayout = useCallback(() => {
     const el = editorRef.current;
@@ -174,6 +178,10 @@ export const ChatInput: React.FC = () => {
   };
 
   const handleSend = () => {
+    if (!activeCampaignId) {
+      setSystemAlert('Спочатку оберіть або створіть кампанію', 'info');
+      return;
+    }
     const cleanText = stripZeroWidth(userInput);
     if (!cleanText.trim() || isLoading || isStreaming) return;
     // sendPlayerAction сам зчитує suppressedSpans перед очищенням інпуту
@@ -267,7 +275,7 @@ export const ChatInput: React.FC = () => {
                 aria-hidden="true"
                 className="pointer-events-none select-none absolute inset-0 text-[15px] leading-[24px] font-sans text-[#555555] italic truncate"
               >
-                Введіть дію, думку або фразу...
+                {placeholderText}
               </span>
             )}
 
@@ -275,7 +283,7 @@ export const ChatInput: React.FC = () => {
               ref={editorRef}
               role="textbox"
               aria-multiline="true"
-              aria-label="Введіть дію, думку або фразу..."
+              aria-label={placeholderText}
               contentEditable={!isInputDisabled}
               suppressContentEditableWarning
               spellCheck={false}

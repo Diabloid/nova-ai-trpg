@@ -20,15 +20,16 @@ interface AlertCountdownProps {
   expiresAt: number;
 }
 
+const calcSecondsLeft = (expiresAt: number) =>
+  Math.max(1, Math.min(5, Math.ceil((expiresAt - Date.now()) / 1000)));
+
 const AlertCountdown: React.FC<AlertCountdownProps> = ({ expiresAt }) => {
-  const [secondsLeft, setSecondsLeft] = useState(11);
+  const [secondsLeft, setSecondsLeft] = useState(() => calcSecondsLeft(expiresAt));
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setSecondsLeft(
-        Math.max(1, Math.min(11, Math.ceil((expiresAt - Date.now()) / 1000)))
-      );
-    }, 1000);
+      setSecondsLeft(calcSecondsLeft(expiresAt));
+    }, 250);
 
     return () => clearInterval(interval);
   }, [expiresAt]);
@@ -57,11 +58,11 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
       {/* 1. Custom Frameless TitleBar */}
       <TitleBar />
 
-      {/* 2. Ephemeral System Alert (автозникнення за 11с) */}
+      {/* 2. Ephemeral System Alert (автозникнення за 5с, поверх модальних екранів) */}
       {systemAlert && (
         <div
           key={systemAlert.id}
-          className="w-full bg-[#7E0018]/90 border-b border-[#EF4444]/40 px-4 py-1.5 flex items-center justify-between text-xs text-[#E5E7EB] z-50 animate-fade-in"
+          className="relative w-full bg-[#7E0018]/95 backdrop-blur-sm border-b border-[#EF4444]/40 px-4 py-1.5 flex items-center justify-between text-xs text-[#E5E7EB] z-50 animate-fade-in"
         >
           <div className="flex items-center gap-2">
             <Bell size={13} className="text-[#EF4444] animate-pulse" />

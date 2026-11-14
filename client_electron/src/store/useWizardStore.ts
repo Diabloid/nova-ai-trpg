@@ -239,7 +239,7 @@ export const useWizardStore = create<WizardState>((set, get) => ({
       wizardInput: '',
       isWizardThinking: true,
       isWizardTyping: true,
-      wizardStatusText: 'Творець Долі розмірковує...',
+      wizardStatusText: 'Творець Долі розмірковує',
       wizardMessages: [...state.wizardMessages, userMsg],
     }));
 
@@ -249,12 +249,10 @@ export const useWizardStore = create<WizardState>((set, get) => ({
     wizardAbortController = new AbortController();
 
     try {
-      const history = get().wizardMessages
-        .filter((m) => !m.isSystem)
-        .map((m) => ({
-          role: m.sender.includes('Творець Долі') ? ('narrator' as const) : ('player' as const),
-          content: m.text,
-        }));
+      const history = get().wizardMessages.map((m) => ({
+        role: m.sender.includes('Творець Долі') ? ('narrator' as const) : ('player' as const),
+        content: m.text,
+      }));
 
       const resp = await charactersApi.characterDialog(
         {
@@ -300,18 +298,9 @@ export const useWizardStore = create<WizardState>((set, get) => ({
       });
     } catch (err: any) {
       if (err.name === 'AbortError') return;
-      const errorMsg: ChatMessage = {
-        id: `wizard-err-${Date.now()}`,
-        sender: 'Система:',
-        text: `⚠️ Помилка зв'язку з Творцем Долі: ${err.message}`,
-        senderColor: '#EF4444',
-        timeText: timeNow,
-        isSystem: true,
-        isPlayer: false,
-      };
-      set((state) => ({
-        wizardMessages: [...state.wizardMessages, errorMsg],
-      }));
+      useGameStore
+        .getState()
+        .setSystemAlert(`Помилка зв'язку з Творцем Долі: ${err.message}`, 'error');
     } finally {
       set({
         isWizardThinking: false,
@@ -354,18 +343,9 @@ export const useWizardStore = create<WizardState>((set, get) => ({
       }
     } catch (err: any) {
       if (err.name === 'AbortError') return;
-      const errorMsg: ChatMessage = {
-        id: `wizard-err-${Date.now()}`,
-        sender: 'Система:',
-        text: `⚠️ Помилка синхронізації драфту: ${err.message}`,
-        senderColor: '#EF4444',
-        timeText: formatSystemTime(),
-        isSystem: true,
-        isPlayer: false,
-      };
-      set((state) => ({
-        wizardMessages: [...state.wizardMessages, errorMsg],
-      }));
+      useGameStore
+        .getState()
+        .setSystemAlert(`Помилка синхронізації драфту: ${err.message}`, 'error');
     } finally {
       set({ isSyncingDraft: false });
     }
@@ -389,7 +369,6 @@ export const useWizardStore = create<WizardState>((set, get) => ({
 
     try {
       const summary = wizardMessages
-        .filter((m) => !m.isSystem)
         .map((m) => `${m.sender} ${m.text}`)
         .join('\n');
 
@@ -403,18 +382,12 @@ export const useWizardStore = create<WizardState>((set, get) => ({
       );
 
       if (!playerState || !playerState.meta) {
-        const errorMsg: ChatMessage = {
-          id: `wizard-err-${Date.now()}`,
-          sender: 'Система:',
-          text: '⚠️ ШІ тимчасово перевантажений або ліміт запитів вичерпано, зачекайте 15–20 секунд і спробуйте знову.',
-          senderColor: '#EF4444',
-          timeText: formatSystemTime(),
-          isSystem: true,
-          isPlayer: false,
-        };
-        set((state) => ({
-          wizardMessages: [...state.wizardMessages, errorMsg],
-        }));
+        useGameStore
+          .getState()
+          .setSystemAlert(
+            'ШІ тимчасово перевантажений або ліміт запитів вичерпано, зачекайте 15–20 секунд і спробуйте знову.',
+            'error'
+          );
         return;
       }
 
@@ -444,18 +417,9 @@ export const useWizardStore = create<WizardState>((set, get) => ({
       }
     } catch (err: any) {
       if (err.name === 'AbortError') return;
-      const errorMsg: ChatMessage = {
-        id: `wizard-err-${Date.now()}`,
-        sender: 'Система:',
-        text: `⚠️ Помилка створення героя: ${err.message}`,
-        senderColor: '#EF4444',
-        timeText: formatSystemTime(),
-        isSystem: true,
-        isPlayer: false,
-      };
-      set((state) => ({
-        wizardMessages: [...state.wizardMessages, errorMsg],
-      }));
+      useGameStore
+        .getState()
+        .setSystemAlert(`Помилка створення героя: ${err.message}`, 'error');
     } finally {
       set({
         isWizardThinking: false,

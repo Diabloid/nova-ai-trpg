@@ -9,6 +9,7 @@ import type { SyntaxSelectionRange } from '../../utils/novaSyntax';
 export interface UiSlice {
   isLoading: boolean;
   isStreaming: boolean;
+  backendOffline: boolean;
   statusText: string;
 
   isCharacterDrawerOpen: boolean;
@@ -21,6 +22,7 @@ export interface UiSlice {
 
   setSystemAlert: (message: string, type?: 'info' | 'error' | 'success') => void;
   clearSystemAlert: () => void;
+  setBackendOffline: (offline: boolean) => void;
 
   toggleCharacterDrawer: () => void;
   toggleSidebar: () => void;
@@ -56,6 +58,7 @@ export interface GameplaySlice {
   suppressedSpans: SyntaxSelectionRange[];
 
   sendPlayerAction: (rawText: string) => Promise<void>;
+  retryFailedAction: (messageId: string) => Promise<void>;
   rollbackLastTurn: () => Promise<void>;
 
   setUserInput: (text: string) => void;

@@ -5,9 +5,14 @@ import { stripZeroWidth } from '../utils/novaSyntax';
 interface UseVoiceRecorderOptions {
   onTranscribed: (text: string) => void;
   onError: (message: string) => void;
+  filename?: string;
 }
 
-export function useVoiceRecorder({ onTranscribed, onError }: UseVoiceRecorderOptions) {
+export function useVoiceRecorder({
+  onTranscribed,
+  onError,
+  filename = 'recording.webm',
+}: UseVoiceRecorderOptions) {
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
 
@@ -41,7 +46,7 @@ export function useVoiceRecorder({ onTranscribed, onError }: UseVoiceRecorderOpt
 
         setIsTranscribing(true);
         try {
-          const text = stripZeroWidth(await gameApi.transcribeAudio(audioBlob, 'recording.webm'));
+          const text = stripZeroWidth(await gameApi.transcribeAudio(audioBlob, filename));
           if (text) {
             onTranscribed(text);
           }
@@ -59,7 +64,7 @@ export function useVoiceRecorder({ onTranscribed, onError }: UseVoiceRecorderOpt
       const message = err instanceof Error ? err.message : 'Невідома помилка';
       onError(`Не вдалося отримати доступ до мікрофона: ${message}`);
     }
-  }, [onTranscribed, onError]);
+  }, [onTranscribed, onError, filename]);
 
   const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current && isRecording) {

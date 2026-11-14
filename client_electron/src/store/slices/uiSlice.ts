@@ -19,6 +19,7 @@ function loadInitialExpandedContainers(): Record<string, boolean> {
 export const createUiSlice: StateCreator<GameState, [], [], UiSlice> = (set) => ({
   isLoading: false,
   isStreaming: false,
+  backendOffline: false,
   statusText: '',
 
   isCharacterDrawerOpen: false,
@@ -29,8 +30,9 @@ export const createUiSlice: StateCreator<GameState, [], [], UiSlice> = (set) => 
 
   systemAlert: null,
 
-  // --- ЕФЕМЕРНІ СИСТЕМНІ ПОВІДОМЛЕННЯ (11 СЕКУНД) ---
+  // --- ЕФЕМЕРНІ СИСТЕМНІ ПОВІДОМЛЕННЯ (5 СЕКУНД) ---
   setSystemAlert: (message: string, type: 'info' | 'error' | 'success' = 'info') => {
+    const durationMs = 5000;
     if (alertTimer) {
       clearTimeout(alertTimer);
       alertTimer = null;
@@ -40,7 +42,7 @@ export const createUiSlice: StateCreator<GameState, [], [], UiSlice> = (set) => 
       id: `alert-${Date.now()}`,
       message,
       type,
-      expiresAt: Date.now() + 11000,
+      expiresAt: Date.now() + durationMs,
     };
 
     set({ systemAlert: alert });
@@ -48,7 +50,7 @@ export const createUiSlice: StateCreator<GameState, [], [], UiSlice> = (set) => 
     alertTimer = setTimeout(() => {
       set({ systemAlert: null });
       alertTimer = null;
-    }, 11000);
+    }, durationMs);
   },
 
   clearSystemAlert: () => {
@@ -58,6 +60,8 @@ export const createUiSlice: StateCreator<GameState, [], [], UiSlice> = (set) => 
     }
     set({ systemAlert: null });
   },
+
+  setBackendOffline: (offline: boolean) => set({ backendOffline: offline }),
 
   // --- UI TOGGLES ---
   toggleCharacterDrawer: () =>
