@@ -7,6 +7,7 @@ export interface NovaToken {
   text: string;
   start: number;
   end: number;
+  isSuppressed?: boolean;
 }
 
 export interface NovaSpan {
@@ -15,7 +16,7 @@ export interface NovaSpan {
   start: number;
   /** Повний кінець конструкції включно із закриваючим маркером */
   end: number;
-  /** Індекс одразу після відкриваючого маркера (для speech включає 1 пробіл після тире, якщо є) */
+  /** Індекс одразу після відкриваючого маркера */
   openEnd: number;
   /** Індекс початку закриваючого маркера (для speech дорівнює end) */
   closeStart: number;
@@ -26,22 +27,15 @@ export interface SyntaxSelectionRange {
   end: number;
 }
 
-export interface RemoveFormattingResult {
-  text: string;
-  selectionStart: number;
-  selectionEnd: number;
-  changed: boolean;
-}
-
 /**
- * Єдині CSS-класи підсвітки синтаксису (1-в-1 з SyntaxHelpTooltip).
- * Використовують справжні font-bold та italic — у contenteditable курсор
- * позиціонується безпосередньо по відрендерених гліфах без розсинхрону.
+ * Єдині CSS-класи підсвітки синтаксису (1-в-1 із SyntaxHelpTooltip).
+ * Для thought використовується клас `.nova-thought-italic` (synthetic oblique
+ * на базі звичайних гліфів без підміни форми кириличних букв).
  */
 export const NOVA_SYNTAX_CLASSES: Record<NovaTokenType, string> = {
   normal: '',
   action: 'font-bold text-[#EAB308]',
-  thought: 'italic text-[#60A5FA]',
+  thought: 'nova-thought-italic text-[#60A5FA]',
   speech: 'text-[#4ADE80] font-medium',
   ooc: 'text-[#9CA3AF]',
 };
@@ -63,6 +57,16 @@ function isOnlyHorizontalWhitespace(text: string, from: number, to: number): boo
     }
   }
   return true;
+}
+
+function isEscapedAt(text: string, index: number): boolean {
+  let backslashes = 0;
+  let pos = index - 1;
+  while (pos >= 0 && text[pos] === '\\') {
+    backslashes++;
+    pos--;
+  }
+  return backslashes % 2 === 1;
 }
 
 /** Видаляє будь-які Zero-Width Space (\u200B) */
@@ -87,16 +91,97 @@ export function unescapeNovaText(text: string): string {
   return result;
 }
 
-/** Перераховує індекс при вирізанні \u200B зі строки */
-function mapIndexWithoutZeroWidth(raw: string, rawIdx: number): number {
-  let cleanIdx = 0;
-  const limit = Math.min(Math.max(rawIdx, 0), raw.length);
-  for (let i = 0; i < limit; i++) {
-    if (raw[i] !== '\u200B') {
-      cleanIdx++;
+/** Нормалізує список приглушених діапазонів без злиття дотичних блоків */
+export function normalizeSuppressedSpans(
+  spans: readonly SyntaxSelectionRange[] | undefined,
+  textLength: number
+): SyntaxSelectionRange[] {
+  if (!spans || spans.length === 0 || textLength <= 0) return [];
+
+  const clamped = spans
+    .map((s) => ({
+      start: Math.max(0, Math.min(textLength, s.start)),
+      end: Math.max(0, Math.min(textLength, s.end)),
+    }))
+    .filter((s) => s.end > s.start)
+    .sort((a, b) => (a.start !== b.start ? a.start - b.start : b.end - a.end));
+
+  const deduped: SyntaxSelectionRange[] = [];
+  for (const s of clamped) {
+    const prev = deduped[deduped.length - 1];
+    if (prev && prev.start === s.start && prev.end === s.end) {
+      continue;
+    }
+    deduped.push(s);
+  }
+  return deduped;
+}
+
+function isSpanSuppressed(
+  start: number,
+  end: number,
+  suppressedSpans: readonly SyntaxSelectionRange[]
+): boolean {
+  return suppressedSpans.some((s) => s.start <= start && end <= s.end);
+}
+
+function isPositionSuppressed(
+  pos: number,
+  suppressedSpans: readonly SyntaxSelectionRange[]
+): boolean {
+  return suppressedSpans.some((s) => s.start <= pos && pos < s.end);
+}
+
+/**
+ * Синхронізує приглушені діапазони після введення, видалення або вставки тексту
+ * через обчислення спільного префікса та суфікса між prevText і nextText.
+ */
+export function remapSuppressedSpans(
+  prevText: string,
+  nextText: string,
+  suppressedSpans: readonly SyntaxSelectionRange[]
+): SyntaxSelectionRange[] {
+  if (suppressedSpans.length === 0 || !nextText) return [];
+  if (prevText === nextText) {
+    return normalizeSuppressedSpans(suppressedSpans, nextText.length);
+  }
+
+  let prefixLen = 0;
+  const minLen = Math.min(prevText.length, nextText.length);
+  while (prefixLen < minLen && prevText[prefixLen] === nextText[prefixLen]) {
+    prefixLen++;
+  }
+
+  let suffixLen = 0;
+  const maxSuffix = minLen - prefixLen;
+  while (
+    suffixLen < maxSuffix &&
+    prevText[prevText.length - 1 - suffixLen] === nextText[nextText.length - 1 - suffixLen]
+  ) {
+    suffixLen++;
+  }
+
+  const editStart = prefixLen;
+  const prevEditEnd = prevText.length - suffixLen;
+  const nextEditEnd = nextText.length - suffixLen;
+  const delta = nextText.length - prevText.length;
+
+  const remapped: SyntaxSelectionRange[] = [];
+  for (const s of suppressedSpans) {
+    if (s.end <= editStart) {
+      remapped.push({ start: s.start, end: s.end });
+    } else if (s.start >= prevEditEnd) {
+      remapped.push({ start: s.start + delta, end: s.end + delta });
+    } else {
+      const nextStart = s.start <= editStart ? s.start : editStart;
+      const nextEnd = s.end >= prevEditEnd ? s.end + delta : nextEditEnd;
+      if (nextEnd > nextStart) {
+        remapped.push({ start: nextStart, end: nextEnd });
+      }
     }
   }
-  return cleanIdx;
+
+  return normalizeSuppressedSpans(remapped, nextText.length);
 }
 
 /** Шукає парне неекрановане закриття `**` в межах [from, limit) */
@@ -147,8 +232,50 @@ function findClosingOoc(text: string, from: number, limit: number): number {
   return -1;
 }
 
+/**
+ * Шукає першу валідну закриту (і не приглушену) конструкцію форматування
+ * (`**...**`, `"..."`, `(...)`) усередині рядка після початку прямої мови.
+ */
+function findNextFormattingInSpeech(
+  text: string,
+  from: number,
+  lineEnd: number,
+  suppressedSpans: readonly SyntaxSelectionRange[]
+): number {
+  for (let j = from; j < lineEnd; j++) {
+    const ch = text[j];
+    if (ch === '\\' && j + 1 < lineEnd) {
+      j++;
+      continue;
+    }
+
+    if (ch === '*' && j + 1 < lineEnd && text[j + 1] === '*') {
+      const close = findClosingAction(text, j + 2, lineEnd);
+      if (close !== -1 && !isSpanSuppressed(j, close + 2, suppressedSpans)) {
+        return j;
+      }
+    }
+
+    if (ch === '"') {
+      const close = findClosingThought(text, j + 1, lineEnd);
+      if (close !== -1 && !isSpanSuppressed(j, close + 1, suppressedSpans)) {
+        return j;
+      }
+    }
+
+    if (ch === '(') {
+      const close = findClosingOoc(text, j + 1, lineEnd);
+      if (close !== -1 && !isSpanSuppressed(j, close + 1, suppressedSpans)) {
+        return j;
+      }
+    }
+  }
+  return -1;
+}
+
 interface ParsedSyntaxData {
   cleanText: string;
+  suppressedSpans: SyntaxSelectionRange[];
   tokens: NovaToken[];
   spans: NovaSpan[];
   intents: IntentItem[];
@@ -156,16 +283,67 @@ interface ParsedSyntaxData {
   actionDelimiterRanges: Array<{ start: number; end: number }>;
 }
 
-function pushToken(tokens: NovaToken[], type: NovaTokenType, text: string, start: number, end: number): void {
+function pushToken(
+  tokens: NovaToken[],
+  type: NovaTokenType,
+  text: string,
+  start: number,
+  end: number,
+  isSuppressed = false
+): void {
   if (end <= start) return;
   const slice = text.slice(start, end);
   const last = tokens[tokens.length - 1];
-  if (last && last.type === type && last.end === start) {
+  if (
+    last &&
+    last.type === type &&
+    Boolean(last.isSuppressed) === isSuppressed &&
+    last.end === start
+  ) {
     last.text += slice;
     last.end = end;
     return;
   }
-  tokens.push({ type, text: slice, start, end });
+  tokens.push(
+    isSuppressed
+      ? { type, text: slice, start, end, isSuppressed: true }
+      : { type, text: slice, start, end }
+  );
+}
+
+/** Додає normal-діапазон, розбиваючи приглушені частини для <span data-nova-plain="true"> */
+function pushNormalRange(
+  tokens: NovaToken[],
+  text: string,
+  from: number,
+  to: number,
+  suppressedSpans: readonly SyntaxSelectionRange[]
+): void {
+  if (to <= from) return;
+  if (suppressedSpans.length === 0) {
+    pushToken(tokens, 'normal', text, from, to, false);
+    return;
+  }
+
+  let cursor = from;
+  for (const sup of suppressedSpans) {
+    if (sup.end <= cursor) continue;
+    if (sup.start >= to) break;
+
+    if (sup.start > cursor) {
+      pushToken(tokens, 'normal', text, cursor, sup.start, false);
+    }
+    const segStart = Math.max(cursor, sup.start);
+    const segEnd = Math.min(to, sup.end);
+    if (segEnd > segStart) {
+      pushToken(tokens, 'normal', text, segStart, segEnd, true);
+      cursor = segEnd;
+    }
+  }
+
+  if (cursor < to) {
+    pushToken(tokens, 'normal', text, cursor, to, false);
+  }
 }
 
 function pushIntent(intents: IntentItem[], type: Exclude<NovaTokenType, 'normal'>, rawSlice: string): void {
@@ -183,8 +361,8 @@ interface ScanInlineOptions {
 }
 
 /**
- * Сканує вкладений вміст усередині валідного `action` або `thought` спану:
- * виділяє вкладені закриті `"думки"` або `**дії**` без дублювання в інтентах
+ * Сканує вміст усередині валідного `action` або `thought` спану:
+ * виділяє вкладені не-приглушені `"думки"` або `**дії**` без дублювання в інтентах
  * і зі збереженням точного порядку появи в тексті.
  */
 function scanEnclosedRange(
@@ -198,7 +376,6 @@ function scanEnclosedRange(
 ): void {
   const { allowNestedAction, allowNestedThought, fallbackType, emitFallbackIntent } = options;
 
-  // Відкриваючий маркер належить зовнішньому спану
   if (leadingDelimiterEnd > rangeStart) {
     pushToken(out.tokens, fallbackType, text, rangeStart, leadingDelimiterEnd);
   }
@@ -220,7 +397,8 @@ function scanEnclosedRange(
       text[cursor + 1] === '*'
     ) {
       const closeStart = findClosingAction(text, cursor + 2, trailingDelimiterStart);
-      if (closeStart !== -1) {
+      const nestedEnd = closeStart + 2;
+      if (closeStart !== -1 && !isSpanSuppressed(cursor, nestedEnd, out.suppressedSpans)) {
         if (cursor > segmentStart) {
           pushToken(out.tokens, fallbackType, text, segmentStart, cursor);
           if (emitFallbackIntent && fallbackType !== 'normal') {
@@ -228,7 +406,6 @@ function scanEnclosedRange(
           }
         }
 
-        const nestedEnd = closeStart + 2;
         out.spans.push({
           kind: 'action',
           start: cursor,
@@ -252,7 +429,8 @@ function scanEnclosedRange(
 
     if (allowNestedThought && ch === '"') {
       const closeStart = findClosingThought(text, cursor + 1, trailingDelimiterStart);
-      if (closeStart !== -1) {
+      const nestedEnd = closeStart + 1;
+      if (closeStart !== -1 && !isSpanSuppressed(cursor, nestedEnd, out.suppressedSpans)) {
         if (cursor > segmentStart) {
           pushToken(out.tokens, fallbackType, text, segmentStart, cursor);
           if (emitFallbackIntent && fallbackType !== 'normal') {
@@ -260,7 +438,6 @@ function scanEnclosedRange(
           }
         }
 
-        const nestedEnd = closeStart + 1;
         out.spans.push({
           kind: 'thought',
           start: cursor,
@@ -288,7 +465,6 @@ function scanEnclosedRange(
     }
   }
 
-  // Закриваючий маркер належить зовнішньому спану
   if (rangeEnd > trailingDelimiterStart) {
     pushToken(out.tokens, fallbackType, text, trailingDelimiterStart, rangeEnd);
   }
@@ -296,13 +472,19 @@ function scanEnclosedRange(
 
 /**
  * Єдина функція лексико-синтаксичного розбору тексту гравця (Single Source of Truth).
- * Усі конструкції (`**дія**`, `"думка"`, `(OOC)`, `- репліка`) суворо обмежені
- * межами одного рядка та не протікають крізь переноси рядків.
+ * Усі конструкції суворо обмежені межами одного рядка, враховують `suppressedSpans`
+ * та завершують пряму мову перед наступним валідним форматуванням.
  */
-function parseNovaSyntax(rawText: string): ParsedSyntaxData {
+function parseNovaSyntax(
+  rawText: string,
+  suppressedSpans: readonly SyntaxSelectionRange[] = []
+): ParsedSyntaxData {
   const cleanText = stripZeroWidth(rawText);
+  const normalizedSuppressed = normalizeSuppressedSpans(suppressedSpans, cleanText.length);
+
   const out: ParsedSyntaxData = {
     cleanText,
+    suppressedSpans: normalizedSuppressed,
     tokens: [],
     spans: [],
     intents: [],
@@ -326,14 +508,13 @@ function parseNovaSyntax(rawText: string): ParsedSyntaxData {
     while (i < lineEnd) {
       const ch = cleanText[i];
 
-      // Екранування спецсимволу зворотним слешем
       if (ch === '\\' && i + 1 < lineEnd) {
         i += 2;
         continue;
       }
 
       // 1. Пряма мова (- / – / —): тільки на початку рядка або як окремий маркер після пробілу
-      if (isSpeechDash(ch)) {
+      if (isSpeechDash(ch) && !isPositionSuppressed(i, normalizedSuppressed)) {
         const atLineStart = isOnlyHorizontalWhitespace(cleanText, lineStart, i);
         const standaloneAfterSpace =
           i > lineStart &&
@@ -341,38 +522,92 @@ function parseNovaSyntax(rawText: string): ParsedSyntaxData {
           (i + 1 === lineEnd || isHorizontalSpace(cleanText[i + 1]));
 
         if (atLineStart || standaloneAfterSpace) {
-          if (i > normalStart) {
-            pushToken(out.tokens, 'normal', cleanText, normalStart, i);
+          const openEnd = i + 1 < lineEnd && isHorizontalSpace(cleanText[i + 1]) ? i + 2 : i + 1;
+          const nextFormatIdx = findNextFormattingInSpeech(
+            cleanText,
+            openEnd,
+            lineEnd,
+            normalizedSuppressed
+          );
+
+          // Визначаємо, чи завершується репліка перед наступним валідним форматуванням
+          let speechEnd = lineEnd;
+          let resumePos = lineEnd;
+
+          if (nextFormatIdx !== -1) {
+            // Перевіряємо наявність діалогового роздільника ` - ` / ` – ` / ` — ` перед форматуванням
+            let k = nextFormatIdx - 1;
+            while (k >= openEnd && isHorizontalSpace(cleanText[k])) {
+              k--;
+            }
+
+            const hasTrailingSpaceAfterDash = k < nextFormatIdx - 1;
+            const hasDialogDash =
+              hasTrailingSpaceAfterDash &&
+              k >= openEnd &&
+              isSpeechDash(cleanText[k]) &&
+              !isEscapedAt(cleanText, k) &&
+              k - 1 >= openEnd &&
+              isHorizontalSpace(cleanText[k - 1]);
+
+            if (hasDialogDash) {
+              let dividerStart = k - 1;
+              while (dividerStart > openEnd && isHorizontalSpace(cleanText[dividerStart - 1])) {
+                dividerStart--;
+              }
+              speechEnd = dividerStart;
+            } else {
+              // Без роздільника обрізаємо прилеглі пробіли перед форматуванням
+              speechEnd = Math.max(openEnd, k + 1);
+            }
+            resumePos = nextFormatIdx;
           }
 
-          const openEnd = i + 1 < lineEnd && isHorizontalSpace(cleanText[i + 1]) ? i + 2 : i + 1;
-          out.spans.push({
-            kind: 'speech',
-            start: i,
-            end: lineEnd,
-            openEnd,
-            closeStart: lineEnd,
-          });
+          const rawSpeechBody = cleanText.slice(openEnd, speechEnd);
+          const hasSpeechContent = unescapeNovaText(rawSpeechBody).trim().length > 0;
 
-          // Усередині репліки не витягуємо вкладені action / thought / ooc
-          pushToken(out.tokens, 'speech', cleanText, i, lineEnd);
-          pushIntent(out.intents, 'speech', cleanText.slice(openEnd, lineEnd));
+          if (hasSpeechContent) {
+            if (i > normalStart) {
+              pushNormalRange(out.tokens, cleanText, normalStart, i, normalizedSuppressed);
+            }
 
-          i = lineEnd;
-          normalStart = lineEnd;
-          break;
+            out.spans.push({
+              kind: 'speech',
+              start: i,
+              end: speechEnd,
+              openEnd,
+              closeStart: speechEnd,
+            });
+            pushToken(out.tokens, 'speech', cleanText, i, speechEnd);
+            pushIntent(out.intents, 'speech', rawSpeechBody);
+
+            if (resumePos > speechEnd) {
+              pushNormalRange(out.tokens, cleanText, speechEnd, resumePos, normalizedSuppressed);
+            }
+
+            i = resumePos;
+            normalStart = resumePos;
+            if (i >= lineEnd) break;
+            continue;
+          }
+
+          // Якщо після '- ' одразу йде форматування (порожня репліка), пропускаємо до нього
+          if (nextFormatIdx !== -1) {
+            i = nextFormatIdx;
+            continue;
+          }
         }
       }
 
       // 2. Позаігрове звернення (OOC) — тільки за наявності закриваючої ')' у цьому ж рядку
       if (ch === '(') {
         const closeStart = findClosingOoc(cleanText, i + 1, lineEnd);
-        if (closeStart !== -1) {
+        const spanEnd = closeStart + 1;
+        if (closeStart !== -1 && !isSpanSuppressed(i, spanEnd, normalizedSuppressed)) {
           if (i > normalStart) {
-            pushToken(out.tokens, 'normal', cleanText, normalStart, i);
+            pushNormalRange(out.tokens, cleanText, normalStart, i, normalizedSuppressed);
           }
 
-          const spanEnd = closeStart + 1;
           out.spans.push({
             kind: 'ooc',
             start: i,
@@ -381,7 +616,6 @@ function parseNovaSyntax(rawText: string): ParsedSyntaxData {
             closeStart,
           });
 
-          // Усередині OOC не витягуємо вкладені action / thought
           pushToken(out.tokens, 'ooc', cleanText, i, spanEnd);
           pushIntent(out.intents, 'ooc', cleanText.slice(i + 1, closeStart));
 
@@ -394,12 +628,12 @@ function parseNovaSyntax(rawText: string): ParsedSyntaxData {
       // 3. Фізична дія (**...**) — тільки за наявності закриваючого '**' у цьому ж рядку
       if (ch === '*' && i + 1 < lineEnd && cleanText[i + 1] === '*') {
         const closeStart = findClosingAction(cleanText, i + 2, lineEnd);
-        if (closeStart !== -1) {
+        const spanEnd = closeStart + 2;
+        if (closeStart !== -1 && !isSpanSuppressed(i, spanEnd, normalizedSuppressed)) {
           if (i > normalStart) {
-            pushToken(out.tokens, 'normal', cleanText, normalStart, i);
+            pushNormalRange(out.tokens, cleanText, normalStart, i, normalizedSuppressed);
           }
 
-          const spanEnd = closeStart + 2;
           out.spans.push({
             kind: 'action',
             start: i,
@@ -436,12 +670,12 @@ function parseNovaSyntax(rawText: string): ParsedSyntaxData {
       // 4. Думка ("...") — тільки за наявності закриваючої '"' у цьому ж рядку
       if (ch === '"') {
         const closeStart = findClosingThought(cleanText, i + 1, lineEnd);
-        if (closeStart !== -1) {
+        const spanEnd = closeStart + 1;
+        if (closeStart !== -1 && !isSpanSuppressed(i, spanEnd, normalizedSuppressed)) {
           if (i > normalStart) {
-            pushToken(out.tokens, 'normal', cleanText, normalStart, i);
+            pushNormalRange(out.tokens, cleanText, normalStart, i, normalizedSuppressed);
           }
 
-          const spanEnd = closeStart + 1;
           out.spans.push({
             kind: 'thought',
             start: i,
@@ -475,15 +709,14 @@ function parseNovaSyntax(rawText: string): ParsedSyntaxData {
     }
 
     if (lineEnd > normalStart) {
-      pushToken(out.tokens, 'normal', cleanText, normalStart, lineEnd);
+      pushNormalRange(out.tokens, cleanText, normalStart, lineEnd, normalizedSuppressed);
     }
 
     if (newlineIdx === -1) {
       break;
     }
 
-    // Сам символ переносу рядка теж зберігається як normal токен з точними індексами
-    pushToken(out.tokens, 'normal', cleanText, lineEnd, lineEnd + 1);
+    pushToken(out.tokens, 'normal', cleanText, lineEnd, lineEnd + 1, false);
     lineStart = lineEnd + 1;
   }
 
@@ -491,24 +724,29 @@ function parseNovaSyntax(rawText: string): ParsedSyntaxData {
 }
 
 /**
- * Розбиває текст гравця на візуальні токени підсвітки синтаксису.
+ * Розбиває текст гравця на візуальні токени підсвітки синтаксису з урахуванням приглушених діапазонів.
  */
-export function tokenizeNovaSyntax(text: string): NovaToken[] {
-  return parseNovaSyntax(text).tokens;
+export function tokenizeNovaSyntax(
+  text: string,
+  suppressedSpans: readonly SyntaxSelectionRange[] = []
+): NovaToken[] {
+  return parseNovaSyntax(text, suppressedSpans).tokens;
 }
 
 /**
  * Парсить текст гравця у впорядкований масив інтентів для бекенда (API v1.5.2).
- * Порядок інтентів суворо відповідає появі в тексті, вкладені дублі виключені,
- * а звичайний текст без валідних маркерів стає Default Action.
+ * Приглушені через `suppressedSpans` конструкції не потрапляють у власний спеціалізований тип інтента.
  */
-export function parseIntents(rawAction: string): IntentItem[] {
-  const parsed = parseNovaSyntax(rawAction);
+export function parseIntents(
+  rawAction: string,
+  suppressedSpans: readonly SyntaxSelectionRange[] = []
+): IntentItem[] {
+  const parsed = parseNovaSyntax(rawAction, suppressedSpans);
   if (parsed.intents.length > 0) {
     return parsed.intents;
   }
 
-  const fallback = cleanDisplayAction(parsed.cleanText);
+  const fallback = cleanDisplayAction(parsed.cleanText, parsed.suppressedSpans);
   if (fallback.length > 0) {
     return [{ type: 'action', content: fallback }];
   }
@@ -518,11 +756,14 @@ export function parseIntents(rawAction: string): IntentItem[] {
 
 /**
  * Очищує текст гравця для відображення в баблі чату:
- * прибирає лише неекрановані маркери дії `**`, коректно розекрановує `\**` / `\"` / `\-` / `\\`
- * без залишкових `\`, та гарантує відсутність `\u200B`.
+ * прибирає `**` лише у активних (не приглушених) action-спанів, коректно
+ * розекрановує `\**` / `\"` / `\-` / `\\` та гарантує відсутність `\u200B`.
  */
-export function cleanDisplayAction(rawAction: string): string {
-  const parsed = parseNovaSyntax(rawAction);
+export function cleanDisplayAction(
+  rawAction: string,
+  suppressedSpans: readonly SyntaxSelectionRange[] = []
+): string {
+  const parsed = parseNovaSyntax(rawAction, suppressedSpans);
   const { cleanText, actionDelimiterRanges } = parsed;
   if (!cleanText) return '';
 
@@ -548,102 +789,78 @@ export function cleanDisplayAction(rawAction: string): string {
 }
 
 /**
- * Повністю видаляє синтаксичні маркери (`**...**`, `"..."`, `(...)`, `- `)
- * без вставки `\u200B`, коректно оновлюючи позицію курсора / виділення.
- * Пріоритет:
- * 1. Конструкції в межах виділеного фрагмента
- * 2. Найвужча конструкція під курсором
- * 3. Усі конструкції в тексті (якщо курсор поза форматуванням)
+ * Перемикає приглушення синтаксису (`suppressedSpans`) без видалення маркерів (`"`, `()`, `**`, `-`)
+ * і без вставки `\u200B`:
+ * - якщо ціль зараз активна -> приглушує (текст лишається білим із лапками/маркерами)
+ * - якщо ціль вже приглушена -> повертає підсвітку назад (toggle).
  */
-export function removeSyntaxFormatting(
+export function toggleSuppressFormatting(
   rawText: string,
-  rawSelection?: SyntaxSelectionRange
-): RemoveFormattingResult {
+  suppressedSpans: readonly SyntaxSelectionRange[],
+  selection?: SyntaxSelectionRange
+): SyntaxSelectionRange[] {
   const cleanText = stripZeroWidth(rawText);
-  const selStart = rawSelection ? mapIndexWithoutZeroWidth(rawText, rawSelection.start) : 0;
-  const selEnd = rawSelection ? mapIndexWithoutZeroWidth(rawText, rawSelection.end) : 0;
+  if (!cleanText) return [];
 
-  const parsed = parseNovaSyntax(cleanText);
-  const spans = parsed.spans;
+  const normalized = normalizeSuppressedSpans(suppressedSpans, cleanText.length);
+  const parsed = parseNovaSyntax(cleanText, normalized);
+  const activeSpans = parsed.spans;
 
-  if (spans.length === 0) {
-    return {
-      text: cleanText,
-      selectionStart: selStart,
-      selectionEnd: selEnd,
-      changed: cleanText !== rawText,
-    };
-  }
-
+  const selStart = selection ? Math.max(0, Math.min(cleanText.length, selection.start)) : 0;
+  const selEnd = selection ? Math.max(0, Math.min(cleanText.length, selection.end)) : 0;
   const hasSelection = selEnd > selStart;
-  let targetSpans: NovaSpan[] = [];
 
   if (hasSelection) {
-    targetSpans = spans.filter((span) => span.end > selStart && span.start < selEnd);
-  } else if (rawSelection) {
-    const enclosing = spans.filter((span) => span.start <= selStart && selStart <= span.end);
-    if (enclosing.length > 0) {
-      // Найвужча (включно з вкладеною) конструкція під курсором
-      enclosing.sort((a, b) => (a.end - a.start) - (b.end - b.start));
-      targetSpans = [enclosing[0]];
+    const overlappingActive = activeSpans.filter(
+      (s) => s.end > selStart && s.start < selEnd
+    );
+    if (overlappingActive.length > 0) {
+      // Якщо вибрано і вкладений, і зовнішній активні спани — беремо не-вкладені у виділення
+      const toSuppress = overlappingActive.map((s) => ({ start: s.start, end: s.end }));
+      return normalizeSuppressedSpans([...normalized, ...toSuppress], cleanText.length);
+    }
+
+    const overlappingSuppressed = normalized.filter(
+      (s) => s.end > selStart && s.start < selEnd
+    );
+    if (overlappingSuppressed.length > 0) {
+      return normalized.filter((s) => !(s.end > selStart && s.start < selEnd));
+    }
+    return normalized;
+  }
+
+  if (selection) {
+    // Пріоритет під курсором: обираємо найвужчий блок (активний -> приглушити, приглушений -> відновити)
+    const enclosingActive = activeSpans
+      .filter((s) => s.start <= selStart && selStart <= s.end)
+      .sort((a, b) => (a.end - a.start) - (b.end - b.start))[0];
+
+    const enclosingSuppressed = normalized
+      .filter((s) => s.start <= selStart && selStart <= s.end)
+      .sort((a, b) => (a.end - a.start) - (b.end - b.start))[0];
+
+    if (
+      enclosingSuppressed &&
+      (!enclosingActive ||
+        enclosingSuppressed.end - enclosingSuppressed.start <=
+          enclosingActive.end - enclosingActive.start)
+    ) {
+      return normalized.filter((s) => s !== enclosingSuppressed);
+    }
+
+    if (enclosingActive) {
+      return normalizeSuppressedSpans(
+        [...normalized, { start: enclosingActive.start, end: enclosingActive.end }],
+        cleanText.length
+      );
     }
   }
 
-  if (targetSpans.length === 0) {
-    targetSpans = spans;
+  // Поза спанами: якщо ще є активні — приглушуємо всі; інакше вмикаємо назад (toggle)
+  if (activeSpans.length > 0) {
+    const allNew = activeSpans.map((s) => ({ start: s.start, end: s.end }));
+    return normalizeSuppressedSpans([...normalized, ...allNew], cleanText.length);
   }
 
-  // Збираємо всі діапазони маркерів до видалення (відкриваючі та закриваючі)
-  const removals: Array<{ start: number; end: number }> = [];
-  for (const span of targetSpans) {
-    if (span.openEnd > span.start) {
-      removals.push({ start: span.start, end: span.openEnd });
-    }
-    if (span.end > span.closeStart) {
-      removals.push({ start: span.closeStart, end: span.end });
-    }
-  }
-
-  // Нормалізуємо та зливаємо діапазони на випадок вкладеності або перетинів
-  removals.sort((a, b) => a.start - b.start);
-  const merged: Array<{ start: number; end: number }> = [];
-  for (const r of removals) {
-    const prev = merged[merged.length - 1];
-    if (prev && r.start <= prev.end) {
-      prev.end = Math.max(prev.end, r.end);
-    } else {
-      merged.push({ ...r });
-    }
-  }
-
-  let nextText = '';
-  let cursor = 0;
-  for (const r of merged) {
-    if (r.start > cursor) {
-      nextText += cleanText.slice(cursor, r.start);
-    }
-    cursor = r.end;
-  }
-  if (cursor < cleanText.length) {
-    nextText += cleanText.slice(cursor);
-  }
-
-  const remapOffset = (pos: number): number => {
-    let shift = 0;
-    for (const r of merged) {
-      if (pos >= r.end) {
-        shift += r.end - r.start;
-      } else if (pos > r.start) {
-        shift += pos - r.start;
-      }
-    }
-    return Math.max(0, Math.min(nextText.length, pos - shift));
-  };
-
-  return {
-    text: nextText,
-    selectionStart: remapOffset(selStart),
-    selectionEnd: remapOffset(selEnd),
-    changed: nextText !== rawText,
-  };
+  return [];
 }

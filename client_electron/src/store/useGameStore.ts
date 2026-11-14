@@ -10,6 +10,7 @@ import { charactersApi } from '../api/charactersApi';
 import { campaignsApi } from '../api/campaignsApi';
 import { gameApi } from '../api/gameApi';
 import { parseIntents, cleanDisplayAction } from '../utils/intentParser';
+import type { SyntaxSelectionRange } from '../utils/novaSyntax';
 import { sanitizeStory } from '../utils/textSanitizer';
 import { formatSystemTime } from '../utils/formatTime';
 
@@ -26,6 +27,7 @@ export interface GameState {
   playerState: PlayerState | null;
   messages: ChatMessage[];
   userInput: string;
+  suppressedSpans: SyntaxSelectionRange[];
 
   // --- UI & Стрімінг ---
   isLoading: boolean;
@@ -63,6 +65,7 @@ export interface GameState {
   setActiveDrawerTab: (tab: DrawerTab) => void;
   toggleContainerExpanded: (containerName: string) => void;
   setUserInput: (text: string) => void;
+  setSuppressedSpans: (spans: SyntaxSelectionRange[]) => void;
 }
 
 let alertTimer: ReturnType<typeof setTimeout> | null = null;
@@ -91,6 +94,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   playerState: null,
   messages: [],
   userInput: '',
+  suppressedSpans: [],
 
   isLoading: false,
   isStreaming: false,
@@ -312,11 +316,22 @@ export const useGameStore = create<GameState>((set, get) => ({
   // --- ХІД ГРАВЦЯ (SSE STREAMING) ---
   sendPlayerAction: async (rawText: string) => {
     const text = rawText.trim();
-    const { activeCampaignId, isStreaming, isLoading } = get();
+    const { activeCampaignId, isStreaming, isLoading, suppressedSpans } = get();
     if (!text || !activeCampaignId || isStreaming || isLoading) return;
 
-    const intents = parseIntents(text);
-    const cleanUserText = cleanDisplayAction(text);
+    const leadingTrim = rawText.length - rawText.trimStart().length;
+    const shiftedSuppressed =
+      leadingTrim > 0
+        ? suppressedSpans
+            .map((s) => ({
+              start: Math.max(0, s.start - leadingTrim),
+              end: Math.min(text.length, s.end - leadingTrim),
+            }))
+            .filter((s) => s.end > s.start)
+        : suppressedSpans;
+
+    const intents = parseIntents(text, shiftedSuppressed);
+    const cleanUserText = cleanDisplayAction(text, shiftedSuppressed);
     const timeNow = formatSystemTime();
 
     // 1. Оптимістично додаємо репліку гравця
@@ -342,9 +357,10 @@ export const useGameStore = create<GameState>((set, get) => ({
       canRollback: false,
     };
 
-    // Скидаємо відкат на старих повідомленнях
+    // Скидаємо відкат на старих повідомленнях і очищуємо поле вводу разом із suppressedSpans
     set((state) => ({
       userInput: '',
+      suppressedSpans: [],
       isStreaming: true,
       statusText: 'Розмірковує над дією...',
       messages: [
@@ -421,9 +437,10 @@ export const useGameStore = create<GameState>((set, get) => ({
       set({ isLoading: true });
       const res = await campaignsApi.rollbackCampaign(activeCampaignId);
 
-      // Повертаємо попередній ввід гравця в інпут
+      // Повертаємо попередній ввід гравця в інпут та скидаємо suppressedSpans
       set({
         userInput: res.previous_user_input,
+        suppressedSpans: [],
         playerState: res.current_state,
       });
 
@@ -489,7 +506,13 @@ export const useGameStore = create<GameState>((set, get) => ({
       return { expandedContainers: nextExpanded };
     }),
 
-  setUserInput: (text: string) => set({ userInput: text }),
+  setUserInput: (text: string) =>
+    set((state) => ({
+      userInput: text,
+      suppressedSpans: text.length === 0 ? [] : state.suppressedSpans,
+    })),
+
+  setSuppressedSpans: (spans: SyntaxSelectionRange[]) => set({ suppressedSpans: spans }),
 
   // --- РЕДАГУВАННЯ ПЕРСОНАЖА ---
   updateCharacter: async (charId: string, data: PlayerState) => {

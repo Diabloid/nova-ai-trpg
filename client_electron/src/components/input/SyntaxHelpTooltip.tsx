@@ -21,7 +21,7 @@ export const SyntaxHelpTooltip: React.FC = () => {
           <span className="text-[#D1D5DB]">— фізичні дії персонажа</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="italic text-[#60A5FA]">&quot;Думка&quot;</span>
+          <span className="nova-thought-italic text-[#60A5FA]">&quot;Думка&quot;</span>
           <span className="text-[#D1D5DB]">— внутрішній голос / монолог</span>
         </div>
         <div className="flex items-center gap-2">

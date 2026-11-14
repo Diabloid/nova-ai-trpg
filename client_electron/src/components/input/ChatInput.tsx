@@ -8,8 +8,9 @@ import { SyntaxHelpTooltip } from './SyntaxHelpTooltip';
 import { ContextMenu } from '../ui/ContextMenu';
 import {
   NOVA_SYNTAX_CLASSES,
-  removeSyntaxFormatting,
+  remapSuppressedSpans,
   stripZeroWidth,
+  toggleSuppressFormatting,
   tokenizeNovaSyntax,
   type SyntaxSelectionRange,
 } from '../../utils/novaSyntax';
@@ -181,14 +182,25 @@ function setEditorSelectionOffsets(root: HTMLElement, start: number, end: number
   sel.addRange(range);
 }
 
-/** Імперативно рендерить токени єдиного парсера всередину contenteditable без конфліктів VDOM */
-function renderTokensIntoEditor(root: HTMLElement, text: string): void {
+/** Імперативно рендерить токени єдиного парсера всередині contenteditable без конфліктів VDOM */
+function renderTokensIntoEditor(
+  root: HTMLElement,
+  text: string,
+  suppressedSpans: readonly SyntaxSelectionRange[]
+): void {
   const fragment = document.createDocumentFragment();
-  const tokens = tokenizeNovaSyntax(text);
+  const tokens = tokenizeNovaSyntax(text, suppressedSpans);
 
   for (const token of tokens) {
     if (token.type === 'normal') {
-      fragment.appendChild(document.createTextNode(token.text));
+      if (token.isSuppressed) {
+        const plainSpan = document.createElement('span');
+        plainSpan.dataset.novaPlain = 'true';
+        plainSpan.textContent = token.text;
+        fragment.appendChild(plainSpan);
+      } else {
+        fragment.appendChild(document.createTextNode(token.text));
+      }
     } else {
       const span = document.createElement('span');
       span.className = NOVA_SYNTAX_CLASSES[token.type];
@@ -211,6 +223,8 @@ export const ChatInput: React.FC = () => {
   const {
     userInput,
     setUserInput,
+    suppressedSpans,
+    setSuppressedSpans,
     sendPlayerAction,
     isLoading,
     isStreaming,
@@ -229,6 +243,7 @@ export const ChatInput: React.FC = () => {
   const editorRef = useRef<HTMLDivElement>(null);
   const isComposingRef = useRef(false);
   const lastRenderedValueRef = useRef<string | null>(null);
+  const lastRenderedSuppressedKeyRef = useRef<string>('[]');
   const pendingSelectionRef = useRef<SyntaxSelectionRange | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -259,15 +274,21 @@ export const ChatInput: React.FC = () => {
     if (isComposingRef.current) return;
 
     const currentDomText = extractPlainTextFromEditor(el);
-    if (lastRenderedValueRef.current !== cleanValue || currentDomText !== cleanValue) {
+    const suppressedKey = JSON.stringify(suppressedSpans);
+    if (
+      lastRenderedValueRef.current !== cleanValue ||
+      lastRenderedSuppressedKeyRef.current !== suppressedKey ||
+      currentDomText !== cleanValue
+    ) {
       const prevScrollTop = el.scrollTop;
       const shouldRestoreSelection = document.activeElement === el;
       const savedSelection =
         pendingSelectionRef.current ??
         (shouldRestoreSelection ? getEditorSelectionOffsets(el) : null);
 
-      renderTokensIntoEditor(el, cleanValue);
+      renderTokensIntoEditor(el, cleanValue, suppressedSpans);
       lastRenderedValueRef.current = cleanValue;
+      lastRenderedSuppressedKeyRef.current = suppressedKey;
       pendingSelectionRef.current = null;
 
       if (savedSelection && shouldRestoreSelection) {
@@ -280,7 +301,7 @@ export const ChatInput: React.FC = () => {
     }
 
     recalculateLayout();
-  }, [userInput, setUserInput, recalculateLayout]);
+  }, [userInput, suppressedSpans, setUserInput, recalculateLayout]);
 
   // Перерахунок висоти й скролу при ресайзі вікна чи переключенні Sidebar
   useEffect(() => {
@@ -312,10 +333,13 @@ export const ChatInput: React.FC = () => {
       const cleanInserted = stripZeroWidth(insertedText.replace(/\r\n?/g, '\n'));
       const before = userInput.slice(0, selection.start);
       const after = userInput.slice(selection.end);
+      const nextValue = `${before}${cleanInserted}${after}`;
       const nextCaret = selection.start + cleanInserted.length;
-      applyValueChange(`${before}${cleanInserted}${after}`, nextCaret);
+
+      setSuppressedSpans(remapSuppressedSpans(userInput, nextValue, suppressedSpans));
+      applyValueChange(nextValue, nextCaret);
     },
-    [userInput, applyValueChange]
+    [userInput, suppressedSpans, setSuppressedSpans, applyValueChange]
   );
 
   const handleInput = () => {
@@ -325,14 +349,15 @@ export const ChatInput: React.FC = () => {
     const nextRaw = extractPlainTextFromEditor(el);
     pendingSelectionRef.current = getEditorSelectionOffsets(el);
     lastRenderedValueRef.current = null;
+    setSuppressedSpans(remapSuppressedSpans(userInput, nextRaw, suppressedSpans));
     setUserInput(nextRaw);
   };
 
   const handleSend = () => {
     const cleanText = stripZeroWidth(userInput);
     if (!cleanText.trim() || isLoading || isStreaming) return;
-    setUserInput('');
-    sendPlayerAction(cleanText.trim()).catch((err: Error) => {
+    // sendPlayerAction сам зчитує suppressedSpans перед очищенням інпуту
+    sendPlayerAction(cleanText).catch((err: Error) => {
       setSystemAlert(`Помилка відправки: ${err.message}`, 'error');
     });
   };
@@ -458,8 +483,10 @@ export const ChatInput: React.FC = () => {
   };
 
   const hasSelection = !!contextMenu && contextMenu.selection.end > contextMenu.selection.start;
-  const hasFormattedTokens =
-    userInput.length > 0 && tokenizeNovaSyntax(userInput).some((token) => token.type !== 'normal');
+  const canToggleFormatting =
+    userInput.length > 0 &&
+    (suppressedSpans.length > 0 ||
+      tokenizeNovaSyntax(userInput, suppressedSpans).some((token) => token.type !== 'normal'));
 
   return (
     <div className="w-full flex flex-col select-none">
@@ -583,13 +610,17 @@ export const ChatInput: React.FC = () => {
           {
             label: 'Скасувати форматування',
             icon: <RemoveFormatting size={13} />,
-            disabled: !hasFormattedTokens || isInputDisabled,
+            disabled: !canToggleFormatting || isInputDisabled,
             onClick: () => {
               if (!contextMenu) return;
-              const res = removeSyntaxFormatting(userInput, contextMenu.selection);
-              if (!res.changed) return;
+              const nextSuppressed = toggleSuppressFormatting(
+                userInput,
+                suppressedSpans,
+                contextMenu.selection
+              );
+              pendingSelectionRef.current = contextMenu.selection;
               editorRef.current?.focus();
-              applyValueChange(res.text, res.selectionStart, res.selectionEnd);
+              setSuppressedSpans(nextSuppressed);
             },
           },
         ]}
