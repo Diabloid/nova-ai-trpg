@@ -1,10 +1,20 @@
 import React, { useRef, useState, useEffect } from 'react';
+import { Scissors, Copy, ClipboardPaste, RemoveFormatting } from 'lucide-react';
 import { useGameStore } from '../../store/useGameStore';
 import { gameApi } from '../../api/gameApi';
 import { SendOrMicButton } from './SendOrMicButton';
 import { VoiceBanner } from './VoiceBanner';
 import { SyntaxHelpTooltip } from './SyntaxHelpTooltip';
 import { SyntaxHighlightOverlay } from './SyntaxHighlightOverlay';
+import { ContextMenu } from '../ui/ContextMenu';
+import {
+  getTextareaSelection,
+  copyTextareaSelection,
+  cutTextareaSelection,
+  pasteIntoTextarea,
+  toggleSyntaxFormatting,
+  type TextSelectionSnapshot,
+} from '../../utils/textareaClipboard';
 
 export const ChatInput: React.FC = () => {
   const {
@@ -19,6 +29,11 @@ export const ChatInput: React.FC = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [isInputOverflowing, setIsInputOverflowing] = useState(false);
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+    selection: TextSelectionSnapshot;
+  } | null>(null);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -125,6 +140,17 @@ export const ChatInput: React.FC = () => {
   const hasText = userInput.trim().length > 0;
   const isInputDisabled = isLoading || isStreaming || isTranscribing;
 
+  const handleContextMenu = (e: React.MouseEvent<HTMLTextAreaElement>) => {
+    e.preventDefault();
+    setContextMenu({
+      x: e.clientX,
+      y: e.clientY,
+      selection: getTextareaSelection(textareaRef.current),
+    });
+  };
+
+  const hasSelection = !!contextMenu && contextMenu.selection.end > contextMenu.selection.start;
+
   return (
     <div className="w-full flex flex-col select-none">
       {/* Баннери запису та транскрипції голосу (1-в-1 як в Avalonia) */}
@@ -147,9 +173,10 @@ export const ChatInput: React.FC = () => {
               onChange={(e) => setUserInput(e.target.value)}
               onScroll={syncScroll}
               onKeyDown={handleKeyDown}
+              onContextMenu={handleContextMenu}
               disabled={isInputDisabled}
               placeholder="Введіть дію, думку або фразу..."
-              className={`relative z-10 w-full bg-transparent text-[15px] leading-[24px] font-sans text-transparent caret-[#E5E7EB] selection:bg-[#7E0018]/40 placeholder-[#555555] placeholder:italic resize-none outline-none select-text min-h-[24px] max-h-[120px] m-0 p-0 border-0 block ${
+              className={`relative z-10 w-full bg-transparent text-[15px] leading-[24px] font-sans [font-kerning:none] [font-variant-ligatures:none] text-transparent caret-[#E5E7EB] selection:bg-[#7E0018]/40 placeholder-[#555555] placeholder:italic resize-none outline-none select-text min-h-[24px] max-h-[120px] m-0 p-0 border-0 block ${
                 isInputOverflowing ? 'overflow-y-auto' : 'overflow-hidden'
               }`}
             />
@@ -169,6 +196,67 @@ export const ChatInput: React.FC = () => {
           </div>
         </div>
       </div>
+
+      <ContextMenu
+        isOpen={!!contextMenu}
+        x={contextMenu?.x ?? 0}
+        y={contextMenu?.y ?? 0}
+        onClose={() => setContextMenu(null)}
+        items={[
+          {
+            label: 'Вирізати',
+            shortcut: 'Ctrl+X',
+            icon: <Scissors size={13} />,
+            disabled: !hasSelection,
+            onClick: () => {
+              if (!contextMenu) return;
+              cutTextareaSelection(
+                textareaRef.current,
+                userInput,
+                contextMenu.selection,
+                setUserInput
+              ).catch(() => {});
+            },
+          },
+          {
+            label: 'Копіювати',
+            shortcut: 'Ctrl+C',
+            icon: <Copy size={13} />,
+            disabled: !hasSelection,
+            onClick: () => {
+              if (!contextMenu) return;
+              copyTextareaSelection(userInput, contextMenu.selection).catch(() => {});
+            },
+          },
+          {
+            label: 'Вставити',
+            shortcut: 'Ctrl+V',
+            icon: <ClipboardPaste size={13} />,
+            disabled: isInputDisabled,
+            onClick: () => {
+              if (!contextMenu) return;
+              pasteIntoTextarea(
+                textareaRef.current,
+                userInput,
+                contextMenu.selection,
+                setUserInput
+              ).catch(() => {});
+            },
+          },
+          { type: 'separator' },
+          {
+            label: 'Скасувати форматування',
+            icon: <RemoveFormatting size={13} />,
+            disabled: !hasText || isInputDisabled,
+            onClick: () => {
+              if (!contextMenu) return;
+              const updated = toggleSyntaxFormatting(userInput, contextMenu.selection);
+              setUserInput(updated);
+              requestAnimationFrame(() => textareaRef.current?.focus());
+            },
+          },
+        ]}
+      />
     </div>
   );
 };

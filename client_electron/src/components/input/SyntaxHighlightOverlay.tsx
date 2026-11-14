@@ -66,14 +66,14 @@ function tokenizeNovaSyntax(text: string): SyntaxToken[] {
         i += 2;
         continue;
       }
-      if (text[i] === '"') {
+      if (text[i] === '"' && text[i + 1] !== '\u200B') {
         flush('thought');
         stack.push('thought');
         buffer += '"';
         i += 1;
         continue;
       }
-      if (text[i] === '(') {
+      if (text[i] === '(' && text[i + 1] !== '\u200B') {
         flush('ooc');
         stack.push('ooc');
         buffer += '(';
@@ -93,14 +93,14 @@ function tokenizeNovaSyntax(text: string): SyntaxToken[] {
         i += 1;
         continue;
       }
-      if (text.startsWith('**', i)) {
+      if (text.startsWith('**', i) && text[i + 2] !== '\u200B') {
         flush('action');
         stack.push('action');
         buffer += '**';
         i += 2;
         continue;
       }
-      if (text[i] === '(') {
+      if (text[i] === '(' && text[i + 1] !== '\u200B') {
         flush('ooc');
         stack.push('ooc');
         buffer += '(';
@@ -114,7 +114,7 @@ function tokenizeNovaSyntax(text: string): SyntaxToken[] {
 
     // Верхній рівень ('normal')
     if (i === 0 || text[i - 1] === '\n') {
-      const speechMatch = /^[ \t]*[-\u2013\u2014][^\n]*/.exec(text.slice(i));
+      const speechMatch = /^[ \t]*[-\u2013\u2014](?!\u200B)[^\n]*/.exec(text.slice(i));
       if (speechMatch) {
         flush('speech');
         tokens.push({ type: 'speech', text: speechMatch[0] });
@@ -124,7 +124,7 @@ function tokenizeNovaSyntax(text: string): SyntaxToken[] {
       }
     }
 
-    if (text.startsWith('**', i)) {
+    if (text.startsWith('**', i) && text[i + 2] !== '\u200B') {
       flush('action');
       stack.push('action');
       buffer += '**';
@@ -132,7 +132,7 @@ function tokenizeNovaSyntax(text: string): SyntaxToken[] {
       continue;
     }
 
-    if (text[i] === '"') {
+    if (text[i] === '"' && text[i + 1] !== '\u200B') {
       flush('thought');
       stack.push('thought');
       buffer += '"';
@@ -140,7 +140,7 @@ function tokenizeNovaSyntax(text: string): SyntaxToken[] {
       continue;
     }
 
-    if (text[i] === '(') {
+    if (text[i] === '(' && text[i + 1] !== '\u200B') {
       flush('ooc');
       stack.push('ooc');
       buffer += '(';
@@ -158,9 +158,9 @@ function tokenizeNovaSyntax(text: string): SyntaxToken[] {
 
 const TOKEN_CLASSES: Record<SyntaxToken['type'], string> = {
   normal: 'text-[#E5E7EB]',
-  // Використовуємо text-shadow замість font-weight:700, щоб зберегти 1-в-1 ширину гліфів із textarea без зсуву каретки
+  // Використовуємо text-shadow та чистий колір без italic/font-bold, щоб зберегти 1-в-1 ширину гліфів Segoe UI без зсуву каретки
   action: 'text-[#EAB308] [text-shadow:0.45px_0_0_currentColor]',
-  thought: 'text-[#60A5FA] italic',
+  thought: 'text-[#60A5FA]',
   speech: 'text-[#4ADE80]',
   ooc: 'text-[#9CA3AF]',
 };
@@ -182,7 +182,7 @@ export const SyntaxHighlightOverlay: React.FC<SyntaxHighlightOverlayProps> = ({
     <div
       ref={overlayRef}
       aria-hidden="true"
-      className={`pointer-events-none select-none absolute inset-0 whitespace-pre-wrap break-words text-[15px] leading-[24px] font-sans m-0 p-0 [&::-webkit-scrollbar-thumb]:bg-transparent [&::-webkit-scrollbar-thumb:hover]:bg-transparent ${
+      className={`pointer-events-none select-none absolute inset-0 whitespace-pre-wrap break-words text-[15px] leading-[24px] font-sans [font-kerning:none] [font-variant-ligatures:none] m-0 p-0 [&::-webkit-scrollbar-thumb]:bg-transparent [&::-webkit-scrollbar-thumb:hover]:bg-transparent ${
         isOverflowing ? 'overflow-y-auto' : 'overflow-hidden'
       }`}
     >

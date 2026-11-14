@@ -19,7 +19,9 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({
   const isSystem = message.isSystem || message.role === 'system';
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(message.text);
+    const selectedText = window.getSelection()?.toString();
+    const textToCopy = selectedText && selectedText.length > 0 ? selectedText : message.text;
+    navigator.clipboard.writeText(textToCopy);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -64,11 +66,16 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({
           )}
         </div>
 
-        {canRollback && !isPlayer && <RollbackBtn />}
+        {canRollback && !isPlayer && (
+          <div className="h-[28px] flex items-start">
+            <RollbackBtn />
+          </div>
+        )}
       </div>
 
       {/* Основне тіло плашки з текстом (min-width: 140px гарантує правильний баланс із вушком) */}
       <div
+        data-context-copy={message.text}
         className={`relative rounded-b-lg rounded-tr-lg border p-[12px_14px] min-w-[140px] ${bodyBg} shadow-lg`}
       >
         {/* Кнопка швидкого копіювання */}

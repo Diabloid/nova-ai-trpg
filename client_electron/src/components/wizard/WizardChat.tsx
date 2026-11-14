@@ -166,6 +166,7 @@ export const WizardChat: React.FC = () => {
 
               {/* Тіло бульбашки */}
               <div
+                data-context-copy={msg.text}
                 className={`rounded-xl px-4 py-3 text-sm leading-relaxed max-w-[85%] border shadow-sm ${
                   isSystem
                     ? 'bg-[#220D12] border-[#5A141E] text-[#FCA5A5]'
@@ -175,7 +176,7 @@ export const WizardChat: React.FC = () => {
                 }`}
                 style={{ minWidth: '140px' }}
               >
-                <div className="whitespace-pre-wrap break-words">{msg.text}</div>
+                <div className="whitespace-pre-wrap break-words select-text">{msg.text}</div>
               </div>
             </div>
           );

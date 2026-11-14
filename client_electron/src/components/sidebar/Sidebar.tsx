@@ -31,11 +31,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
     <aside className="relative flex h-full z-40 select-none shrink-0">
       {/* Основна панель меню (290px) */}
       <div
-        className={`h-full bg-[#111111] border-r border-[#2A2A2A] transition-all duration-[380ms] ease-[cubic-bezier(0.22,1,0.36,1)] overflow-hidden flex flex-col justify-between ${
+        className={`h-full bg-[#111111] border-r border-[#2A2A2A] transition-all duration-[350ms] ease-[cubic-bezier(0.4,0,0.2,1)] will-change-[width,opacity] overflow-hidden flex flex-col justify-between ${
           isSidebarOpen ? 'w-[290px] opacity-100' : 'w-0 opacity-0 border-r-0'
         }`}
       >
-        <div className="min-w-[290px] w-[290px] shrink-0 px-[15px] pt-6 pb-4 flex flex-col h-full justify-between">
+        <div
+          className={`min-w-[290px] w-[290px] shrink-0 px-[15px] pt-6 pb-4 flex flex-col h-full justify-between transition-[transform,opacity] duration-300 ease-out ${
+            isSidebarOpen ? 'translate-x-0 opacity-100' : '-translate-x-4 opacity-0'
+          }`}
+        >
           {/* Верхня частина: Напис МЕНЮ + Кнопка створення героя */}
           <div className="flex flex-col gap-3">
             <div className="text-center text-[#9CA3AF] font-bold text-[13px] tracking-[1.5px]">

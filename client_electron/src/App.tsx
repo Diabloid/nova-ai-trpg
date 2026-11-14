@@ -8,6 +8,7 @@ import { WizardScreen } from './components/wizard/WizardScreen';
 import { EditHeroModal } from './components/modals/EditHeroModal';
 import { NewCampaignModal } from './components/modals/NewCampaignModal';
 import { ConfirmModal } from './components/modals/ConfirmModal';
+import { GlobalContextMenu } from './components/ui/GlobalContextMenu';
 import { useGameStore } from './store/useGameStore';
 import { useWizardStore } from './store/useWizardStore';
 import type { CharacterSummary, CampaignSummary } from './types/api';
@@ -150,6 +151,9 @@ export const App: React.FC = () => {
         cancelText="Ні, залишити"
         isLoading={isDeleting}
       />
+
+      {/* 7. ГЛОБАЛЬНЕ КОНТЕКСТНЕ МЕНЮ ПКМ ДЛЯ ВСІХ ІНПУТІВ, TEXTAREA ТА ЧАТІВ */}
+      <GlobalContextMenu />
     </AppLayout>
   );
 };
