@@ -8,34 +8,42 @@ import electron from 'vite-plugin-electron/simple';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // https://vite.dev/config/
-export default defineConfig({
-  plugins: [
-    tailwindcss(),
-    react(),
-    electron({
-      main: {
-        entry: 'electron/main.ts',
-      },
-      preload: {
-        input: path.join(__dirname, 'electron/preload.ts'),
-        vite: {
-          build: {
-            rolldownOptions: {
-              output: {
-                format: 'cjs',
-                entryFileNames: 'preload.cjs',
-                chunkFileNames: '[name].cjs',
+export default defineConfig(({ mode }) => {
+  const isWebMode = mode === 'web';
+
+  return {
+    plugins: [
+      tailwindcss(),
+      react(),
+      ...(isWebMode
+        ? []
+        : [
+            electron({
+              main: {
+                entry: 'electron/main.ts',
               },
-            },
-          },
-        },
+              preload: {
+                input: path.join(__dirname, 'electron/preload.ts'),
+                vite: {
+                  build: {
+                    rolldownOptions: {
+                      output: {
+                        format: 'cjs',
+                        entryFileNames: 'preload.cjs',
+                        chunkFileNames: '[name].cjs',
+                      },
+                    },
+                  },
+                },
+              },
+              renderer: {},
+            }),
+          ]),
+    ],
+    resolve: {
+      alias: {
+        '@': path.resolve(__dirname, './src'),
       },
-      renderer: {},
-    }),
-  ],
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
     },
-  },
+  };
 });
