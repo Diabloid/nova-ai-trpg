@@ -218,3 +218,7 @@ __marimo__/
 .streamlit/secrets.toml
 .vs/
 **/.vs/
+
+# Local AI agent docs & rules
+docs/
+GEMINI.md
