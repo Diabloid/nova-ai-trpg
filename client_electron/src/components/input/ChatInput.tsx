@@ -1,13 +1,18 @@
 import React, { useRef, useState, useLayoutEffect, useEffect, useCallback } from 'react';
 import { Scissors, Copy, ClipboardPaste, RemoveFormatting } from 'lucide-react';
 import { useGameStore } from '../../store/useGameStore';
-import { gameApi } from '../../api/gameApi';
+import { useVoiceRecorder } from '../../hooks/useVoiceRecorder';
 import { SendOrMicButton } from './SendOrMicButton';
 import { VoiceBanner } from './VoiceBanner';
 import { SyntaxHelpTooltip } from './SyntaxHelpTooltip';
 import { ContextMenu } from '../ui/ContextMenu';
 import {
-  NOVA_SYNTAX_CLASSES,
+  extractPlainTextFromEditor,
+  getEditorSelectionOffsets,
+  renderTokensIntoEditor,
+  setEditorSelectionOffsets,
+} from '../../utils/caretDom';
+import {
   remapSuppressedSpans,
   stripZeroWidth,
   toggleSuppressFormatting,
@@ -17,207 +22,6 @@ import {
 
 const MIN_EDITOR_HEIGHT = 24;
 const MAX_EDITOR_HEIGHT = 120;
-
-/**
- * Обчислює загальну текстову довжину DOM-вузла для точного мапінгу позиції каретки
- * (звичайні <br> рахуються як '\n', службовий sentinel <br> ігнорується).
- */
-function getNodeTextLength(node: Node): number {
-  if (node.nodeType === Node.TEXT_NODE) {
-    return (node.textContent ?? '').length;
-  }
-  if (node instanceof HTMLBRElement) {
-    return node.dataset.novaSentinel === 'true' ? 0 : 1;
-  }
-  let total = 0;
-  for (let i = 0; i < node.childNodes.length; i++) {
-    total += getNodeTextLength(node.childNodes[i]);
-  }
-  return total;
-}
-
-/** Витягує чистий багаторядковий текст із contenteditable без жодних \u200B */
-function extractPlainTextFromEditor(root: HTMLElement): string {
-  const walk = (node: Node): string => {
-    if (node.nodeType === Node.TEXT_NODE) {
-      return node.textContent ?? '';
-    }
-    if (node instanceof HTMLBRElement) {
-      return node.dataset.novaSentinel === 'true' ? '' : '\n';
-    }
-    let inner = '';
-    for (let i = 0; i < node.childNodes.length; i++) {
-      inner += walk(node.childNodes[i]);
-    }
-    if (
-      node !== root &&
-      (node.nodeName === 'DIV' || node.nodeName === 'P') &&
-      !inner.endsWith('\n')
-    ) {
-      return `${inner}\n`;
-    }
-    return inner;
-  };
-
-  return stripZeroWidth(walk(root).replace(/\r\n?/g, '\n'));
-}
-
-/** Переводить точку DOM-Selection у лінійний символьний індекс */
-function resolvePointOffset(root: HTMLElement, targetNode: Node, targetOffset: number): number {
-  let offset = 0;
-  let found = false;
-
-  const walk = (node: Node): void => {
-    if (found) return;
-
-    if (node === targetNode) {
-      if (node.nodeType === Node.TEXT_NODE) {
-        offset += Math.min(targetOffset, (node.textContent ?? '').length);
-      } else {
-        const limit = Math.min(targetOffset, node.childNodes.length);
-        for (let i = 0; i < limit; i++) {
-          offset += getNodeTextLength(node.childNodes[i]);
-        }
-      }
-      found = true;
-      return;
-    }
-
-    if (node.nodeType === Node.TEXT_NODE) {
-      offset += (node.textContent ?? '').length;
-      return;
-    }
-
-    if (node instanceof HTMLBRElement) {
-      if (node.dataset.novaSentinel !== 'true') {
-        offset += 1;
-      }
-      return;
-    }
-
-    for (let i = 0; i < node.childNodes.length; i++) {
-      walk(node.childNodes[i]);
-      if (found) return;
-    }
-  };
-
-  walk(root);
-  return offset;
-}
-
-function getEditorSelectionOffsets(root: HTMLElement): SyntaxSelectionRange {
-  const sel = window.getSelection();
-  if (!sel || sel.rangeCount === 0) {
-    return { start: 0, end: 0 };
-  }
-  const range = sel.getRangeAt(0);
-  if (!root.contains(range.startContainer) || !root.contains(range.endContainer)) {
-    return { start: 0, end: 0 };
-  }
-
-  const a = resolvePointOffset(root, range.startContainer, range.startOffset);
-  const b = resolvePointOffset(root, range.endContainer, range.endOffset);
-  return a <= b ? { start: a, end: b } : { start: b, end: a };
-}
-
-function findDomPositionForOffset(
-  root: HTMLElement,
-  targetOffset: number
-): { node: Node; offset: number } {
-  let remaining = Math.max(0, targetOffset);
-  let lastTextNode: Text | null = null;
-
-  const walk = (node: Node): { node: Node; offset: number } | null => {
-    if (node.nodeType === Node.TEXT_NODE) {
-      const textNode = node as Text;
-      const len = textNode.data.length;
-      lastTextNode = textNode;
-      if (remaining <= len) {
-        return { node: textNode, offset: remaining };
-      }
-      remaining -= len;
-      return null;
-    }
-
-    if (node instanceof HTMLBRElement) {
-      if (node.dataset.novaSentinel !== 'true') {
-        if (remaining === 0) {
-          const parent = node.parentNode ?? root;
-          const idx = Array.prototype.indexOf.call(parent.childNodes, node);
-          return { node: parent, offset: Math.max(0, idx) };
-        }
-        remaining = Math.max(0, remaining - 1);
-      }
-      return null;
-    }
-
-    for (let i = 0; i < node.childNodes.length; i++) {
-      const res = walk(node.childNodes[i]);
-      if (res) return res;
-    }
-    return null;
-  };
-
-  const match = walk(root);
-  if (match) return match;
-
-  if (lastTextNode) {
-    const textRef: Text = lastTextNode;
-    return { node: textRef, offset: textRef.data.length };
-  }
-  return { node: root, offset: 0 };
-}
-
-function setEditorSelectionOffsets(root: HTMLElement, start: number, end: number): void {
-  const sel = window.getSelection();
-  if (!sel) return;
-
-  const startPos = findDomPositionForOffset(root, start);
-  const endPos = start === end ? startPos : findDomPositionForOffset(root, end);
-
-  const range = document.createRange();
-  range.setStart(startPos.node, startPos.offset);
-  range.setEnd(endPos.node, endPos.offset);
-  sel.removeAllRanges();
-  sel.addRange(range);
-}
-
-/** Імперативно рендерить токени єдиного парсера всередині contenteditable без конфліктів VDOM */
-function renderTokensIntoEditor(
-  root: HTMLElement,
-  text: string,
-  suppressedSpans: readonly SyntaxSelectionRange[]
-): void {
-  const fragment = document.createDocumentFragment();
-  const tokens = tokenizeNovaSyntax(text, suppressedSpans);
-
-  for (const token of tokens) {
-    if (token.type === 'normal') {
-      if (token.isSuppressed) {
-        const plainSpan = document.createElement('span');
-        plainSpan.dataset.novaPlain = 'true';
-        plainSpan.textContent = token.text;
-        fragment.appendChild(plainSpan);
-      } else {
-        fragment.appendChild(document.createTextNode(token.text));
-      }
-    } else {
-      const span = document.createElement('span');
-      span.className = NOVA_SYNTAX_CLASSES[token.type];
-      span.textContent = token.text;
-      fragment.appendChild(span);
-    }
-  }
-
-  // Sentinel <br> потрібен Chromium для коректного відображення порожнього рядка після trailing '\n'
-  if (text.endsWith('\n')) {
-    const sentinel = document.createElement('br');
-    sentinel.dataset.novaSentinel = 'true';
-    fragment.appendChild(sentinel);
-  }
-
-  root.replaceChildren(fragment);
-}
 
 export const ChatInput: React.FC = () => {
   const {
@@ -231,8 +35,6 @@ export const ChatInput: React.FC = () => {
     setSystemAlert,
   } = useGameStore();
 
-  const [isRecording, setIsRecording] = useState(false);
-  const [isTranscribing, setIsTranscribing] = useState(false);
   const [isInputOverflowing, setIsInputOverflowing] = useState(false);
   const [contextMenu, setContextMenu] = useState<{
     x: number;
@@ -245,8 +47,26 @@ export const ChatInput: React.FC = () => {
   const lastRenderedValueRef = useRef<string | null>(null);
   const lastRenderedSuppressedKeyRef = useRef<string>('[]');
   const pendingSelectionRef = useRef<SyntaxSelectionRange | null>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
+
+  const handleTranscribed = useCallback(
+    (text: string) => {
+      const currentInput = stripZeroWidth(useGameStore.getState().userInput);
+      setUserInput(currentInput ? `${currentInput} ${text}` : text);
+    },
+    [setUserInput]
+  );
+
+  const handleVoiceError = useCallback(
+    (message: string) => {
+      setSystemAlert(message, 'error');
+    },
+    [setSystemAlert]
+  );
+
+  const { isRecording, isTranscribing, startRecording, stopRecording } = useVoiceRecorder({
+    onTranscribed: handleTranscribed,
+    onError: handleVoiceError,
+  });
 
   const hasText = userInput.trim().length > 0;
   const isInputDisabled = isLoading || isStreaming || isTranscribing;
@@ -403,62 +223,6 @@ export const ChatInput: React.FC = () => {
 
     if (isCut && !isInputDisabled) {
       spliceSelection(sel, '');
-    }
-  };
-
-  // Робота з аудіозаписом
-  const startRecording = async () => {
-    try {
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        setSystemAlert('Аудіозапис не підтримується у цьому середовищі', 'error');
-        return;
-      }
-
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      audioChunksRef.current = [];
-
-      const recorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = recorder;
-
-      recorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
-        }
-      };
-
-      recorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, {
-          type: recorder.mimeType || 'audio/webm',
-        });
-        stream.getTracks().forEach((track) => track.stop());
-
-        setIsTranscribing(true);
-        try {
-          const text = stripZeroWidth(await gameApi.transcribeAudio(audioBlob, 'recording.webm'));
-          if (text) {
-            const currentInput = stripZeroWidth(useGameStore.getState().userInput);
-            setUserInput(currentInput ? `${currentInput} ${text}` : text);
-          }
-        } catch (err: unknown) {
-          const message = err instanceof Error ? err.message : 'Невідома помилка';
-          setSystemAlert(`Помилка розпізнавання: ${message}`, 'error');
-        } finally {
-          setIsTranscribing(false);
-        }
-      };
-
-      recorder.start();
-      setIsRecording(true);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Невідома помилка';
-      setSystemAlert(`Не вдалося отримати доступ до мікрофона: ${message}`, 'error');
-    }
-  };
-
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
     }
   };
 

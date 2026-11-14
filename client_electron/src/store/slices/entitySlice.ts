@@ -1,0 +1,251 @@
+import type { StateCreator } from 'zustand';
+import type { HistoryMessage, PlayerState } from '../../types/api';
+import type { ChatMessage } from '../../types/game';
+import { charactersApi } from '../../api/charactersApi';
+import { campaignsApi } from '../../api/campaignsApi';
+import { cleanDisplayAction } from '../../utils/intentParser';
+import { sanitizeStory } from '../../utils/textSanitizer';
+import { formatSystemTime } from '../../utils/formatTime';
+import type { EntitySlice, GameState } from './types';
+
+export const createEntitySlice: StateCreator<GameState, [], [], EntitySlice> = (set, get) => ({
+  characters: [],
+  activeCharacterId: null,
+  activeCharacter: null,
+
+  campaigns: [],
+  activeCampaignId: null,
+  activeCampaign: null,
+
+  // --- ЗАВАНТАЖЕННЯ ПЕРСОНАЖІВ ---
+  loadCharacters: async () => {
+    try {
+      set({ isLoading: true });
+      const chars = await charactersApi.getCharacters();
+      set({ characters: chars });
+
+      // Якщо є збережений останній ID героя в localStorage або беремо першого
+      const { activeCharacterId } = get();
+      const lastCharId =
+        typeof localStorage !== 'undefined' ? localStorage.getItem('nova_last_char_id') : null;
+      const targetChar = (lastCharId && chars.find((c) => c.char_id === lastCharId)) || chars[0];
+
+      if (
+        chars.length > 0 &&
+        (!activeCharacterId || !chars.some((c) => c.char_id === activeCharacterId))
+      ) {
+        await get().selectCharacter(targetChar.char_id);
+      }
+    } catch (err: any) {
+      get().setSystemAlert(`Помилка завантаження персонажів: ${err.message}`, 'error');
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+
+  // --- ВИБІР ПЕРСОНАЖА ---
+  selectCharacter: async (charId: string) => {
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('nova_last_char_id', charId);
+      }
+      set({ isLoading: true, activeCharacterId: charId, isHeroSelectorOpen: false });
+      const [charDetails] = await Promise.all([
+        charactersApi.getCharacter(charId),
+        get().loadCampaigns(charId, true),
+      ]);
+      set({ activeCharacter: charDetails });
+    } catch (err: any) {
+      get().setSystemAlert(`Не вдалося завантажити лист персонажа: ${err.message}`, 'error');
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+
+  // --- ЗАВАНТАЖЕННЯ КАМПАНІЙ ---
+  loadCampaigns: async (charId: string, autoSelectFirst = true) => {
+    try {
+      const camps = await campaignsApi.getCampaigns(charId);
+      // Сортування: закріплені вгорі, далі за датою last_played
+      const sorted = [...camps].sort((a, b) => {
+        if (a.is_pinned !== b.is_pinned) return a.is_pinned ? -1 : 1;
+        return new Date(b.last_played).getTime() - new Date(a.last_played).getTime();
+      });
+
+      set({ campaigns: sorted });
+
+      const lastCampId =
+        typeof localStorage !== 'undefined' ? localStorage.getItem('nova_last_camp_id') : null;
+      const targetCamp =
+        (lastCampId && sorted.find((c) => c.campaign_id === lastCampId)) || sorted[0];
+
+      if (autoSelectFirst && sorted.length > 0) {
+        await get().selectCampaign(targetCamp.campaign_id);
+      } else if (sorted.length === 0) {
+        set({
+          activeCampaignId: null,
+          activeCampaign: null,
+          playerState: null,
+          messages: [],
+        });
+      }
+    } catch (err: any) {
+      get().setSystemAlert(`Помилка завантаження кампаній: ${err.message}`, 'error');
+    }
+  },
+
+  // --- ВИБІР КАМПАНІЇ ---
+  selectCampaign: async (campaignId: string) => {
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('nova_last_camp_id', campaignId);
+      }
+      set({ isLoading: true, activeCampaignId: campaignId });
+      const currentCamp = get().campaigns.find((c) => c.campaign_id === campaignId) || null;
+      set({ activeCampaign: currentCamp });
+
+      // Завантажуємо паралельно історію та живий стан
+      const [history, state] = await Promise.all([
+        campaignsApi.getCampaignHistory(campaignId),
+        campaignsApi.getCampaignState(campaignId),
+      ]);
+
+      // Мапимо HistoryMessage в UI ChatMessage (ігноруємо технічні системні логи)
+      const formattedMessages: ChatMessage[] = history
+        .filter((msg: HistoryMessage) => msg.role.toLowerCase() !== 'system')
+        .map((msg: HistoryMessage, index: number, arr: HistoryMessage[]) => {
+          const isPlayer = msg.role.toLowerCase() === 'player';
+          const isLastNarrator = !isPlayer && index === arr.length - 1 && arr.length > 1;
+
+          let timeStr = formatSystemTime();
+          if (msg.timestamp) {
+            try {
+              timeStr = formatSystemTime(msg.timestamp);
+            } catch {
+              // fallback to current time
+            }
+          }
+
+          return {
+            id: `msg-${index}-${Date.now()}`,
+            sender: isPlayer ? 'Ти:' : 'Оповідач:',
+            text: isPlayer ? cleanDisplayAction(msg.text) : sanitizeStory(msg.text),
+            senderColor: isPlayer ? '#60A5FA' : '#EAB308',
+            timeText: timeStr,
+            isPlayer,
+            canRollback: isLastNarrator,
+          };
+        });
+
+      set({
+        messages: formattedMessages,
+        playerState: state,
+      });
+    } catch (err: any) {
+      get().setSystemAlert(`Помилка відкриття кампанії: ${err.message}`, 'error');
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+
+  // --- СТВОРЕННЯ КАМПАНІЇ ---
+  createCampaign: async (title?: string) => {
+    const { activeCharacterId } = get();
+    if (!activeCharacterId) {
+      get().setSystemAlert('Спочатку оберіть або створіть персонажа', 'error');
+      return null;
+    }
+
+    try {
+      set({ isLoading: true });
+      const newCamp = await campaignsApi.createCampaign(activeCharacterId, title);
+      await get().loadCampaigns(activeCharacterId, false);
+      await get().selectCampaign(newCamp.campaign_id);
+      return newCamp;
+    } catch (err: any) {
+      get().setSystemAlert(`Не вдалося створити кампанію: ${err.message}`, 'error');
+      return null;
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+
+  // --- ЗАКРІПЛЕННЯ КАМПАНІЇ ---
+  togglePinCampaign: async (campaignId: string) => {
+    const camp = get().campaigns.find((c) => c.campaign_id === campaignId);
+    if (!camp) return;
+
+    try {
+      await campaignsApi.pinCampaign(campaignId, !camp.is_pinned);
+      const { activeCharacterId } = get();
+      if (activeCharacterId) {
+        await get().loadCampaigns(activeCharacterId, false);
+      }
+    } catch (err: any) {
+      get().setSystemAlert(`Помилка закріплення кампанії: ${err.message}`, 'error');
+    }
+  },
+
+  // --- ВИДАЛЕННЯ КАМПАНІЇ ---
+  deleteCampaign: async (campaignId: string) => {
+    try {
+      set({ isLoading: true });
+      await campaignsApi.deleteCampaign(campaignId);
+      const { activeCharacterId, activeCampaignId } = get();
+
+      if (activeCharacterId) {
+        const autoSelect = activeCampaignId === campaignId;
+        await get().loadCampaigns(activeCharacterId, autoSelect);
+      }
+    } catch (err: any) {
+      get().setSystemAlert(`Не вдалося видалити кампанію: ${err.message}`, 'error');
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+
+  // --- ВИДАЛЕННЯ ПЕРСОНАЖА ---
+  deleteCharacter: async (charId: string) => {
+    try {
+      set({ isLoading: true });
+      await charactersApi.deleteCharacter(charId);
+      set((state) => ({
+        characters: state.characters.filter((c) => c.char_id !== charId),
+        activeCharacterId: state.activeCharacterId === charId ? null : state.activeCharacterId,
+        activeCharacter: state.activeCharacterId === charId ? null : state.activeCharacter,
+      }));
+
+      await get().loadCharacters();
+    } catch (err: any) {
+      get().setSystemAlert(`Не вдалося видалити персонажа: ${err.message}`, 'error');
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+
+  // --- РЕДАГУВАННЯ ПЕРСОНАЖА ---
+  updateCharacter: async (charId: string, data: PlayerState) => {
+    try {
+      set({ isLoading: true });
+      const updated = await charactersApi.updateCharacter(charId, data);
+      set((state) => ({
+        characters: state.characters.map((c) =>
+          c.char_id === charId
+            ? {
+                ...c,
+                name: data.meta?.name || c.name,
+                background: data.meta?.background || c.background,
+                appearance: data.meta?.appearance || c.appearance,
+              }
+            : c
+        ),
+        activeCharacter: state.activeCharacterId === charId ? updated : state.activeCharacter,
+      }));
+      get().setSystemAlert('Дані персонажа успішно оновлено', 'success');
+    } catch (err: any) {
+      get().setSystemAlert(`Помилка оновлення персонажа: ${err.message}`, 'error');
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+});
