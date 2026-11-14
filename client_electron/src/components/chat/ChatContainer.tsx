@@ -1,8 +1,9 @@
-import React, { useRef, useEffect } from 'react';
-import { RefreshCw, Swords, WifiOff, Loader2 } from 'lucide-react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
+import { RefreshCw, Swords, WifiOff, Loader2, ArrowDown } from 'lucide-react';
 import { useGameStore } from '../../store/useGameStore';
 import { useWizardStore } from '../../store/useWizardStore';
 import { ChatBubble } from './ChatBubble';
+import { RollbackGhost } from './RollbackGhost';
 import { Button } from '../ui/Button';
 
 interface ChatContainerProps {
@@ -14,6 +15,7 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ onNewCampaign }) =
     messages,
     isLoading,
     isStreaming,
+    isRollingBack,
     backendOffline,
     activeCampaignId,
     characters,
@@ -21,16 +23,57 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ onNewCampaign }) =
   } = useGameStore();
   const openWizard = useWizardStore((s) => s.openWizard);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [isNearBottom, setIsNearBottom] = useState(true);
+  const isNearBottomRef = useRef(true);
+  const prevCampaignIdRef = useRef<string | null>(activeCampaignId);
+  const pendingCampaignScrollRef = useRef<boolean>(true);
 
-  // Автоскрол донизу при надходженні нових повідомлень та стрімінгу токенів
+  const handleScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const near = el.scrollHeight - el.scrollTop - el.clientHeight <= 100;
+    if (near !== isNearBottomRef.current) {
+      isNearBottomRef.current = near;
+      setIsNearBottom(near);
+    }
+  }, []);
+
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
+    const el = scrollRef.current;
+    if (!el) return;
+    isNearBottomRef.current = true;
+    setIsNearBottom(true);
+    el.scrollTo({
+      top: el.scrollHeight,
+      behavior,
+    });
+  }, []);
+
+  // Розумний автоскрол: донизу при перемиканні кампанії або коли користувач біля нижнього краю
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTo({
-        top: scrollRef.current.scrollHeight,
+    if (activeCampaignId !== prevCampaignIdRef.current) {
+      prevCampaignIdRef.current = activeCampaignId;
+      pendingCampaignScrollRef.current = true;
+    }
+
+    const el = scrollRef.current;
+    if (!el) return;
+
+    if (pendingCampaignScrollRef.current && !isLoading) {
+      pendingCampaignScrollRef.current = false;
+      isNearBottomRef.current = true;
+      el.scrollTo({ top: el.scrollHeight, behavior: 'auto' });
+      const rafId = requestAnimationFrame(handleScroll);
+      return () => cancelAnimationFrame(rafId);
+    }
+
+    if (isNearBottomRef.current) {
+      el.scrollTo({
+        top: el.scrollHeight,
         behavior: isStreaming ? 'auto' : 'smooth',
       });
     }
-  }, [messages, isStreaming, isLoading]);
+  }, [messages, isStreaming, isLoading, activeCampaignId, handleScroll]);
 
   // Знаходимо індекс останнього повідомлення Оповідача для кнопки відкату
   let lastNarratorIndex = -1;
@@ -144,6 +187,7 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ onNewCampaign }) =
       {/* Скрол-контейнер із симетричним вертикальним фейдом (0.00..0.02 та 0.98..1.00) */}
       <div
         ref={scrollRef}
+        onScroll={handleScroll}
         className="flex-1 overflow-y-auto pr-4 mask-fade-vertical"
       >
         <div className="flex flex-col min-h-full justify-end pt-[18px]">
@@ -151,7 +195,7 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ onNewCampaign }) =
             ? renderEmptyOrOfflineState()
             : messages.map((msg, idx) => {
                 const canRollback =
-                  idx === lastNarratorIndex && !isLoading && !isStreaming;
+                  idx === lastNarratorIndex && !isLoading && !isStreaming && !isRollingBack;
                 return (
                   <ChatBubble
                     key={msg.id || idx}
@@ -164,6 +208,33 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ onNewCampaign }) =
           <div className="mb-2" />
         </div>
       </div>
+
+      {/* Плаваюча кнопка повернення до останніх повідомлень при прокрутці вгору */}
+      {messages.length > 0 && (
+        <button
+          type="button"
+          onClick={() => scrollToBottom('smooth')}
+          tabIndex={!isNearBottom ? 0 : -1}
+          aria-hidden={isNearBottom}
+          className={`absolute bottom-4 right-6 z-20 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border shadow-lg transition-[opacity,translate,background-color,border-color,color] duration-200 ease-in-out cursor-pointer select-none ${
+            !isNearBottom
+              ? 'opacity-100 translate-y-0 pointer-events-auto'
+              : 'opacity-0 translate-y-2 pointer-events-none'
+          } ${
+            isStreaming
+              ? 'bg-[#2A1418] border-[#EAB308]/60 text-[#FDE047] hover:bg-[#3A181F]'
+              : 'bg-[#181818] border-[#333333] text-[#E5E7EB] hover:bg-[#222222] hover:border-[#5A0010]'
+          }`}
+        >
+          <ArrowDown
+            size={13}
+            className={isStreaming ? 'text-[#EAB308] animate-pulse' : 'text-[#9CA3AF]'}
+          />
+          <span>Останні повідомлення</span>
+        </button>
+      )}
+
+      <RollbackGhost />
     </div>
   );
 };

@@ -5,6 +5,7 @@ import { ApiError } from '../../api/client';
 import { charactersApi } from '../../api/charactersApi';
 import { campaignsApi } from '../../api/campaignsApi';
 import { cleanDisplayAction } from '../../utils/intentParser';
+import { buildDisplayTokens } from '../../utils/novaSyntax';
 import { sanitizeStory } from '../../utils/textSanitizer';
 import { formatSystemTime } from '../../utils/formatTime';
 import type { EntitySlice, GameState } from './types';
@@ -145,6 +146,7 @@ export const createEntitySlice: StateCreator<GameState, [], [], EntitySlice> = (
           return {
             id: `msg-${index}-${Date.now()}`,
             sender: isPlayer ? 'Ти:' : 'Оповідач:',
+            tokens: isPlayer ? buildDisplayTokens(msg.text) : undefined,
             text: isPlayer ? cleanDisplayAction(msg.text) : sanitizeStory(msg.text),
             senderColor: isPlayer ? '#60A5FA' : '#EAB308',
             timeText: timeStr,

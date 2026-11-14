@@ -1,4 +1,5 @@
 import React from 'react';
+import { Shield } from 'lucide-react';
 import type { ItemObject } from '../../types/api';
 
 interface WornColProps {
@@ -9,7 +10,7 @@ export const WornCol: React.FC<WornColProps> = ({ worn = [] }) => {
   return (
     <div className="bg-[#1C1C1C] border border-[#2A2A2A] rounded-lg p-3 flex flex-col h-full max-h-[340px]">
       <div className="text-xs font-bold text-[#60A5FA] tracking-[0.5px] pb-2 border-b border-[#262626] mb-2 flex items-center gap-1.5">
-        <span>🛡</span>
+        <Shield size={13} className="shrink-0" />
         <span>ЕКІПІРУВАННЯ (WORN)</span>
       </div>
 

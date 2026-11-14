@@ -1,26 +1,14 @@
 import React, { useState } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, ScrollText } from 'lucide-react';
 import type { PlayerMeta } from '../../types/api';
+import {
+  formatBlockTitle,
+  getCharacterBlockStyle,
+} from '../../utils/characterBlockStyles';
 
 interface DrawerDetailsProps {
   meta?: PlayerMeta;
   customBlocks?: Record<string, any>;
-}
-
-const KNOWN_BLOCK_STYLES: Record<string, { title: string; color: string; icon: string }> = {
-  reputation: { title: 'ФРАКЦІЇ ТА РЕПУТАЦІЯ', color: '#F59E0B', icon: '🏛️' },
-  magic_schools: { title: 'МАГІЧНІ ШКОЛИ', color: '#C084FC', icon: '🔮' },
-  afflictions: { title: 'ПРОКЛЯТТЯ ТА ХВОРОБИ', color: '#EF4444', icon: '☠️' },
-  blessings: { title: 'БЛАГОСЛОВЕННЯ ТА АУРИ', color: '#34D399', icon: '✨' },
-  status_effects: { title: 'СТАТУСИ ТА ЕФЕКТИ', color: '#38BDF8', icon: '⚡' },
-  lore: { title: 'ЗНАННЯ СВІТУ ТА ТАЄМНИЦІ', color: '#A78BFA', icon: '📜' },
-  titles_and_ranks: { title: 'ТИТУЛИ ТА ЗВАННЯ', color: '#FBBF24', icon: '👑' },
-};
-
-function formatTitle(raw: string): string {
-  if (!raw) return '';
-  const cleaned = raw.replace(/[_-]+/g, ' ').trim();
-  return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
 }
 
 export const DrawerDetails: React.FC<DrawerDetailsProps> = ({
@@ -62,7 +50,7 @@ export const DrawerDetails: React.FC<DrawerDetailsProps> = ({
         className="w-full flex items-center justify-between p-2.5 text-left bg-transparent hover:bg-[#1A1A1A] transition-colors cursor-pointer"
       >
         <div className="flex items-center gap-2">
-          <span className="text-[12px] leading-none">📜</span>
+          <ScrollText size={13} className="text-[#F59E0B] shrink-0" />
           <span className="text-[11px] font-bold text-[#F59E0B] tracking-[0.5px]">
             ДЕТАЛІ ПЕРСОНАЖА, РИСИ ТА СВІТ
           </span>
@@ -143,11 +131,8 @@ export const DrawerDetails: React.FC<DrawerDetailsProps> = ({
           {filteredBlocks.length > 0 && (
             <div className="flex flex-col gap-2 pt-1 border-t border-[#1C1C1C]">
               {filteredBlocks.map(([rawKey, val]) => {
-                const style = KNOWN_BLOCK_STYLES[rawKey.toLowerCase()] || {
-                  title: formatTitle(rawKey).toUpperCase(),
-                  color: '#E5E7EB',
-                  icon: '🌐',
-                };
+                const style = getCharacterBlockStyle(rawKey, true);
+                const BlockIcon = style.Icon;
 
                 const isArray = Array.isArray(val);
                 const isObject = typeof val === 'object' && val !== null && !isArray;
@@ -157,9 +142,9 @@ export const DrawerDetails: React.FC<DrawerDetailsProps> = ({
                     key={rawKey}
                     className="bg-[#161616] border border-[#2A2A2A] rounded-md p-2.5 flex flex-col gap-2"
                   >
-                    {/* Шапка блоку з іконкою та кольором */}
+                    {/* Шапка блоку з векторною іконкою та кольором */}
                     <div className="flex items-center gap-1.5">
-                      <span className="text-[11px]">{style.icon}</span>
+                      <BlockIcon size={12} style={{ color: style.color }} className="shrink-0" />
                       <span
                         className="text-[11px] font-bold tracking-[0.5px]"
                         style={{ color: style.color }}
@@ -174,7 +159,7 @@ export const DrawerDetails: React.FC<DrawerDetailsProps> = ({
                         {Object.entries(val).map(([fKey, fVal]) => (
                           <div key={fKey} className="flex items-start gap-1.5 text-[11px]">
                             <span className="text-[#9CA3AF] shrink-0">
-                              {formatTitle(fKey)}:
+                              {formatBlockTitle(fKey)}:
                             </span>
                             <span className="text-[#E5E7EB] font-medium">
                               {typeof fVal === 'object' ? JSON.stringify(fVal) : String(fVal)}

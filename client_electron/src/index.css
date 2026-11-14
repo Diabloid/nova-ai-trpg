@@ -47,6 +47,17 @@
     flex-direction: column;
     overflow: hidden;
   }
+
+  button,
+  [role="button"] {
+    outline-color: rgba(158, 0, 32, 0.75);
+  }
+
+  button:focus-visible,
+  [role="button"]:focus-visible {
+    outline: 1px solid rgba(158, 0, 32, 0.75);
+    outline-offset: 2px;
+  }
 }
 
 /* 4px custom scrollbars */

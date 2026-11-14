@@ -643,3 +643,66 @@ export function cleanDisplayAction(
 
   return unescapeNovaText(stripped).trim();
 }
+
+/**
+ * Будує візуальні токени репліки гравця для відображення в чаті:
+ * вирізає зовнішні `**` у активних `action`-спанів, розекрановує `\\**`/`\"`/`\-`/`\\`
+ * і обрізає крайні пробіли так, щоб об'єднання токенів збігалося з `cleanDisplayAction`.
+ */
+export function buildDisplayTokens(
+  rawAction: string,
+  suppressedSpans: readonly SyntaxSelectionRange[] = []
+): NovaToken[] {
+  const parsed = parseNovaSyntax(rawAction, suppressedSpans);
+  if (!parsed.cleanText) return [];
+
+  const sortedDelims = [...parsed.actionDelimiterRanges].sort((a, b) => a.start - b.start);
+  const result: NovaToken[] = [];
+
+  for (const token of parsed.tokens) {
+    let cursor = token.start;
+    for (const delim of sortedDelims) {
+      if (delim.end <= cursor) continue;
+      if (delim.start >= token.end) break;
+
+      if (delim.start > cursor) {
+        const piece = unescapeNovaText(parsed.cleanText.slice(cursor, delim.start));
+        if (piece.length > 0) {
+          result.push({ ...token, text: piece, start: cursor, end: delim.start });
+        }
+      }
+      cursor = Math.max(cursor, delim.end);
+    }
+
+    if (cursor < token.end) {
+      const piece = unescapeNovaText(parsed.cleanText.slice(cursor, token.end));
+      if (piece.length > 0) {
+        result.push({ ...token, text: piece, start: cursor, end: token.end });
+      }
+    }
+  }
+
+  // Синхронне .trim() по краях послідовності токенів (як у cleanDisplayAction)
+  while (result.length > 0) {
+    const trimmed = result[0].text.trimStart();
+    if (trimmed.length === 0) {
+      result.shift();
+    } else {
+      result[0] = { ...result[0], text: trimmed };
+      break;
+    }
+  }
+
+  while (result.length > 0) {
+    const lastIdx = result.length - 1;
+    const trimmed = result[lastIdx].text.trimEnd();
+    if (trimmed.length === 0) {
+      result.pop();
+    } else {
+      result[lastIdx] = { ...result[lastIdx], text: trimmed };
+      break;
+    }
+  }
+
+  return result;
+}

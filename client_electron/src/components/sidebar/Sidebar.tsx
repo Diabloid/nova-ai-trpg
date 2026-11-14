@@ -85,14 +85,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
         type="button"
         onClick={toggleSidebar}
         title={isSidebarOpen ? 'Згорнути бічне меню' : 'Розгорнути бічне меню'}
-        className="absolute top-10 -right-7 z-50 group flex items-center justify-center cursor-pointer outline-none"
+        className="absolute top-[17px] -right-7 z-50 group flex items-center justify-center cursor-pointer outline-none"
         style={{ width: '28px', height: '56px' }}
       >
         {/* Фонова плашка, що плавно розширюється на hover */}
         <div
-          className={`absolute left-0 w-7 rounded-r-lg border-y border-r border-[#2A2A2A] bg-[#181818] transition-all duration-150 ease-out group-hover:h-[54px] group-hover:bg-[#202020] group-hover:border-[#383838] ${
-            isSidebarOpen ? 'h-[46px]' : 'h-[46px]'
-          }`}
+          className="absolute left-0 w-7 h-[46px] rounded-r-lg border-y border-r border-[#2A2A2A] bg-[#181818] transition-all duration-150 ease-out group-hover:h-[54px] group-hover:bg-[#202020] group-hover:border-[#383838]"
         />
         {/* Шеврон, що обертається на 180° */}
         <ChevronRight

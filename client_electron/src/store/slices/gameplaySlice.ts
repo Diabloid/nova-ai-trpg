@@ -3,10 +3,10 @@ import type { ChatMessage } from '../../types/game';
 import { campaignsApi } from '../../api/campaignsApi';
 import { gameApi } from '../../api/gameApi';
 import { parseIntents, cleanDisplayAction } from '../../utils/intentParser';
-import type { SyntaxSelectionRange } from '../../utils/novaSyntax';
+import { buildDisplayTokens, type SyntaxSelectionRange } from '../../utils/novaSyntax';
 import { sanitizeStory } from '../../utils/textSanitizer';
 import { formatSystemTime } from '../../utils/formatTime';
-import type { GameState, GameplaySlice } from './types';
+import type { GameState, GameplaySlice, RollbackGhostState } from './types';
 
 type StoreSet = Parameters<StateCreator<GameState, [], [], GameplaySlice>>[0];
 type StoreGet = Parameters<StateCreator<GameState, [], [], GameplaySlice>>[1];
@@ -23,13 +23,13 @@ async function dispatchPlayerAction(
   get: StoreGet
 ): Promise<void> {
   const text = rawText.trim();
-  const { activeCampaignId, isStreaming, isLoading } = get();
+  const { activeCampaignId, isStreaming, isLoading, isRollingBack } = get();
 
   if (!activeCampaignId) {
     get().setSystemAlert('Спочатку оберіть або створіть кампанію', 'info');
     return;
   }
-  if (!text || isStreaming || isLoading) return;
+  if (!text || isStreaming || isLoading || isRollingBack) return;
 
   const savedRawText = rawText;
   const savedSuppressedSpans = actionSuppressedSpans.map((s) => ({ ...s }));
@@ -47,6 +47,7 @@ async function dispatchPlayerAction(
 
   const intents = parseIntents(text, shiftedSuppressed);
   const cleanUserText = cleanDisplayAction(text, shiftedSuppressed);
+  const displayTokens = buildDisplayTokens(text, shiftedSuppressed);
   const timeNow = formatSystemTime();
 
   const playerMsgId = retryMessageId ?? `player-${Date.now()}`;
@@ -54,6 +55,7 @@ async function dispatchPlayerAction(
     id: playerMsgId,
     sender: 'Ти:',
     text: cleanUserText,
+    tokens: displayTokens,
     senderColor: '#60A5FA',
     timeText: timeNow,
     isPlayer: true,
@@ -172,6 +174,9 @@ export const createGameplaySlice: StateCreator<GameState, [], [], GameplaySlice>
   messages: [],
   userInput: '',
   suppressedSpans: [],
+  isRollingBack: false,
+  rollbackInputSignal: 0,
+  rollbackGhost: null,
 
   // --- ХІД ГРАВЦЯ (SSE STREAMING) ---
   sendPlayerAction: async (rawText: string) => {
@@ -193,29 +198,108 @@ export const createGameplaySlice: StateCreator<GameState, [], [], GameplaySlice>
     );
   },
 
-  // --- ВІДКАТ ХОДУ (UNDO) ---
+  // --- ПЛАВНИЙ ВІДКАТ ХОДУ (UNDO) БЕЗ ПЕРЕЗАВАНТАЖЕННЯ КАМПАНІЇ ---
   rollbackLastTurn: async () => {
-    const { activeCampaignId, isStreaming, isLoading } = get();
-    if (!activeCampaignId || isStreaming || isLoading) return;
+    const { activeCampaignId, isStreaming, isLoading, isRollingBack } = get();
+    if (!activeCampaignId || isStreaming || isLoading || isRollingBack) return;
 
     try {
-      set({ isLoading: true });
+      set({ isRollingBack: true });
       const res = await campaignsApi.rollbackCampaign(activeCampaignId);
+      const nextLocation = res.current_state?.meta?.location;
 
-      // Повертаємо попередній ввід гравця в інпут та скидаємо suppressedSpans
-      set({
-        userInput: res.previous_user_input,
-        suppressedSpans: [],
+      // Знаходимо 2 останні повідомлення ходу (гравець + оповідач) для плавного зникнення
+      const currentMessages = get().messages;
+      let lastNarratorIdx = -1;
+      for (let i = currentMessages.length - 1; i >= 0; i--) {
+        const msg = currentMessages[i];
+        if (!msg.isPlayer && msg.role !== 'system') {
+          lastNarratorIdx = i;
+          break;
+        }
+      }
+
+      const targetIds = new Set<string>();
+      let prevPlayerMsgId: string | null = null;
+      if (lastNarratorIdx !== -1) {
+        targetIds.add(currentMessages[lastNarratorIdx].id);
+        const prevMsg = currentMessages[lastNarratorIdx - 1];
+        if (prevMsg && prevMsg.isPlayer && !prevMsg.isFailed) {
+          targetIds.add(prevMsg.id);
+          prevPlayerMsgId = prevMsg.id;
+        }
+      }
+
+      // Заміряємо координати бульбашки гравця та поля вводу для анімації перельоту тексту
+      let ghostPayload: RollbackGhostState | null = null;
+      if (prevPlayerMsgId && res.previous_user_input && typeof document !== 'undefined') {
+        const bubbleRoot = document.querySelector(`[data-chat-msg-id="${prevPlayerMsgId}"]`);
+        const bubbleBody = bubbleRoot?.querySelector('[data-context-copy]') ?? bubbleRoot;
+        const inputBox = document.querySelector('[data-chat-input-box="true"]');
+        if (bubbleBody && inputBox) {
+          const from = bubbleBody.getBoundingClientRect();
+          const to = inputBox.getBoundingClientRect();
+          if (from.width > 0 && to.width > 0) {
+            ghostPayload = {
+              text: res.previous_user_input,
+              fromRect: { left: from.left, top: from.top, width: from.width, height: from.height },
+              toRect: { left: to.left, top: to.top, width: to.width, height: to.height },
+            };
+          }
+        }
+      }
+
+      // Тихо оновлюємо стан і локацію; вмикаємо згасання бульбашок і переліт тексту в інпут
+      set((state) => ({
         playerState: res.current_state,
-      });
+        rollbackGhost: ghostPayload,
+        activeCampaign:
+          state.activeCampaign && state.activeCampaign.campaign_id === activeCampaignId && nextLocation
+            ? { ...state.activeCampaign, current_location: nextLocation }
+            : state.activeCampaign,
+        campaigns: nextLocation
+          ? state.campaigns.map((c) =>
+              c.campaign_id === activeCampaignId ? { ...c, current_location: nextLocation } : c
+            )
+          : state.campaigns,
+        messages: state.messages.map((m) =>
+          targetIds.has(m.id) ? { ...m, isRollingBack: true, canRollback: false } : m
+        ),
+      }));
 
-      // Перезавантажуємо історію кампанії для чистоти логу
-      await get().selectCampaign(activeCampaignId);
+      if (targetIds.size > 0 || ghostPayload) {
+        await new Promise((resolve) => setTimeout(resolve, ghostPayload ? 460 : 280));
+      }
+
+      set((state) => {
+        const remaining = state.messages.filter((m) => !targetIds.has(m.id));
+        let newLastNarratorIdx = -1;
+        for (let i = remaining.length - 1; i >= 0; i--) {
+          const msg = remaining[i];
+          if (!msg.isPlayer && msg.role !== 'system') {
+            newLastNarratorIdx = i;
+            break;
+          }
+        }
+        // Початкове привітання (індекс 0 без жодного ходу гравця) не можна відкочувати
+        const canRollbackNext = newLastNarratorIdx > 0;
+        return {
+          userInput: res.previous_user_input,
+          suppressedSpans: [],
+          rollbackInputSignal: state.rollbackInputSignal + 1,
+          rollbackGhost: null,
+          messages: remaining.map((m, idx) => ({
+            ...m,
+            canRollback: idx === newLastNarratorIdx ? canRollbackNext : false,
+          })),
+        };
+      });
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : 'Невідома помилка';
+      set({ rollbackGhost: null });
       get().setSystemAlert(`Помилка відкату: ${errMsg}`, 'error');
     } finally {
-      set({ isLoading: false });
+      set({ isRollingBack: false, rollbackGhost: null });
     }
   },
 

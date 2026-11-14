@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu } from 'electron';
 import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -115,6 +115,22 @@ function createWindow() {
     },
   });
 
+  win.setMenu(null);
+
+  // Дозволяємо відкривати DevTools у dev-режимі (F12 / Ctrl+Shift+I), не перехоплюючи Ctrl+I редактора
+  if (VITE_DEV_SERVER_URL) {
+    win.webContents.on('before-input-event', (event, input) => {
+      if (
+        input.type === 'keyDown' &&
+        (input.code === 'F12' ||
+          ((input.control || input.meta) && input.shift && input.code === 'KeyI'))
+      ) {
+        win?.webContents.toggleDevTools();
+        event.preventDefault();
+      }
+    });
+  }
+
   // Track maximize state and send to renderer if needed
   win.on('maximize', () => {
     win?.webContents.send('window-maximized-change', true);
@@ -170,6 +186,7 @@ app.on('activate', () => {
 });
 
 app.whenReady().then(async () => {
+  Menu.setApplicationMenu(null);
   await refreshSystemTimeConfig();
   createWindow();
 });

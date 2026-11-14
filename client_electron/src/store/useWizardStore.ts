@@ -333,7 +333,7 @@ export const useWizardStore = create<WizardState>((set, get) => ({
             {
               id: `wizard-sync-${Date.now()}`,
               sender: 'Творець Долі:',
-              text: '✨ Картку персонажа гармонізовано! Характеристики та навички узгоджено з вашими правками.',
+              text: 'Картку персонажа гармонізовано! Характеристики та навички узгоджено з вашими правками.',
               senderColor: '#A78BFA',
               timeText: formatSystemTime(),
               isPlayer: false,

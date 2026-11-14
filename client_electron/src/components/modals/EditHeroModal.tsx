@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useGameStore } from '../../store/useGameStore';
 import { Button } from '../ui/Button';
+import { Modal } from '../ui/Modal';
 import type { PlayerState } from '../../types/api';
 
 interface EditHeroModalProps {
@@ -132,8 +133,6 @@ export const EditHeroModal: React.FC<EditHeroModalProps> = ({
 }) => {
   const { characters, activeCharacter, updateCharacter } = useGameStore();
 
-  if (!isOpen || !charId) return null;
-
   const targetChar = characters.find((c) => c.char_id === charId);
   const meta = activeCharacter?.meta;
 
@@ -142,13 +141,16 @@ export const EditHeroModal: React.FC<EditHeroModalProps> = ({
   const initialAppearance = meta?.appearance || targetChar?.appearance || '';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-150 select-none">
-      <div className="fixed inset-0" onClick={onClose} aria-hidden="true" />
-      <div className="relative z-10 w-[420px] max-w-full bg-[#161616] border border-[#333333] rounded-xl p-6 shadow-2xl flex flex-col gap-4 text-[#E5E7EB]">
-        <div className="text-[#9CA3AF] text-[11px] font-bold tracking-widest uppercase">
-          ЗАГОТОВКА ГЕРОЯ
-        </div>
+    <Modal
+      isOpen={isOpen && !!charId}
+      onClose={onClose}
+      className="w-[420px] border-[#333333] gap-4"
+    >
+      <div className="text-[#9CA3AF] text-[11px] font-bold tracking-widest uppercase">
+        ЗАГОТОВКА ГЕРОЯ
+      </div>
 
+      {charId && (
         <EditHeroForm
           key={charId}
           charId={charId}
@@ -159,7 +161,7 @@ export const EditHeroModal: React.FC<EditHeroModalProps> = ({
           onClose={onClose}
           onSave={updateCharacter}
         />
-      </div>
-    </div>
+      )}
+    </Modal>
   );
 };

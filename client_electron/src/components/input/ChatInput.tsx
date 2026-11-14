@@ -1,5 +1,14 @@
 import React, { useRef, useState, useLayoutEffect, useEffect, useCallback } from 'react';
-import { Scissors, Copy, ClipboardPaste, RemoveFormatting } from 'lucide-react';
+import {
+  Scissors,
+  Copy,
+  ClipboardPaste,
+  RemoveFormatting,
+  Bold,
+  Italic,
+  MessageSquare,
+  Braces,
+} from 'lucide-react';
 import { useGameStore } from '../../store/useGameStore';
 import { useVoiceRecorder } from '../../hooks/useVoiceRecorder';
 import { SendOrMicButton } from './SendOrMicButton';
@@ -13,15 +22,26 @@ import {
   setEditorSelectionOffsets,
 } from '../../utils/caretDom';
 import {
+  applyNovaFormatting,
   remapSuppressedSpans,
   stripZeroWidth,
   toggleSuppressFormatting,
   tokenizeNovaSyntax,
+  type FormattableSyntaxKind,
   type SyntaxSelectionRange,
 } from '../../utils/novaSyntax';
 
 const MIN_EDITOR_HEIGHT = 24;
 const MAX_EDITOR_HEIGHT = 120;
+const MAX_HISTORY_SIZE = 100;
+const TYPING_BURST_MS = 800;
+
+interface EditorHistoryEntry {
+  text: string;
+  suppressedSpans: SyntaxSelectionRange[];
+  selectionStart: number;
+  selectionEnd: number;
+}
 
 export const ChatInput: React.FC = () => {
   const {
@@ -33,10 +53,13 @@ export const ChatInput: React.FC = () => {
     activeCampaignId,
     isLoading,
     isStreaming,
+    isRollingBack,
+    rollbackInputSignal,
     setSystemAlert,
   } = useGameStore();
 
   const [isInputOverflowing, setIsInputOverflowing] = useState(false);
+  const [isRollbackHighlighted, setIsRollbackHighlighted] = useState(false);
   const [contextMenu, setContextMenu] = useState<{
     x: number;
     y: number;
@@ -48,13 +71,86 @@ export const ChatInput: React.FC = () => {
   const lastRenderedValueRef = useRef<string | null>(null);
   const lastRenderedSuppressedKeyRef = useRef<string>('[]');
   const pendingSelectionRef = useRef<SyntaxSelectionRange | null>(null);
+  const beforeSelectionRef = useRef<SyntaxSelectionRange | null>(null);
+  const undoStackRef = useRef<EditorHistoryEntry[]>([]);
+  const redoStackRef = useRef<EditorHistoryEntry[]>([]);
+  const lastBurstRef = useRef<{ time: number; kind: 'insert' | 'delete' } | null>(null);
+  const lastRollbackSignalRef = useRef<number>(rollbackInputSignal);
+
+  const pushHistoryStep = useCallback(
+    (
+      entry: EditorHistoryEntry,
+      mode: 'discrete' | 'insert' | 'delete',
+      singleCharDelta?: string
+    ) => {
+      const now = Date.now();
+      const isSingleNonSpaceInsert =
+        mode === 'insert' &&
+        singleCharDelta !== undefined &&
+        singleCharDelta.length === 1 &&
+        !/\s/.test(singleCharDelta);
+      const isSingleDelete =
+        mode === 'delete' &&
+        singleCharDelta !== undefined &&
+        singleCharDelta.length === 1;
+
+      const canCoalesce =
+        (isSingleNonSpaceInsert || isSingleDelete) &&
+        lastBurstRef.current !== null &&
+        lastBurstRef.current.kind === mode &&
+        now - lastBurstRef.current.time < TYPING_BURST_MS &&
+        undoStackRef.current.length > 0;
+
+      redoStackRef.current = [];
+
+      if (canCoalesce && lastBurstRef.current) {
+        lastBurstRef.current.time = now;
+        return;
+      }
+
+      undoStackRef.current.push({
+        text: entry.text,
+        suppressedSpans: entry.suppressedSpans.map((s) => ({ ...s })),
+        selectionStart: entry.selectionStart,
+        selectionEnd: entry.selectionEnd,
+      });
+      if (undoStackRef.current.length > MAX_HISTORY_SIZE) {
+        undoStackRef.current.shift();
+      }
+
+      lastBurstRef.current =
+        mode === 'insert' || mode === 'delete' ? { time: now, kind: mode } : null;
+    },
+    []
+  );
+
+  const clearHistory = useCallback(() => {
+    undoStackRef.current = [];
+    redoStackRef.current = [];
+    lastBurstRef.current = null;
+    beforeSelectionRef.current = null;
+  }, []);
 
   const handleTranscribed = useCallback(
     (text: string) => {
-      const currentInput = stripZeroWidth(useGameStore.getState().userInput);
-      setUserInput(currentInput ? `${currentInput} ${text}` : text);
+      const state = useGameStore.getState();
+      const currentInput = stripZeroWidth(state.userInput);
+      const nextInput = currentInput ? `${currentInput} ${text}` : text;
+      const el = editorRef.current;
+      const sel = el ? getEditorSelectionOffsets(el) : { start: currentInput.length, end: currentInput.length };
+      pushHistoryStep(
+        {
+          text: currentInput,
+          suppressedSpans: state.suppressedSpans,
+          selectionStart: sel.start,
+          selectionEnd: sel.end,
+        },
+        'discrete'
+      );
+      pendingSelectionRef.current = { start: nextInput.length, end: nextInput.length };
+      setUserInput(nextInput);
     },
-    [setUserInput]
+    [pushHistoryStep, setUserInput]
   );
 
   const handleVoiceError = useCallback(
@@ -70,7 +166,10 @@ export const ChatInput: React.FC = () => {
   });
 
   const hasText = userInput.trim().length > 0;
-  const isInputDisabled = isLoading || isStreaming || isTranscribing || !activeCampaignId;
+  // Розділяємо блокування редактора і блокування відправки, щоб гравець міг вільно набирати чернетку під час стрімінгу
+  const isEditorLocked = isLoading || isTranscribing || !activeCampaignId;
+  const isSendBlocked =
+    isLoading || isStreaming || isRollingBack || isTranscribing || !activeCampaignId;
   const placeholderText = !activeCampaignId
     ? 'Створіть або оберіть кампанію, щоб розпочати гру...'
     : 'Введіть дію, думку або фразу...';
@@ -97,6 +196,16 @@ export const ChatInput: React.FC = () => {
 
     if (isComposingRef.current) return;
 
+    const hasRollbackTriggered =
+      rollbackInputSignal > 0 && rollbackInputSignal !== lastRollbackSignalRef.current;
+    if (hasRollbackTriggered) {
+      lastRollbackSignalRef.current = rollbackInputSignal;
+      pendingSelectionRef.current = {
+        start: cleanValue.length,
+        end: cleanValue.length,
+      };
+    }
+
     const currentDomText = extractPlainTextFromEditor(el);
     const suppressedKey = JSON.stringify(suppressedSpans);
     if (
@@ -105,7 +214,7 @@ export const ChatInput: React.FC = () => {
       currentDomText !== cleanValue
     ) {
       const prevScrollTop = el.scrollTop;
-      const shouldRestoreSelection = document.activeElement === el;
+      const shouldRestoreSelection = hasRollbackTriggered || document.activeElement === el;
       const savedSelection =
         pendingSelectionRef.current ??
         (shouldRestoreSelection ? getEditorSelectionOffsets(el) : null);
@@ -115,6 +224,10 @@ export const ChatInput: React.FC = () => {
       lastRenderedSuppressedKeyRef.current = suppressedKey;
       pendingSelectionRef.current = null;
 
+      if (hasRollbackTriggered) {
+        el.focus();
+      }
+
       if (savedSelection && shouldRestoreSelection) {
         const clampedStart = Math.min(savedSelection.start, cleanValue.length);
         const clampedEnd = Math.min(savedSelection.end, cleanValue.length);
@@ -122,10 +235,30 @@ export const ChatInput: React.FC = () => {
       }
 
       el.scrollTop = prevScrollTop;
+    } else if (hasRollbackTriggered) {
+      el.focus();
+      setEditorSelectionOffsets(el, cleanValue.length, cleanValue.length);
+      pendingSelectionRef.current = null;
     }
 
     recalculateLayout();
-  }, [userInput, suppressedSpans, setUserInput, recalculateLayout]);
+  }, [userInput, suppressedSpans, rollbackInputSignal, setUserInput, recalculateLayout]);
+
+  // Коротке підсвічування рамки інпуту після відкату ходу (~500 мс)
+  useEffect(() => {
+    if (rollbackInputSignal === 0) return;
+    const startTimer = setTimeout(() => setIsRollbackHighlighted(true), 0);
+    const endTimer = setTimeout(() => setIsRollbackHighlighted(false), 500);
+    return () => {
+      clearTimeout(startTimer);
+      clearTimeout(endTimer);
+    };
+  }, [rollbackInputSignal]);
+
+  // Скидання історії скасувань при зміні кампанії
+  useEffect(() => {
+    clearHistory();
+  }, [activeCampaignId, clearHistory]);
 
   // Перерахунок висоти й скролу при ресайзі вікна чи переключенні Sidebar
   useEffect(() => {
@@ -152,6 +285,48 @@ export const ChatInput: React.FC = () => {
     [setUserInput]
   );
 
+  const performUndo = useCallback(() => {
+    if (isEditorLocked || undoStackRef.current.length === 0) return;
+    const el = editorRef.current;
+    const currentSelection = el ? getEditorSelectionOffsets(el) : { start: 0, end: 0 };
+    const currentText = stripZeroWidth(userInput);
+
+    const target = undoStackRef.current.pop();
+    if (!target) return;
+
+    redoStackRef.current.push({
+      text: currentText,
+      suppressedSpans: suppressedSpans.map((s) => ({ ...s })),
+      selectionStart: currentSelection.start,
+      selectionEnd: currentSelection.end,
+    });
+    lastBurstRef.current = null;
+    lastRenderedValueRef.current = null;
+    setSuppressedSpans(target.suppressedSpans);
+    applyValueChange(target.text, target.selectionStart, target.selectionEnd);
+  }, [isEditorLocked, userInput, suppressedSpans, setSuppressedSpans, applyValueChange]);
+
+  const performRedo = useCallback(() => {
+    if (isEditorLocked || redoStackRef.current.length === 0) return;
+    const el = editorRef.current;
+    const currentSelection = el ? getEditorSelectionOffsets(el) : { start: 0, end: 0 };
+    const currentText = stripZeroWidth(userInput);
+
+    const target = redoStackRef.current.pop();
+    if (!target) return;
+
+    undoStackRef.current.push({
+      text: currentText,
+      suppressedSpans: suppressedSpans.map((s) => ({ ...s })),
+      selectionStart: currentSelection.start,
+      selectionEnd: currentSelection.end,
+    });
+    lastBurstRef.current = null;
+    lastRenderedValueRef.current = null;
+    setSuppressedSpans(target.suppressedSpans);
+    applyValueChange(target.text, target.selectionStart, target.selectionEnd);
+  }, [isEditorLocked, userInput, suppressedSpans, setSuppressedSpans, applyValueChange]);
+
   const spliceSelection = useCallback(
     (selection: SyntaxSelectionRange, insertedText: string) => {
       const cleanInserted = stripZeroWidth(insertedText.replace(/\r\n?/g, '\n'));
@@ -160,10 +335,22 @@ export const ChatInput: React.FC = () => {
       const nextValue = `${before}${cleanInserted}${after}`;
       const nextCaret = selection.start + cleanInserted.length;
 
+      if (nextValue !== userInput) {
+        pushHistoryStep(
+          {
+            text: stripZeroWidth(userInput),
+            suppressedSpans,
+            selectionStart: selection.start,
+            selectionEnd: selection.end,
+          },
+          'discrete'
+        );
+      }
+
       setSuppressedSpans(remapSuppressedSpans(userInput, nextValue, suppressedSpans));
       applyValueChange(nextValue, nextCaret);
     },
-    [userInput, suppressedSpans, setSuppressedSpans, applyValueChange]
+    [userInput, suppressedSpans, pushHistoryStep, setSuppressedSpans, applyValueChange]
   );
 
   const handleInput = () => {
@@ -171,7 +358,54 @@ export const ChatInput: React.FC = () => {
     if (!el || isComposingRef.current) return;
 
     const nextRaw = extractPlainTextFromEditor(el);
-    pendingSelectionRef.current = getEditorSelectionOffsets(el);
+    const afterSelection = getEditorSelectionOffsets(el);
+    const prevClean = stripZeroWidth(userInput);
+    const prevSelection = beforeSelectionRef.current ?? afterSelection;
+    beforeSelectionRef.current = null;
+
+    if (nextRaw !== prevClean) {
+      const lenDelta = nextRaw.length - prevClean.length;
+      if (lenDelta > 0) {
+        const deltaChar =
+          lenDelta === 1 && afterSelection.start > 0
+            ? nextRaw.slice(afterSelection.start - 1, afterSelection.start)
+            : undefined;
+        pushHistoryStep(
+          {
+            text: prevClean,
+            suppressedSpans,
+            selectionStart: prevSelection.start,
+            selectionEnd: prevSelection.end,
+          },
+          'insert',
+          deltaChar
+        );
+      } else if (lenDelta < 0) {
+        const deletedSingle = lenDelta === -1 ? 'x' : undefined;
+        pushHistoryStep(
+          {
+            text: prevClean,
+            suppressedSpans,
+            selectionStart: prevSelection.start,
+            selectionEnd: prevSelection.end,
+          },
+          'delete',
+          deletedSingle
+        );
+      } else {
+        pushHistoryStep(
+          {
+            text: prevClean,
+            suppressedSpans,
+            selectionStart: prevSelection.start,
+            selectionEnd: prevSelection.end,
+          },
+          'discrete'
+        );
+      }
+    }
+
+    pendingSelectionRef.current = afterSelection;
     lastRenderedValueRef.current = null;
     setSuppressedSpans(remapSuppressedSpans(userInput, nextRaw, suppressedSpans));
     setUserInput(nextRaw);
@@ -183,15 +417,82 @@ export const ChatInput: React.FC = () => {
       return;
     }
     const cleanText = stripZeroWidth(userInput);
-    if (!cleanText.trim() || isLoading || isStreaming) return;
+    if (!cleanText.trim() || isSendBlocked) return;
+    clearHistory();
     // sendPlayerAction сам зчитує suppressedSpans перед очищенням інпуту
     sendPlayerAction(cleanText).catch((err: Error) => {
       setSystemAlert(`Помилка відправки: ${err.message}`, 'error');
     });
   };
 
+  const applyFormatting = useCallback(
+    (kind: FormattableSyntaxKind, explicitSelection?: SyntaxSelectionRange) => {
+      if (isEditorLocked) return;
+      const el = editorRef.current;
+      const selection = explicitSelection ?? (el ? getEditorSelectionOffsets(el) : { start: 0, end: 0 });
+      const res = applyNovaFormatting(userInput, suppressedSpans, selection, kind);
+
+      if (
+        res.text !== userInput ||
+        JSON.stringify(res.suppressedSpans) !== JSON.stringify(suppressedSpans)
+      ) {
+        pushHistoryStep(
+          {
+            text: stripZeroWidth(userInput),
+            suppressedSpans,
+            selectionStart: selection.start,
+            selectionEnd: selection.end,
+          },
+          'discrete'
+        );
+      }
+
+      setSuppressedSpans(res.suppressedSpans);
+      el?.focus();
+      applyValueChange(res.text, res.selectionStart, res.selectionEnd);
+    },
+    [isEditorLocked, userInput, suppressedSpans, pushHistoryStep, setSuppressedSpans, applyValueChange]
+  );
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (e.nativeEvent.isComposing || isComposingRef.current) return;
+
+    if (!isEditorLocked && (e.ctrlKey || e.metaKey) && !e.altKey) {
+      // Перевіряємо фізичний e.code для незалежності від розкладки; Ctrl+Shift+I (DevTools) не чіпаємо
+      if (e.code === 'KeyZ' && !e.shiftKey) {
+        e.preventDefault();
+        performUndo();
+        return;
+      }
+      if ((e.code === 'KeyZ' && e.shiftKey) || (e.code === 'KeyY' && !e.shiftKey)) {
+        e.preventDefault();
+        performRedo();
+        return;
+      }
+
+      if (!e.shiftKey) {
+        if (e.code === 'KeyB') {
+          e.preventDefault();
+          applyFormatting('action');
+          return;
+        }
+        if (e.code === 'KeyI') {
+          e.preventDefault();
+          applyFormatting('thought');
+          return;
+        }
+        if (e.code === 'KeyD') {
+          e.preventDefault();
+          applyFormatting('speech');
+          return;
+        }
+        if (e.code === 'Slash') {
+          e.preventDefault();
+          applyFormatting('ooc');
+          return;
+        }
+      }
+    }
 
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -209,7 +510,7 @@ export const ChatInput: React.FC = () => {
   };
 
   const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
-    if (isInputDisabled) return;
+    if (isEditorLocked) return;
     e.preventDefault();
     const el = editorRef.current;
     if (!el) return;
@@ -229,7 +530,7 @@ export const ChatInput: React.FC = () => {
     const selectedText = stripZeroWidth(userInput.slice(sel.start, sel.end));
     e.clipboardData.setData('text/plain', selectedText);
 
-    if (isCut && !isInputDisabled) {
+    if (isCut && !isEditorLocked) {
       spliceSelection(sel, '');
     }
   };
@@ -239,7 +540,7 @@ export const ChatInput: React.FC = () => {
       stopRecording();
     } else if (hasText) {
       handleSend();
-    } else {
+    } else if (!isSendBlocked) {
       startRecording();
     }
   };
@@ -268,7 +569,14 @@ export const ChatInput: React.FC = () => {
       {/* Головна зона вводу: Border.inputBox + Кнопки праворуч */}
       <div className="flex items-end gap-3">
         {/* Поле вводу з фірмовою рамкою #333333 -> focus #5A0010 та contenteditable-підсвіткою */}
-        <div className="flex-1 bg-[#161616] border border-[#333333] hover:border-[#444444] focus-within:border-[#5A0010] focus-within:hover:border-[#5A0010] rounded-[10px] p-[14px_16px] flex items-center transition-colors shadow-inner">
+        <div
+          data-chat-input-box="true"
+          className={`flex-1 bg-[#161616] border rounded-[10px] p-[14px_16px] flex items-center transition-all duration-300 shadow-inner ${
+            isRollbackHighlighted
+              ? 'border-[#EAB308] shadow-[0_0_12px_rgba(234,179,8,0.25)]'
+              : 'border-[#333333] hover:border-[#444444] focus-within:border-[#5A0010] focus-within:hover:border-[#5A0010]'
+          }`}
+        >
           <div className="relative w-full min-w-0">
             {userInput.length === 0 && (
               <span
@@ -284,15 +592,24 @@ export const ChatInput: React.FC = () => {
               role="textbox"
               aria-multiline="true"
               aria-label={placeholderText}
-              contentEditable={!isInputDisabled}
+              contentEditable={!isEditorLocked}
               suppressContentEditableWarning
               spellCheck={false}
+              onBeforeInput={() => {
+                const el = editorRef.current;
+                if (!el || isComposingRef.current) return;
+                beforeSelectionRef.current = getEditorSelectionOffsets(el);
+              }}
               onInput={handleInput}
               onKeyDown={handleKeyDown}
               onPaste={handlePaste}
               onCopy={(e) => handleCopyOrCut(false, e)}
               onCut={(e) => handleCopyOrCut(true, e)}
               onCompositionStart={() => {
+                const el = editorRef.current;
+                if (el) {
+                  beforeSelectionRef.current = getEditorSelectionOffsets(el);
+                }
                 isComposingRef.current = true;
               }}
               onCompositionEnd={() => {
@@ -302,7 +619,7 @@ export const ChatInput: React.FC = () => {
               onContextMenu={handleContextMenu}
               className={`w-full bg-transparent text-[15px] leading-[24px] font-sans text-[#E5E7EB] selection:bg-[#7E0018]/40 whitespace-pre-wrap break-words outline-none min-h-[24px] max-h-[120px] m-0 p-0 border-0 block ${
                 isInputOverflowing ? 'overflow-y-auto' : 'overflow-hidden'
-              } ${isInputDisabled ? 'opacity-60 cursor-not-allowed select-none' : 'select-text cursor-text'}`}
+              } ${isEditorLocked ? 'opacity-60 cursor-not-allowed select-none' : 'select-text cursor-text'}`}
             />
           </div>
         </div>
@@ -312,7 +629,7 @@ export const ChatInput: React.FC = () => {
           <SendOrMicButton
             hasText={hasText}
             isRecording={isRecording}
-            disabled={isInputDisabled && !isRecording}
+            disabled={isSendBlocked && !isRecording}
             onClick={handleSendOrRecordClick}
           />
           <div className="pb-2.5">
@@ -331,7 +648,7 @@ export const ChatInput: React.FC = () => {
             label: 'Вирізати',
             shortcut: 'Ctrl+X',
             icon: <Scissors size={13} />,
-            disabled: !hasSelection || isInputDisabled,
+            disabled: !hasSelection || isEditorLocked,
             onClick: () => {
               if (!contextMenu) return;
               const selected = stripZeroWidth(
@@ -365,7 +682,7 @@ export const ChatInput: React.FC = () => {
             label: 'Вставити',
             shortcut: 'Ctrl+V',
             icon: <ClipboardPaste size={13} />,
-            disabled: isInputDisabled,
+            disabled: isEditorLocked,
             onClick: () => {
               if (!contextMenu) return;
               navigator.clipboard
@@ -380,9 +697,50 @@ export const ChatInput: React.FC = () => {
           },
           { type: 'separator' },
           {
+            label: 'Дія (**...**)',
+            shortcut: 'Ctrl+B',
+            icon: <Bold size={13} className="text-[#EAB308]" />,
+            disabled: isEditorLocked,
+            onClick: () => {
+              if (!contextMenu) return;
+              applyFormatting('action', contextMenu.selection);
+            },
+          },
+          {
+            label: 'Думка ("...")',
+            shortcut: 'Ctrl+I',
+            icon: <Italic size={13} className="text-[#60A5FA]" />,
+            disabled: isEditorLocked,
+            onClick: () => {
+              if (!contextMenu) return;
+              applyFormatting('thought', contextMenu.selection);
+            },
+          },
+          {
+            label: 'Пряма мова (- ...)',
+            shortcut: 'Ctrl+D',
+            icon: <MessageSquare size={13} className="text-[#4ADE80]" />,
+            disabled: isEditorLocked,
+            onClick: () => {
+              if (!contextMenu) return;
+              applyFormatting('speech', contextMenu.selection);
+            },
+          },
+          {
+            label: 'Поза грою ((...))',
+            shortcut: 'Ctrl+/',
+            icon: <Braces size={13} className="text-[#9CA3AF]" />,
+            disabled: isEditorLocked,
+            onClick: () => {
+              if (!contextMenu) return;
+              applyFormatting('ooc', contextMenu.selection);
+            },
+          },
+          { type: 'separator' },
+          {
             label: 'Скасувати форматування',
             icon: <RemoveFormatting size={13} />,
-            disabled: !canToggleFormatting || isInputDisabled,
+            disabled: !canToggleFormatting || isEditorLocked,
             onClick: () => {
               if (!contextMenu) return;
               const nextSuppressed = toggleSuppressFormatting(
@@ -390,6 +748,17 @@ export const ChatInput: React.FC = () => {
                 suppressedSpans,
                 contextMenu.selection
               );
+              if (JSON.stringify(nextSuppressed) !== JSON.stringify(suppressedSpans)) {
+                pushHistoryStep(
+                  {
+                    text: stripZeroWidth(userInput),
+                    suppressedSpans,
+                    selectionStart: contextMenu.selection.start,
+                    selectionEnd: contextMenu.selection.end,
+                  },
+                  'discrete'
+                );
+              }
               pendingSelectionRef.current = contextMenu.selection;
               editorRef.current?.focus();
               setSuppressedSpans(nextSuppressed);

@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronDown } from 'lucide-react';
+import { Backpack, ChevronDown } from 'lucide-react';
 import { useGameStore } from '../../store/useGameStore';
 import type { ItemObject } from '../../types/api';
 
@@ -14,7 +14,7 @@ export const ContainersCol: React.FC<ContainersColProps> = ({ containers = {} })
   return (
     <div className="bg-[#1C1C1C] border border-[#2A2A2A] rounded-lg p-3 flex flex-col h-full max-h-[340px]">
       <div className="text-xs font-bold text-[#34D399] tracking-[0.5px] pb-2 border-b border-[#262626] mb-2 flex items-center gap-1.5">
-        <span>🎒</span>
+        <Backpack size={13} className="shrink-0" />
         <span>КОНТЕЙНЕРИ ТА РЮКЗАК</span>
       </div>
 

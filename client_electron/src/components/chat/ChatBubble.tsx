@@ -3,7 +3,17 @@ import { Copy, Check, RotateCcw, AlertTriangle } from 'lucide-react';
 import type { ChatMessage } from '../../types/game';
 import { RollbackBtn } from './RollbackBtn';
 import { TypingStatus } from './TypingStatus';
+import type { NovaTokenType } from '../../utils/novaSyntax';
 import { formatSystemTime } from '../../utils/formatTime';
+
+// Приглушена єдина палітра для читабельності логу чату (на відміну від яскравої підсвітки редактора)
+const CHAT_LOG_TOKEN_CLASSES: Record<NovaTokenType, string> = {
+  normal: '',
+  action: 'text-[#F3F4F6]',
+  thought: 'nova-thought-italic text-[#93C5FD]/85',
+  speech: 'text-[#D1FAE5]',
+  ooc: 'text-[#9CA3AF]',
+};
 import { useGameStore } from '../../store/useGameStore';
 
 interface ChatBubbleProps {
@@ -22,6 +32,58 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({
 
   const isPlayer = message.isPlayer || message.role === 'player';
   const isFailed = Boolean(isPlayer && message.isFailed);
+
+  const renderPlayerContent = () => {
+    if (message.tokens && message.tokens.length > 0) {
+      return message.tokens.map((token, index) => (
+        <span
+          key={index}
+          className={token.isSuppressed ? '' : CHAT_LOG_TOKEN_CLASSES[token.type]}
+        >
+          {token.text}
+        </span>
+      ));
+    }
+    return message.text;
+  };
+
+  const renderNarratorContent = () => {
+    const lines = message.text.split('\n');
+    return lines.map((line, index) => {
+      const isLast = index === lines.length - 1;
+      const cursorNode =
+        isLast && message.isStreaming ? (
+          <span className="inline-block w-1.5 h-4 ml-1 bg-[#EAB308] animate-pulse align-middle" />
+        ) : null;
+
+      if (line.length === 0) {
+        return (
+          <div key={index} className="h-3">
+            {cursorNode}
+          </div>
+        );
+      }
+
+      if (/^[ \t]*[-–—][ \t]+/.test(line)) {
+        return (
+          <div
+            key={index}
+            className="pl-2.5 my-0.5 border-l border-[#34D399]/30 text-[#D1FAE5]"
+          >
+            {line}
+            {cursorNode}
+          </div>
+        );
+      }
+
+      return (
+        <div key={index}>
+          {line}
+          {cursorNode}
+        </div>
+      );
+    });
+  };
 
   const handleCopy = () => {
     const selectedText = window.getSelection()?.toString();
@@ -48,7 +110,16 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({
   const timeFormatted = message.timeText || (message.createdAt ? formatSystemTime(message.createdAt) : '');
 
   return (
-    <div className={`relative mb-5 flex flex-col group animate-fade-in ${isPlayer ? 'self-start max-w-[85%]' : 'w-full'}`}>
+    <div
+      data-chat-msg-id={message.id}
+      className={`relative mb-5 flex flex-col group transition-all duration-300 origin-bottom ${
+        isPlayer ? 'self-start max-w-[85%]' : 'w-full'
+      } ${
+        message.isRollingBack
+          ? 'opacity-0 translate-y-3 scale-[0.96] pointer-events-none'
+          : 'animate-fade-in opacity-100 translate-y-0 scale-100'
+      }`}
+    >
       {/* Верхній рядок: Вушко-вкладинка (Header Tab) ліворуч + Кнопка відкату праворуч */}
       <div className="flex items-end justify-between -mb-[1px] z-10 pr-3">
         <div
@@ -91,10 +162,7 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({
         {/* Текст повідомлення */}
         {message.text.length > 0 && (
           <div className="text-[14px] leading-[24px] text-[#E5E7EB] tracking-[0.2px] select-text whitespace-pre-wrap break-words">
-            {message.text}
-            {message.isStreaming && (
-              <span className="inline-block w-1.5 h-4 ml-1 bg-[#EAB308] animate-pulse align-middle" />
-            )}
+            {isPlayer ? renderPlayerContent() : renderNarratorContent()}
           </div>
         )}
 

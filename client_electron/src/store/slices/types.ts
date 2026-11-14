@@ -51,11 +51,27 @@ export interface EntitySlice {
   deleteCharacter: (charId: string) => Promise<void>;
 }
 
+export interface RollbackGhostRect {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
+export interface RollbackGhostState {
+  text: string;
+  fromRect: RollbackGhostRect;
+  toRect: RollbackGhostRect;
+}
+
 export interface GameplaySlice {
   playerState: PlayerState | null;
   messages: ChatMessage[];
   userInput: string;
   suppressedSpans: SyntaxSelectionRange[];
+  isRollingBack: boolean;
+  rollbackInputSignal: number;
+  rollbackGhost: RollbackGhostState | null;
 
   sendPlayerAction: (rawText: string) => Promise<void>;
   retryFailedAction: (messageId: string) => Promise<void>;

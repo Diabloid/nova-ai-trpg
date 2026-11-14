@@ -1,16 +1,18 @@
 import type { PlayerState } from './api';
-import type { SyntaxSelectionRange } from '../utils/novaSyntax';
+import type { NovaToken, SyntaxSelectionRange } from '../utils/novaSyntax';
 
 export interface ChatMessage {
   id: string;
   sender: 'Ти:' | 'Оповідач:' | 'Творець Долі:' | string;
   text: string;
+  tokens?: NovaToken[];
   senderColor?: string;
   timeText?: string;
   isPlayer?: boolean;
   role?: 'player' | 'narrator' | 'system';
   canRollback?: boolean;
   isStreaming?: boolean;
+  isRollingBack?: boolean;
   isFailed?: boolean;
   retryPayload?: {
     rawText: string;

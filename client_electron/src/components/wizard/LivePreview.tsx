@@ -1,23 +1,20 @@
 import React from 'react';
-import { ChevronDown, RefreshCw } from 'lucide-react';
+import {
+  ArrowRight,
+  Backpack,
+  ChevronDown,
+  HeartPulse,
+  Info,
+  RefreshCw,
+  Sparkles,
+  Zap,
+} from 'lucide-react';
 import { useWizardStore } from '../../store/useWizardStore';
+import {
+  formatBlockTitle,
+  getCharacterBlockStyle,
+} from '../../utils/characterBlockStyles';
 import { Button } from '../ui/Button';
-
-const KNOWN_BLOCK_STYLES: Record<string, { title: string; color: string; icon: string }> = {
-  reputation: { title: 'ФРАКЦІЇ ТА РЕПУТАЦІЯ', color: '#F59E0B', icon: '🏛️' },
-  magic_schools: { title: 'МАГІЧНІ ШКОЛИ', color: '#C084FC', icon: '🔮' },
-  afflictions: { title: 'ПРОКЛЯТТЯ ТА ХВОРОБИ', color: '#EF4444', icon: '☠️' },
-  blessings: { title: 'БЛАГОСЛОВЕННЯ ТА АУРИ', color: '#34D399', icon: '✨' },
-  status_effects: { title: 'СТАТУСИ ТА ЕФЕКТИ', color: '#38BDF8', icon: '⚡' },
-  lore: { title: 'ЗНАННЯ СВІТУ ТА ТАЄМНИЦІ', color: '#A78BFA', icon: '📜' },
-  titles_and_ranks: { title: 'ТИТУЛИ ТА ЗВАННЯ', color: '#FBBF24', icon: '👑' },
-};
-
-function formatTitle(raw: string): string {
-  if (!raw) return '';
-  const cleaned = raw.replace(/[_-]+/g, ' ').trim();
-  return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
-}
 
 export const LivePreview: React.FC = () => {
   const {
@@ -133,8 +130,9 @@ export const LivePreview: React.FC = () => {
             onClick={toggleWizardAppearanceDetails}
             className="w-full flex items-center justify-between text-left cursor-pointer group"
           >
-            <span className="text-[11px] font-semibold text-[#9CA3AF] group-hover:text-[#D1D5DB] transition-colors">
-              🎭 Деталі зовнішності та риси
+            <span className="flex items-center gap-1.5 text-[11px] font-semibold text-[#9CA3AF] group-hover:text-[#D1D5DB] transition-colors">
+              <Sparkles size={12} className="text-[#9CA3AF] shrink-0" />
+              <span>Деталі зовнішності та риси</span>
             </span>
             <ChevronDown
               className={`w-3.5 h-3.5 text-[#6B7280] transition-transform duration-200 ${
@@ -240,7 +238,10 @@ export const LivePreview: React.FC = () => {
         {/* Травми та ушкодження */}
         {injuries.length > 0 && (
           <div className="space-y-1.5">
-            <div className="text-[11px] font-semibold text-[#EF4444]">🩸 Травми та ушкодження:</div>
+            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[#EF4444]">
+              <HeartPulse size={12} className="shrink-0" />
+              <span>Травми та ушкодження:</span>
+            </div>
             <div className="space-y-1">
               {injuries.map((inj: any, idx: number) => {
                 const loc = typeof inj === 'string' ? inj : inj.location || inj.name || 'Тіло';
@@ -262,7 +263,10 @@ export const LivePreview: React.FC = () => {
         {/* Здібності та магія */}
         {abilities.length > 0 && (
           <div className="space-y-1.5">
-            <div className="text-[11px] font-semibold text-[#C084FC]">⚡ Здібності та магія:</div>
+            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[#C084FC]">
+              <Zap size={12} className="shrink-0" />
+              <span>Здібності та магія:</span>
+            </div>
             <div className="space-y-1">
               {abilities.map((ab: any, idx: number) => {
                 const name = typeof ab === 'string' ? ab : ab.name || 'Навичка';
@@ -284,7 +288,10 @@ export const LivePreview: React.FC = () => {
         {/* Початкове спорядження */}
         {equipment.length > 0 && (
           <div className="space-y-1.5">
-            <div className="text-[11px] font-semibold text-[#34D399]">🎒 Початкове спорядження:</div>
+            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[#34D399]">
+              <Backpack size={12} className="shrink-0" />
+              <span>Початкове спорядження:</span>
+            </div>
             <div className="space-y-1">
               {equipment.map((eq: any, idx: number) => {
                 const name = typeof eq === 'string' ? eq : eq.name || 'Предмет';
@@ -305,11 +312,8 @@ export const LivePreview: React.FC = () => {
 
         {/* Динамічні довільні блоки (Custom Blocks) */}
         {filteredCustomBlocks.map(([key, data]) => {
-          const style = KNOWN_BLOCK_STYLES[key] || {
-            title: formatTitle(key),
-            color: '#9CA3AF',
-            icon: '📦',
-          };
+          const style = getCharacterBlockStyle(key, false);
+          const BlockIcon = style.Icon;
 
           return (
             <div
@@ -317,7 +321,7 @@ export const LivePreview: React.FC = () => {
               className="bg-[#161616] border border-[#2A2A2A] rounded-md p-2.5 space-y-1.5"
             >
               <div className="flex items-center gap-1.5">
-                <span className="text-xs">{style.icon}</span>
+                <BlockIcon size={12} style={{ color: style.color }} className="shrink-0" />
                 <span
                   className="font-bold text-[11px] tracking-wide"
                   style={{ color: style.color }}
@@ -331,7 +335,7 @@ export const LivePreview: React.FC = () => {
                 <div className="space-y-1 pt-1">
                   {Object.entries(data).map(([fieldKey, fieldVal]) => (
                     <div key={fieldKey} className="text-xs flex gap-1">
-                      <span className="text-[#9CA3AF]">{formatTitle(fieldKey)}:</span>
+                      <span className="text-[#9CA3AF]">{formatBlockTitle(fieldKey)}:</span>
                       <span className="text-[#E5E7EB]">{String(fieldVal)}</span>
                     </div>
                   ))}
@@ -356,14 +360,15 @@ export const LivePreview: React.FC = () => {
         })}
 
         {/* Підказка */}
-        <div className="bg-[#1A0D0E] border border-[#4A1218] rounded-lg p-2.5">
+        <div className="bg-[#1A0D0E] border border-[#4A1218] rounded-lg p-2.5 flex items-start gap-2">
+          <Info size={13} className="text-[#FCA5A5] shrink-0 mt-0.5" />
           <p className="text-[11px] text-[#FCA5A5] leading-relaxed">
-            💡 Можна вести діалог із Творцем Долі у вільному стилі, або за бажанням підкоригувати параметри вручну та натиснути кнопку «Синхронізувати» для узгодження з ШІ.
+            Можна вести діалог із Творцем Долі у вільному стилі, або за бажанням підкоригувати параметри вручну та натиснути кнопку «Синхронізувати» для узгодження з ШІ.
           </p>
         </div>
       </div>
 
-      {/* 3. Нижня закріплена кнопка: Завершити створення ➔ */}
+      {/* 3. Нижня закріплена кнопка: Завершити створення */}
       <div className="pt-2 border-t border-[#222222]">
         <Button
           variant="primary"
@@ -371,7 +376,8 @@ export const LivePreview: React.FC = () => {
           disabled={isWizardTyping || wizardMessages.length <= 1}
           className="w-full justify-center text-xs py-2.5 font-bold shadow-md cursor-pointer"
         >
-          Завершити створення ➔
+          <span>Завершити створення</span>
+          <ArrowRight size={13} />
         </Button>
       </div>
     </div>

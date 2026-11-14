@@ -25,11 +25,19 @@ export function getNodeTextLength(node: Node): number {
 
 /** Витягує чистий багаторядковий текст із contenteditable без жодних \u200B */
 export function extractPlainTextFromEditor(root: HTMLElement): string {
+  let hasRealText = false;
+  let brCount = 0;
+
   const walk = (node: Node): string => {
     if (node.nodeType === Node.TEXT_NODE) {
-      return node.textContent ?? '';
+      const value = node.textContent ?? '';
+      if (stripZeroWidth(value).length > 0) {
+        hasRealText = true;
+      }
+      return value;
     }
     if (node instanceof HTMLBRElement) {
+      brCount += 1;
       return node.dataset.novaSentinel === 'true' ? '' : '\n';
     }
     let inner = '';
@@ -46,7 +54,12 @@ export function extractPlainTextFromEditor(root: HTMLElement): string {
     return inner;
   };
 
-  return stripZeroWidth(walk(root).replace(/\r\n?/g, '\n'));
+  const extracted = stripZeroWidth(walk(root).replace(/\r\n?/g, '\n'));
+  // Коли користувач стирає весь текст, Chromium вставляє в порожній contenteditable службовий <br>
+  if (!hasRealText && brCount <= 1) {
+    return '';
+  }
+  return extracted;
 }
 
 /** Переводить точку DOM-Selection у лінійний символьний індекс */
