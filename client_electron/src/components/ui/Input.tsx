@@ -23,10 +23,10 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             className={twMerge(
               clsx(
                 'w-full bg-[#161616] text-[#E5E7EB] text-sm rounded-lg px-3.5 py-2 border transition-all duration-150',
-                'border-[#333333] placeholder-[#555555] focus:outline-none focus:border-[#7E0018] focus:ring-1 focus:ring-[#7E0018]',
+                'border-[#333333] hover:border-[#444444] placeholder-[#555555] focus:outline-none focus:border-[#7E0018] focus:hover:border-[#7E0018] focus:ring-1 focus:ring-[#7E0018]',
                 'disabled:opacity-50 disabled:cursor-not-allowed',
                 icon && 'pl-9',
-                error && 'border-[#EF4444] focus:border-[#EF4444] focus:ring-[#EF4444]',
+                error && 'border-[#EF4444] hover:border-[#EF4444] focus:border-[#EF4444] focus:hover:border-[#EF4444] focus:ring-[#EF4444]',
                 className
               )
             )}

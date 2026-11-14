@@ -27,8 +27,8 @@ export const ActiveHeroCard: React.FC<ActiveHeroCardProps> = ({
     activeCharacter?.meta?.background || currentSummary?.background || 'Оберіть героя зі списку';
 
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-center justify-between text-[11px] font-bold text-[#9CA3AF] tracking-[0.8px]">
+    <div className="flex flex-col">
+      <div className="flex items-center justify-between text-[11px] font-bold text-[#9CA3AF] tracking-[0.8px] mb-2">
         <span>АКТИВНИЙ ГЕРОЙ</span>
       </div>
 
@@ -60,7 +60,7 @@ export const ActiveHeroCard: React.FC<ActiveHeroCardProps> = ({
               isHeroSelectorOpen ? 'bg-[#222222] text-[#60A5FA]' : ''
             }`}
           >
-            <RefreshCw size={13} className={isHeroSelectorOpen ? 'rotate-180 transition-transform duration-200' : ''} />
+            <RefreshCw size={13} className={`transition-transform duration-200 ${isHeroSelectorOpen ? 'rotate-180' : ''}`} />
           </button>
 
           {/* Редагувати заготовку */}
@@ -90,8 +90,14 @@ export const ActiveHeroCard: React.FC<ActiveHeroCardProps> = ({
       </div>
 
       {/* Інлайн-шторка вибору героя (плавний виїзд точно по ширині картки) */}
-      {isHeroSelectorOpen && (
-        <div className="bg-[#161616] border border-[#262626] rounded-lg p-2 flex flex-col gap-1 max-h-[180px] overflow-y-auto animate-fade-in shadow-xl">
+      <div
+        className={`transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] overflow-hidden ${
+          isHeroSelectorOpen
+            ? 'max-h-[200px] opacity-100 mt-2 pointer-events-auto'
+            : 'max-h-0 opacity-0 mt-0 pointer-events-none'
+        }`}
+      >
+        <div className="bg-[#161616] border border-[#262626] rounded-lg p-2 flex flex-col gap-1 max-h-[180px] overflow-y-auto shadow-xl">
           <div className="text-[10px] font-bold text-[#9CA3AF] px-2 py-1">
             ОБЕРІТЬ ГЕРОЯ
           </div>
@@ -121,7 +127,7 @@ export const ActiveHeroCard: React.FC<ActiveHeroCardProps> = ({
             })
           )}
         </div>
-      )}
+      </div>
     </div>
   );
 };

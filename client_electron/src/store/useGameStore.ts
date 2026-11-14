@@ -11,6 +11,7 @@ import { campaignsApi } from '../api/campaignsApi';
 import { gameApi } from '../api/gameApi';
 import { parseIntents, cleanDisplayAction } from '../utils/intentParser';
 import { sanitizeStory } from '../utils/textSanitizer';
+import { formatSystemTime } from '../utils/formatTime';
 
 export interface GameState {
   // --- Сутності ---
@@ -202,10 +203,10 @@ export const useGameStore = create<GameState>((set, get) => ({
           const isPlayer = msg.role.toLowerCase() === 'player';
           const isLastNarrator = !isPlayer && index === arr.length - 1 && arr.length > 1;
 
-          let timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          let timeStr = formatSystemTime();
           if (msg.timestamp) {
             try {
-              timeStr = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+              timeStr = formatSystemTime(msg.timestamp);
             } catch {
               // fallback to current time
             }
@@ -316,7 +317,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     const intents = parseIntents(text);
     const cleanUserText = cleanDisplayAction(text);
-    const timeNow = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const timeNow = formatSystemTime();
 
     // 1. Оптимістично додаємо репліку гравця
     const playerMsg: ChatMessage = {

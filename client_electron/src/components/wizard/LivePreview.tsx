@@ -74,7 +74,7 @@ export const LivePreview: React.FC = () => {
             value={wizardDraft.charName}
             onChange={(e) => handleInputChange('charName', e.target.value)}
             placeholder="Буде виведено з діалогу..."
-            className="w-full bg-[#121212] border border-[#2B2B2B] focus:border-[#7E0018] rounded-md px-2.5 py-1.5 text-xs text-[#E5E7EB] placeholder-[#555555] outline-none transition-colors"
+            className="w-full bg-[#121212] border border-[#2B2B2B] hover:border-[#3E3E3E] focus:border-[#7E0018] focus:hover:border-[#7E0018] rounded-md px-2.5 py-1.5 text-xs text-[#E5E7EB] placeholder-[#555555] outline-none transition-colors"
           />
         </div>
 
@@ -87,7 +87,7 @@ export const LivePreview: React.FC = () => {
               value={wizardDraft.charTitles}
               onChange={(e) => handleInputChange('charTitles', e.target.value)}
               placeholder="Звання, епітет..."
-              className="w-full bg-[#121212] border border-[#2B2B2B] focus:border-[#7E0018] rounded-md px-2.5 py-1.5 text-xs text-[#E5E7EB] placeholder-[#555555] outline-none transition-colors"
+              className="w-full bg-[#121212] border border-[#2B2B2B] hover:border-[#3E3E3E] focus:border-[#7E0018] focus:hover:border-[#7E0018] rounded-md px-2.5 py-1.5 text-xs text-[#E5E7EB] placeholder-[#555555] outline-none transition-colors"
             />
           </div>
           <div className="space-y-1">
@@ -97,7 +97,7 @@ export const LivePreview: React.FC = () => {
               value={wizardDraft.charAge}
               onChange={(e) => handleInputChange('charAge', e.target.value)}
               placeholder="25 років..."
-              className="w-full bg-[#121212] border border-[#2B2B2B] focus:border-[#7E0018] rounded-md px-2.5 py-1.5 text-xs text-[#E5E7EB] placeholder-[#555555] outline-none transition-colors"
+              className="w-full bg-[#121212] border border-[#2B2B2B] hover:border-[#3E3E3E] focus:border-[#7E0018] focus:hover:border-[#7E0018] rounded-md px-2.5 py-1.5 text-xs text-[#E5E7EB] placeholder-[#555555] outline-none transition-colors"
             />
           </div>
         </div>
@@ -110,7 +110,7 @@ export const LivePreview: React.FC = () => {
             onChange={(e) => handleInputChange('charBackground', e.target.value)}
             placeholder="Буде сформовано ШІ..."
             rows={2}
-            className="w-full bg-[#121212] border border-[#2B2B2B] focus:border-[#7E0018] rounded-md px-2.5 py-1.5 text-xs text-[#E5E7EB] placeholder-[#555555] outline-none transition-colors resize-y min-h-[50px] max-h-[120px]"
+            className="w-full bg-[#121212] border border-[#2B2B2B] hover:border-[#3E3E3E] focus:border-[#7E0018] focus:hover:border-[#7E0018] rounded-md px-2.5 py-1.5 text-xs text-[#E5E7EB] placeholder-[#555555] outline-none transition-colors resize-y min-h-[50px] max-h-[120px]"
           />
         </div>
 
@@ -122,7 +122,7 @@ export const LivePreview: React.FC = () => {
             onChange={(e) => handleInputChange('charAppearance', e.target.value)}
             placeholder="Буде сформовано ШІ..."
             rows={2}
-            className="w-full bg-[#121212] border border-[#2B2B2B] focus:border-[#7E0018] rounded-md px-2.5 py-1.5 text-xs text-[#E5E7EB] placeholder-[#555555] outline-none transition-colors resize-y min-h-[50px] max-h-[120px]"
+            className="w-full bg-[#121212] border border-[#2B2B2B] hover:border-[#3E3E3E] focus:border-[#7E0018] focus:hover:border-[#7E0018] rounded-md px-2.5 py-1.5 text-xs text-[#E5E7EB] placeholder-[#555555] outline-none transition-colors resize-y min-h-[50px] max-h-[120px]"
           />
         </div>
 
@@ -153,7 +153,7 @@ export const LivePreview: React.FC = () => {
                     value={wizardDraft.physique}
                     onChange={(e) => handleInputChange('physique', e.target.value)}
                     placeholder="Атлетична..."
-                    className="w-full bg-[#111111] border border-[#222222] focus:border-[#7E0018] rounded px-2 py-1 text-[11px] text-[#E5E7EB] placeholder-[#4B5563] outline-none"
+                    className="w-full bg-[#111111] border border-[#222222] hover:border-[#3A3A3A] focus:border-[#7E0018] focus:hover:border-[#7E0018] rounded px-2 py-1 text-[11px] text-[#E5E7EB] placeholder-[#4B5563] outline-none"
                   />
                 </div>
                 <div className="space-y-0.5">
@@ -163,7 +163,7 @@ export const LivePreview: React.FC = () => {
                     value={wizardDraft.height}
                     onChange={(e) => handleInputChange('height', e.target.value)}
                     placeholder="185 см..."
-                    className="w-full bg-[#111111] border border-[#222222] focus:border-[#7E0018] rounded px-2 py-1 text-[11px] text-[#E5E7EB] placeholder-[#4B5563] outline-none"
+                    className="w-full bg-[#111111] border border-[#222222] hover:border-[#3A3A3A] focus:border-[#7E0018] focus:hover:border-[#7E0018] rounded px-2 py-1 text-[11px] text-[#E5E7EB] placeholder-[#4B5563] outline-none"
                   />
                 </div>
               </div>
@@ -176,7 +176,7 @@ export const LivePreview: React.FC = () => {
                     value={wizardDraft.eyes}
                     onChange={(e) => handleInputChange('eyes', e.target.value)}
                     placeholder="Сіро-блакитні..."
-                    className="w-full bg-[#111111] border border-[#222222] focus:border-[#7E0018] rounded px-2 py-1 text-[11px] text-[#E5E7EB] placeholder-[#4B5563] outline-none"
+                    className="w-full bg-[#111111] border border-[#222222] hover:border-[#3A3A3A] focus:border-[#7E0018] focus:hover:border-[#7E0018] rounded px-2 py-1 text-[11px] text-[#E5E7EB] placeholder-[#4B5563] outline-none"
                   />
                 </div>
                 <div className="space-y-0.5">
@@ -186,7 +186,7 @@ export const LivePreview: React.FC = () => {
                     value={wizardDraft.hair}
                     onChange={(e) => handleInputChange('hair', e.target.value)}
                     placeholder="Темне..."
-                    className="w-full bg-[#111111] border border-[#222222] focus:border-[#7E0018] rounded px-2 py-1 text-[11px] text-[#E5E7EB] placeholder-[#4B5563] outline-none"
+                    className="w-full bg-[#111111] border border-[#222222] hover:border-[#3A3A3A] focus:border-[#7E0018] focus:hover:border-[#7E0018] rounded px-2 py-1 text-[11px] text-[#E5E7EB] placeholder-[#4B5563] outline-none"
                   />
                 </div>
               </div>
@@ -198,7 +198,7 @@ export const LivePreview: React.FC = () => {
                   value={wizardDraft.raceTraits}
                   onChange={(e) => handleInputChange('raceTraits', e.target.value)}
                   placeholder="Гострі вуха, татуювання..."
-                  className="w-full bg-[#111111] border border-[#222222] focus:border-[#7E0018] rounded px-2 py-1 text-[11px] text-[#E5E7EB] placeholder-[#4B5563] outline-none"
+                  className="w-full bg-[#111111] border border-[#222222] hover:border-[#3A3A3A] focus:border-[#7E0018] focus:hover:border-[#7E0018] rounded px-2 py-1 text-[11px] text-[#E5E7EB] placeholder-[#4B5563] outline-none"
                 />
               </div>
             </div>
@@ -213,7 +213,7 @@ export const LivePreview: React.FC = () => {
             onChange={(e) => handleInputChange('biography', e.target.value)}
             placeholder="Ключові події життя або передісторія..."
             rows={2}
-            className="w-full bg-[#121212] border border-[#2B2B2B] focus:border-[#7E0018] rounded-md px-2.5 py-1.5 text-xs text-[#E5E7EB] placeholder-[#555555] outline-none transition-colors resize-y min-h-[50px] max-h-[120px]"
+            className="w-full bg-[#121212] border border-[#2B2B2B] hover:border-[#3E3E3E] focus:border-[#7E0018] focus:hover:border-[#7E0018] rounded-md px-2.5 py-1.5 text-xs text-[#E5E7EB] placeholder-[#555555] outline-none transition-colors resize-y min-h-[50px] max-h-[120px]"
           />
         </div>
 
@@ -244,7 +244,7 @@ export const LivePreview: React.FC = () => {
             <div className="space-y-1">
               {injuries.map((inj: any, idx: number) => {
                 const loc = typeof inj === 'string' ? inj : inj.location || inj.name || 'Тіло';
-                const desc = typeof inj === 'object' ? inj.description || inj.desc || '' : '';
+                const desc = typeof inj === 'object' ? inj.description || inj.desc || inj.type || '' : '';
                 return (
                   <div
                     key={idx}

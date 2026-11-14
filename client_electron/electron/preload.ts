@@ -1,5 +1,12 @@
 import { ipcRenderer, contextBridge } from 'electron';
 
+let systemTimeConfig: { locale?: string; hour12?: boolean; twoDigitHour?: boolean } = {};
+try {
+  systemTimeConfig = ipcRenderer.sendSync('get-system-time-config-sync') || {};
+} catch {
+  systemTimeConfig = {};
+}
+
 // Expose protected methods that allow the renderer process to use
 // ipcRenderer without exposing the entire object
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -14,4 +21,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.removeListener('window-maximized-change', handler);
     };
   },
+  getSystemTimeConfig: () => systemTimeConfig,
 });

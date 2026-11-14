@@ -13,10 +13,16 @@ export const AccountCard: React.FC<AccountCardProps> = ({
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <div className="flex flex-col gap-1 w-full relative">
+    <div className="flex flex-col w-full relative">
       {/* Інлайн-меню акаунта, що виїжджає над карткою */}
-      {isOpen && (
-        <div className="bg-[#161616] border border-[#262626] rounded-lg p-1.5 flex flex-col gap-1 mb-1 animate-fade-in shadow-2xl">
+      <div
+        className={`transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] overflow-hidden ${
+          isOpen
+            ? 'max-h-[200px] opacity-100 mb-2 pointer-events-auto'
+            : 'max-h-0 opacity-0 mb-0 pointer-events-none'
+        }`}
+      >
+        <div className="bg-[#161616] border border-[#262626] rounded-lg p-1.5 flex flex-col gap-1 shadow-2xl">
           <button
             type="button"
             onClick={() => {
@@ -40,7 +46,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
             <span>Вийти з акаунту</span>
           </button>
         </div>
-      )}
+      </div>
 
       {/* Головна кнопка-картка акаунта */}
       <button

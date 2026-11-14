@@ -4,6 +4,7 @@ import { gameApi } from '../../api/gameApi';
 import { SendOrMicButton } from './SendOrMicButton';
 import { VoiceBanner } from './VoiceBanner';
 import { SyntaxHelpTooltip } from './SyntaxHelpTooltip';
+import { SyntaxHighlightOverlay } from './SyntaxHighlightOverlay';
 
 export const ChatInput: React.FC = () => {
   const {
@@ -17,17 +18,28 @@ export const ChatInput: React.FC = () => {
 
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
+  const [isInputOverflowing, setIsInputOverflowing] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
 
-  // Автовисота поля вводу (від 20px до 120px)
+  const syncScroll = () => {
+    if (textareaRef.current && overlayRef.current) {
+      overlayRef.current.scrollTop = textareaRef.current.scrollTop;
+      overlayRef.current.scrollLeft = textareaRef.current.scrollLeft;
+    }
+  };
+
+  // Автовисота поля вводу (від 24px до 120px) та контроль скролбару
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
       const scrollHeight = textareaRef.current.scrollHeight;
       textareaRef.current.style.height = `${Math.min(Math.max(scrollHeight, 24), 120)}px`;
+      setIsInputOverflowing(scrollHeight > 120);
+      syncScroll();
     }
   }, [userInput]);
 
@@ -120,18 +132,28 @@ export const ChatInput: React.FC = () => {
 
       {/* Головна зона вводу: Border.inputBox + Кнопки праворуч */}
       <div className="flex items-end gap-3">
-        {/* Поле вводу з фірмовою рамкою #333333 -> focus #5A0010 */}
-        <div className="flex-1 bg-[#161616] border border-[#333333] hover:border-[#444444] focus-within:border-[#5A0010] rounded-[10px] p-[14px_16px] flex items-center transition-colors shadow-inner">
-          <textarea
-            ref={textareaRef}
-            rows={1}
-            value={userInput}
-            onChange={(e) => setUserInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            disabled={isInputDisabled}
-            placeholder="Введіть дію, думку або фразу..."
-            className="w-full bg-transparent text-[15px] text-[#E5E7EB] placeholder-[#555555] placeholder:italic resize-none outline-none leading-relaxed select-text min-h-[24px] max-h-[120px]"
-          />
+        {/* Поле вводу з фірмовою рамкою #333333 -> focus #5A0010 та живою підсвіткою синтаксису */}
+        <div className="flex-1 bg-[#161616] border border-[#333333] hover:border-[#444444] focus-within:border-[#5A0010] focus-within:hover:border-[#5A0010] rounded-[10px] p-[14px_16px] flex items-center transition-colors shadow-inner">
+          <div className="relative w-full min-w-0">
+            <SyntaxHighlightOverlay
+              text={userInput}
+              overlayRef={overlayRef}
+              isOverflowing={isInputOverflowing}
+            />
+            <textarea
+              ref={textareaRef}
+              rows={1}
+              value={userInput}
+              onChange={(e) => setUserInput(e.target.value)}
+              onScroll={syncScroll}
+              onKeyDown={handleKeyDown}
+              disabled={isInputDisabled}
+              placeholder="Введіть дію, думку або фразу..."
+              className={`relative z-10 w-full bg-transparent text-[15px] leading-[24px] font-sans text-transparent caret-[#E5E7EB] selection:bg-[#7E0018]/40 placeholder-[#555555] placeholder:italic resize-none outline-none select-text min-h-[24px] max-h-[120px] m-0 p-0 border-0 block ${
+                isInputOverflowing ? 'overflow-y-auto' : 'overflow-hidden'
+              }`}
+            />
+          </div>
         </div>
 
         {/* Права група: Send/Mic Button (48x48) + Help Icon (?) */}

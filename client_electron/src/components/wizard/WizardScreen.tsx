@@ -27,7 +27,7 @@ export const WizardScreen: React.FC = () => {
   };
 
   return (
-    <div className="fixed top-[30px] inset-x-0 bottom-0 z-30 bg-[#121212] flex flex-col px-8 py-6 select-none animate-in fade-in duration-200">
+    <div className="fixed top-[34px] inset-x-0 bottom-0 z-30 bg-[#121212] flex flex-col px-8 py-6 select-none animate-in fade-in duration-200">
       {/* 1. Верхня панель екрану створення */}
       <div className="flex items-center justify-between pb-4 border-b border-[#222222] mb-4">
         <div className="space-y-1">

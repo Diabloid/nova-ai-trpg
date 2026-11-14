@@ -18,7 +18,7 @@ export const ContainersCol: React.FC<ContainersColProps> = ({ containers = {} })
         <span>КОНТЕЙНЕРИ ТА РЮКЗАК</span>
       </div>
 
-      <div className="flex-1 overflow-y-auto pr-1 flex flex-col gap-2">
+      <div className="flex-1 min-h-0 overflow-y-auto pr-1 flex flex-col gap-2">
         {containerNames.length === 0 ? (
           <span className="text-xs text-[#6B7280] italic py-2">
             Контейнери порожні
@@ -32,7 +32,7 @@ export const ContainersCol: React.FC<ContainersColProps> = ({ containers = {} })
             return (
               <div
                 key={cName}
-                className="bg-[#141414] border border-[#252525] rounded-md overflow-hidden transition-all duration-150"
+                className="shrink-0 bg-[#141414] border border-[#252525] rounded-md overflow-hidden transition-all duration-150"
               >
                 {/* Expander Header */}
                 <button

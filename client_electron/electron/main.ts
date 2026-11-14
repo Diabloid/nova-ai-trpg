@@ -1,6 +1,82 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
 import path from 'node:path';
+import { execFile } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+
+interface SystemTimeConfig {
+  locale?: string;
+  hour12?: boolean;
+  twoDigitHour?: boolean;
+}
+
+let cachedSystemTimeConfig: SystemTimeConfig = {};
+
+function detectWindowsTimeConfig(): Promise<SystemTimeConfig> {
+  const fallbackLocale =
+    typeof app.getSystemLocale === 'function' ? app.getSystemLocale() : app.getLocale();
+
+  if (process.platform !== 'win32') {
+    return Promise.resolve({ locale: fallbackLocale || undefined });
+  }
+
+  return new Promise((resolve) => {
+    execFile(
+      'reg',
+      ['query', 'HKCU\\Control Panel\\International'],
+      { timeout: 1500 },
+      (err, stdout) => {
+        if (err || !stdout) {
+          resolve({ locale: fallbackLocale || undefined });
+          return;
+        }
+
+        const getValue = (name: string): string | undefined => {
+          const match = new RegExp(`^\\s*${name}\\s+REG_\\w+\\s+(.+)$`, 'mi').exec(stdout);
+          return match ? match[1].trim() : undefined;
+        };
+
+        const localeName = getValue('LocaleName');
+        const shortTime = getValue('sShortTime');
+        const iTime = getValue('iTime');
+        const iTLZero = getValue('iTLZero');
+
+        let hour12: boolean | undefined;
+        if (shortTime) {
+          if (shortTime.includes('H')) {
+            hour12 = false;
+          } else if (shortTime.includes('h')) {
+            hour12 = true;
+          }
+        }
+        if (hour12 === undefined && (iTime === '0' || iTime === '1')) {
+          hour12 = iTime === '0';
+        }
+
+        const twoDigitHour = shortTime
+          ? /(?:HH|hh)/.test(shortTime)
+          : iTLZero === '1'
+            ? true
+            : iTLZero === '0'
+              ? false
+              : undefined;
+
+        resolve({
+          locale: localeName || fallbackLocale || undefined,
+          hour12,
+          twoDigitHour,
+        });
+      }
+    );
+  });
+}
+
+async function refreshSystemTimeConfig() {
+  try {
+    cachedSystemTimeConfig = await detectWindowsTimeConfig();
+  } catch {
+    cachedSystemTimeConfig = {};
+  }
+}
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -29,10 +105,9 @@ function createWindow() {
     minWidth: 1024,
     minHeight: 640,
     frame: false,
-    titleBarStyle: 'hidden',
     backgroundColor: '#121212',
     webPreferences: {
-      preload: path.join(__dirname, 'preload.mjs'),
+      preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,
@@ -77,6 +152,10 @@ ipcMain.handle('is-maximized', () => {
   return win?.isMaximized() ?? false;
 });
 
+ipcMain.on('get-system-time-config-sync', (event) => {
+  event.returnValue = cachedSystemTimeConfig;
+});
+
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
@@ -90,4 +169,7 @@ app.on('activate', () => {
   }
 });
 
-app.whenReady().then(createWindow);
+app.whenReady().then(async () => {
+  await refreshSystemTimeConfig();
+  createWindow();
+});

@@ -18,6 +18,17 @@ export default defineConfig({
       },
       preload: {
         input: path.join(__dirname, 'electron/preload.ts'),
+        vite: {
+          build: {
+            rolldownOptions: {
+              output: {
+                format: 'cjs',
+                entryFileNames: 'preload.cjs',
+                chunkFileNames: '[name].cjs',
+              },
+            },
+          },
+        },
       },
       renderer: {},
     }),

@@ -13,7 +13,7 @@ export const InjuriesCol: React.FC<InjuriesColProps> = ({ injuries = [] }) => {
         <span>АНАТОМІЯ ТА ТРАВМИ</span>
       </div>
 
-      <div className="flex-1 overflow-y-auto pr-1 flex flex-col gap-2">
+      <div className="flex-1 min-h-0 overflow-y-auto pr-1 flex flex-col gap-2">
         {injuries.length === 0 ? (
           <span className="text-xs text-[#6B7280] italic py-2">
             Травми відсутні
@@ -25,12 +25,12 @@ export const InjuriesCol: React.FC<InjuriesColProps> = ({ injuries = [] }) => {
             const description =
               typeof item === 'string'
                 ? item
-                : item.description || (item as any).desc || '';
+                : item.description || (item as any).desc || item.type || '';
 
             return (
               <div
                 key={idx}
-                className="bg-[#2A1414] border border-[#4A1818] rounded-md p-2 flex flex-col gap-0.5"
+                className="shrink-0 bg-[#2A1414] border border-[#4A1818] rounded-md p-2 flex flex-col gap-0.5"
               >
                 <span className="text-xs font-semibold text-[#FCA5A5]">
                   {location}

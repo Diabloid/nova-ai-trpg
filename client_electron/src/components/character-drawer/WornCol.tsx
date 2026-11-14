@@ -13,7 +13,7 @@ export const WornCol: React.FC<WornColProps> = ({ worn = [] }) => {
         <span>ЕКІПІРУВАННЯ (WORN)</span>
       </div>
 
-      <div className="flex-1 overflow-y-auto pr-1 flex flex-col gap-2">
+      <div className="flex-1 min-h-0 overflow-y-auto pr-1 flex flex-col gap-2">
         {worn.length === 0 ? (
           <span className="text-xs text-[#6B7280] italic py-2">
             Нічого не одягнено
@@ -27,7 +27,7 @@ export const WornCol: React.FC<WornColProps> = ({ worn = [] }) => {
               <div
                 key={idx}
                 title={desc || name}
-                className="bg-[#131E2B] border border-[#1E3A5F] rounded-md p-2 flex flex-col gap-0.5"
+                className="shrink-0 bg-[#131E2B] border border-[#1E3A5F] rounded-md p-2 flex flex-col gap-0.5"
               >
                 <span className="text-xs font-semibold text-[#93C5FD]">
                   {name}

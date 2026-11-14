@@ -3,6 +3,7 @@ import type { PlayerState } from '../types/api';
 import type { ChatMessage, CharacterWizardDraft } from '../types/game';
 import { charactersApi } from '../api/charactersApi';
 import { useGameStore } from './useGameStore';
+import { formatSystemTime } from '../utils/formatTime';
 
 export interface WizardState {
   // --- Стан візарда ---
@@ -159,7 +160,7 @@ export const useWizardStore = create<WizardState>((set, get) => ({
       sender: 'Творець Долі:',
       text: "Вітаю у чертогах буття, Мандрівнику. Я — Творець Долі. Розкажи, ким ти бачиш свого героя? Яке його ім'я, фах або ремесло? Які таємниці чи випробування несе його минуле?",
       senderColor: '#C084FC',
-      timeText: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      timeText: formatSystemTime(),
       isPlayer: false,
     };
 
@@ -223,7 +224,7 @@ export const useWizardStore = create<WizardState>((set, get) => ({
     if (!text || get().isWizardThinking) return;
 
     const cleanUserText = text.replace(/\*\*/g, '');
-    const timeNow = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const timeNow = formatSystemTime();
 
     const userMsg: ChatMessage = {
       id: `wizard-user-${Date.now()}`,
@@ -272,7 +273,7 @@ export const useWizardStore = create<WizardState>((set, get) => ({
         sender: 'Творець Долі:',
         text: reply,
         senderColor: '#C084FC',
-        timeText: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        timeText: formatSystemTime(),
         isPlayer: false,
       };
 
@@ -345,7 +346,7 @@ export const useWizardStore = create<WizardState>((set, get) => ({
               sender: 'Творець Долі:',
               text: '✨ Картку персонажа гармонізовано! Характеристики та навички узгоджено з вашими правками.',
               senderColor: '#A78BFA',
-              timeText: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              timeText: formatSystemTime(),
               isPlayer: false,
             },
           ],
@@ -358,7 +359,7 @@ export const useWizardStore = create<WizardState>((set, get) => ({
         sender: 'Система:',
         text: `⚠️ Помилка синхронізації драфту: ${err.message}`,
         senderColor: '#EF4444',
-        timeText: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        timeText: formatSystemTime(),
         isSystem: true,
         isPlayer: false,
       };
@@ -407,7 +408,7 @@ export const useWizardStore = create<WizardState>((set, get) => ({
           sender: 'Система:',
           text: '⚠️ ШІ тимчасово перевантажений або ліміт запитів вичерпано, зачекайте 15–20 секунд і спробуйте знову.',
           senderColor: '#EF4444',
-          timeText: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          timeText: formatSystemTime(),
           isSystem: true,
           isPlayer: false,
         };
@@ -448,7 +449,7 @@ export const useWizardStore = create<WizardState>((set, get) => ({
         sender: 'Система:',
         text: `⚠️ Помилка створення героя: ${err.message}`,
         senderColor: '#EF4444',
-        timeText: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        timeText: formatSystemTime(),
         isSystem: true,
         isPlayer: false,
       };

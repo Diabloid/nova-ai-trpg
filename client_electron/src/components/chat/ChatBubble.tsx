@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Copy, Check } from 'lucide-react';
 import type { ChatMessage } from '../../types/game';
 import { RollbackBtn } from './RollbackBtn';
+import { formatSystemTime } from '../../utils/formatTime';
 
 interface ChatBubbleProps {
   message: ChatMessage;
@@ -43,22 +44,15 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({
     ? 'bg-[#181B22] border-[#2D3748]'
     : 'bg-[#161616] border-[#262626]';
 
-  // Форматування часу як у TimeText
-  const timeFormatted = message.timeText || (message.createdAt ? new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '');
+  // Форматування часу як у TimeText (відповідно до системного формату ОС)
+  const timeFormatted = message.timeText || (message.createdAt ? formatSystemTime(message.createdAt) : '');
 
   return (
     <div className={`relative mb-5 flex flex-col group animate-fade-in ${isPlayer ? 'self-start max-w-[85%]' : 'w-full'}`}>
-      {/* Кнопка відкату ходу, розміщена ЗОВНІ плашки праворуч угорі на загальному фоні вікна */}
-      {canRollback && !isPlayer && (
-        <div className="absolute right-3 top-0 z-10">
-          <RollbackBtn />
-        </div>
-      )}
-
-      {/* Верхнє вушко-вкладинка (Header Tab) */}
-      <div className="flex items-center self-start z-10">
+      {/* Верхній рядок: Вушко-вкладинка (Header Tab) ліворуч + Кнопка відкату праворуч */}
+      <div className="flex items-end justify-between -mb-[1px] z-10 pr-3">
         <div
-          className={`flex items-center gap-2 px-3 py-1 rounded-t-lg border-t border-x ${tabBg} -mb-[1px]`}
+          className={`flex items-center gap-2 px-3 py-1 rounded-t-lg border-t border-x ${tabBg}`}
         >
           <span className={`text-[13px] font-bold ${senderColor}`}>
             {senderName}
@@ -69,6 +63,8 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({
             </span>
           )}
         </div>
+
+        {canRollback && !isPlayer && <RollbackBtn />}
       </div>
 
       {/* Основне тіло плашки з текстом (min-width: 140px гарантує правильний баланс із вушком) */}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Mic, Send } from 'lucide-react';
+import { Mic } from 'lucide-react';
 
 interface SendOrMicButtonProps {
   hasText: boolean;
@@ -38,8 +38,10 @@ export const SendOrMicButton: React.FC<SendOrMicButtonProps> = ({
         /* Пульсуючий скруглений квадрат зупинки запису (11x11, CornerRadius 2.5, #FECDD3) */
         <span className="w-[11px] h-[11px] bg-[#FECDD3] rounded-[2.5px] shadow-sm animate-ping" />
       ) : hasText ? (
-        /* Стрілка відправки (18x18 біла) */
-        <Send size={18} className="text-white ml-0.5" />
+        /* Заповнений літачок відправки з Avalonia */
+        <svg viewBox="0 0 24 24" className="w-[15px] h-[15px] fill-current ml-0.5 text-white">
+          <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+        </svg>
       ) : (
         /* Мікрофон (18x18 #E5E7EB) */
         <Mic size={18} className="text-[#E5E7EB]" />

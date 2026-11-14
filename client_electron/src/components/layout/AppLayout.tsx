@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { TitleBar } from './TitleBar';
 import { Sidebar } from '../sidebar/Sidebar';
 import { Bell } from 'lucide-react';
@@ -15,6 +15,30 @@ interface AppLayoutProps {
   onOpenSettings?: () => void;
   onLogout?: () => void;
 }
+
+interface AlertCountdownProps {
+  expiresAt: number;
+}
+
+const AlertCountdown: React.FC<AlertCountdownProps> = ({ expiresAt }) => {
+  const [secondsLeft, setSecondsLeft] = useState(11);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setSecondsLeft(
+        Math.max(1, Math.min(11, Math.ceil((expiresAt - Date.now()) / 1000)))
+      );
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [expiresAt]);
+
+  return (
+    <span className="text-[10px] text-[#D1D5DB] font-mono">
+      {secondsLeft}с
+    </span>
+  );
+};
 
 export const AppLayout: React.FC<AppLayoutProps> = ({
   children,
@@ -35,15 +59,16 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
 
       {/* 2. Ephemeral System Alert (автозникнення за 11с) */}
       {systemAlert && (
-        <div className="w-full bg-[#7E0018]/90 border-b border-[#EF4444]/40 px-4 py-1.5 flex items-center justify-between text-xs text-[#E5E7EB] z-50 animate-fade-in">
+        <div
+          key={systemAlert.id}
+          className="w-full bg-[#7E0018]/90 border-b border-[#EF4444]/40 px-4 py-1.5 flex items-center justify-between text-xs text-[#E5E7EB] z-50 animate-fade-in"
+        >
           <div className="flex items-center gap-2">
             <Bell size={13} className="text-[#EF4444] animate-pulse" />
             <span className="font-semibold text-white">Системне сповіщення:</span>
             <span>{systemAlert.message}</span>
           </div>
-          <span className="text-[10px] text-[#D1D5DB]">
-            11с
-          </span>
+          <AlertCountdown key={systemAlert.id} expiresAt={systemAlert.expiresAt} />
         </div>
       )}
 
