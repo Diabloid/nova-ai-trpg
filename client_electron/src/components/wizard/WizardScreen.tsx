@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { useGameStore } from '../../store/useGameStore';
+import { useWizardStore } from '../../store/useWizardStore';
 import { LivePreview } from './LivePreview';
 import { WizardChat } from './WizardChat';
 import { Button } from '../ui/Button';
 import { ConfirmModal } from '../modals/ConfirmModal';
 
 export const WizardScreen: React.FC = () => {
-  const { isWizardOpen, closeWizard, wizardMessages, wizardDraft, wizardInput } = useGameStore();
+  const { isWizardOpen, closeWizard, wizardMessages, wizardDraft, wizardInput } = useWizardStore();
   const [isConfirmCancelOpen, setIsConfirmCancelOpen] = useState(false);
 
   if (!isWizardOpen) return null;

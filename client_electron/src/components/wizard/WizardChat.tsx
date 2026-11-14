@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { useGameStore } from '../../store/useGameStore';
+import { useWizardStore } from '../../store/useWizardStore';
 import { gameApi } from '../../api/gameApi';
 import { SendOrMicButton } from '../input/SendOrMicButton';
 import { VoiceBanner } from '../input/VoiceBanner';
@@ -12,8 +13,8 @@ export const WizardChat: React.FC = () => {
     sendWizardMessage,
     isWizardTyping,
     wizardStatusText,
-    setSystemAlert,
-  } = useGameStore();
+  } = useWizardStore();
+  const setSystemAlert = useGameStore((s) => s.setSystemAlert);
 
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);

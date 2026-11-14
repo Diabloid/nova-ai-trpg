@@ -1,6 +1,6 @@
 import React from 'react';
 import { ChevronDown, RefreshCw } from 'lucide-react';
-import { useGameStore } from '../../store/useGameStore';
+import { useWizardStore } from '../../store/useWizardStore';
 import { Button } from '../ui/Button';
 
 const KNOWN_BLOCK_STYLES: Record<string, { title: string; color: string; icon: string }> = {
@@ -30,7 +30,7 @@ export const LivePreview: React.FC = () => {
     finalizeWizard,
     isWizardTyping,
     wizardMessages,
-  } = useGameStore();
+  } = useWizardStore();
 
   const handleInputChange = (field: keyof typeof wizardDraft, val: string) => {
     setWizardDraft({ [field]: val });

@@ -9,6 +9,7 @@ import { EditHeroModal } from './components/modals/EditHeroModal';
 import { NewCampaignModal } from './components/modals/NewCampaignModal';
 import { ConfirmModal } from './components/modals/ConfirmModal';
 import { useGameStore } from './store/useGameStore';
+import { useWizardStore } from './store/useWizardStore';
 import type { CharacterSummary, CampaignSummary } from './types/api';
 
 export const App: React.FC = () => {
@@ -16,9 +17,9 @@ export const App: React.FC = () => {
     loadCharacters,
     deleteCampaign,
     deleteCharacter,
-    openWizard,
     setSystemAlert,
   } = useGameStore();
+  const openWizard = useWizardStore((s) => s.openWizard);
 
   // Стан модальних вікон
   const [isNewCampaignModalOpen, setIsNewCampaignModalOpen] = useState(false);
