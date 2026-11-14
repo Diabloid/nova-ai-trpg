@@ -90,7 +90,7 @@ export const App: React.FC = () => {
         setSystemAlert('🚪 Вихід з акаунту здійснено. Дані сесії скинуто.', 'info');
       }}
     >
-      {/* 1. ІГРОВИЙ ЕКРАН 1-в-1 з Avalonia Grid Margin="42,40,24,24" */}
+      {/* 1. ІГРОВИЙ ЕКРАН (відступи 42px 40px 24px 24px) */}
       <div className="flex-1 overflow-hidden pl-[42px] pt-[40px] pr-[24px] pb-[24px] flex flex-col justify-between">
         {/* ВЕРХНЯ ПАНЕЛЬ: Картка персонажа Button.characterCard + Висувна шторка Border.drawerSheet */}
         <div className="mb-4 flex flex-col gap-1 shrink-0">

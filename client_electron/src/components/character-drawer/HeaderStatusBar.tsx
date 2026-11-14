@@ -18,7 +18,7 @@ export const HeaderStatusBar: React.FC = () => {
 
   return (
     <div className="w-full select-none">
-      {/* Клікабельна плашка персонажа (відкриває/закриває детальну шторку) - 1-в-1 як Button.characterCard в Avalonia */}
+      {/* Клікабельна плашка персонажа (відкриває/закриває детальну шторку) */}
       <button
         type="button"
         onClick={toggleCharacterDrawer}

@@ -21,7 +21,7 @@ export const DrawerSheet: React.FC = () => {
 
   return (
     <div className="w-full bg-[#181818] border border-[#2A2A2A] rounded-[10px] p-[16px_16px_8px_16px] mt-1 flex flex-col gap-2.5 shadow-2xl animate-fade-in max-h-[460px] overflow-y-auto">
-      {/* 4-колонкова сітка з пропорціями як в Avalonia: 0.8*, 0.85*, 1.1*, 1.25* */}
+      {/* 4-колонкова сітка: 0.8fr, 0.85fr, 1.1fr, 1.25fr */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[0.8fr_0.85fr_1.1fr_1.25fr] gap-2.5">
         <InjuriesCol injuries={injuries} />
         <WornCol worn={worn} />

@@ -156,7 +156,7 @@ function unformatSingleMatch(inner: string): string {
 
 /**
  * Перемикає форматування синтаксичних блоків через Zero-Width Space (\u200B),
- * повторюючи RemoveFormatting_Click з Avalonia (виділення -> блок під курсором -> усі блоки).
+ * (пріоритет: виділення -> блок під курсором -> усі блоки).
  */
 export function toggleSyntaxFormatting(
   text: string,

@@ -24,7 +24,7 @@ interface ContextMenuProps {
 }
 
 /**
- * Стилізоване темне контекстне меню ПКМ (1-в-1 із Avalonia: фон #161616, рамка #262626).
+ * Стилізоване темне контекстне меню ПКМ (фон #161616, рамка #262626).
  */
 export const ContextMenu: React.FC<ContextMenuProps> = ({
   isOpen,

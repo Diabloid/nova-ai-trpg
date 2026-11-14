@@ -55,7 +55,7 @@ export const DrawerDetails: React.FC<DrawerDetailsProps> = ({
 
   return (
     <div className="bg-[#141414] border border-[#262626] rounded-lg overflow-hidden transition-all duration-150 mt-1">
-      {/* Заголовок спойлера (1-в-1 як в Avalonia) */}
+      {/* Заголовок спойлера */}
       <button
         type="button"
         onClick={() => setIsExpanded(!isExpanded)}

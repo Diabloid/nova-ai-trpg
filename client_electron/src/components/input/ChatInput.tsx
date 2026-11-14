@@ -153,7 +153,7 @@ export const ChatInput: React.FC = () => {
 
   return (
     <div className="w-full flex flex-col select-none">
-      {/* Баннери запису та транскрипції голосу (1-в-1 як в Avalonia) */}
+      {/* Баннери запису та транскрипції голосу */}
       <VoiceBanner isRecording={isRecording} isTranscribing={isTranscribing} />
 
       {/* Головна зона вводу: Border.inputBox + Кнопки праворуч */}

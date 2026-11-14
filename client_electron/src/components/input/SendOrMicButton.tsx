@@ -43,7 +43,7 @@ export const SendOrMicButton: React.FC<SendOrMicButtonProps> = ({
         <span className="w-[11px] h-[11px] bg-[#FECDD3] rounded-[2.5px] shadow-sm animate-ping" />
       </span>
 
-      {/* Заповнений літачок відправки з Avalonia (19x19) */}
+      {/* Заповнена іконка відправки (19x19) */}
       <span
         className={`absolute inset-0 flex items-center justify-center transition-all duration-200 ease-in-out ${
           !isRecording && hasText
