@@ -7,6 +7,7 @@ from typing import Dict, Any, Union, List, AsyncGenerator, Optional
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, status, Query, HTTPException, Path, UploadFile, File
 from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
 # Безпечне кодування консолі для Windows
@@ -78,6 +79,15 @@ app = FastAPI(
         "- Ігровий цикл: суворо послідовний пайплайн (Гравець -> Оповідач -> Аналізатор -> Стан) з транзакційним відкатом (Unit of Work) та SSE-стрімінгом.\n"
         "- Голосові сервіси: надшвидке Voice-to-Text розпізнавання дій гравця (Groq Whisper ~0.3–0.5с та мультимодальний Odirouter фолбек)."
     )
+)
+
+# CORS Middleware для підключення настільного Electron/React клієнта
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
