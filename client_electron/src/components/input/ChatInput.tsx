@@ -1,20 +1,211 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useLayoutEffect, useEffect, useCallback } from 'react';
 import { Scissors, Copy, ClipboardPaste, RemoveFormatting } from 'lucide-react';
 import { useGameStore } from '../../store/useGameStore';
 import { gameApi } from '../../api/gameApi';
 import { SendOrMicButton } from './SendOrMicButton';
 import { VoiceBanner } from './VoiceBanner';
 import { SyntaxHelpTooltip } from './SyntaxHelpTooltip';
-import { SyntaxHighlightOverlay } from './SyntaxHighlightOverlay';
 import { ContextMenu } from '../ui/ContextMenu';
 import {
-  getTextareaSelection,
-  copyTextareaSelection,
-  cutTextareaSelection,
-  pasteIntoTextarea,
-  toggleSyntaxFormatting,
-  type TextSelectionSnapshot,
-} from '../../utils/textareaClipboard';
+  NOVA_SYNTAX_CLASSES,
+  removeSyntaxFormatting,
+  stripZeroWidth,
+  tokenizeNovaSyntax,
+  type SyntaxSelectionRange,
+} from '../../utils/novaSyntax';
+
+const MIN_EDITOR_HEIGHT = 24;
+const MAX_EDITOR_HEIGHT = 120;
+
+/**
+ * Обчислює загальну текстову довжину DOM-вузла для точного мапінгу позиції каретки
+ * (звичайні <br> рахуються як '\n', службовий sentinel <br> ігнорується).
+ */
+function getNodeTextLength(node: Node): number {
+  if (node.nodeType === Node.TEXT_NODE) {
+    return (node.textContent ?? '').length;
+  }
+  if (node instanceof HTMLBRElement) {
+    return node.dataset.novaSentinel === 'true' ? 0 : 1;
+  }
+  let total = 0;
+  for (let i = 0; i < node.childNodes.length; i++) {
+    total += getNodeTextLength(node.childNodes[i]);
+  }
+  return total;
+}
+
+/** Витягує чистий багаторядковий текст із contenteditable без жодних \u200B */
+function extractPlainTextFromEditor(root: HTMLElement): string {
+  const walk = (node: Node): string => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      return node.textContent ?? '';
+    }
+    if (node instanceof HTMLBRElement) {
+      return node.dataset.novaSentinel === 'true' ? '' : '\n';
+    }
+    let inner = '';
+    for (let i = 0; i < node.childNodes.length; i++) {
+      inner += walk(node.childNodes[i]);
+    }
+    if (
+      node !== root &&
+      (node.nodeName === 'DIV' || node.nodeName === 'P') &&
+      !inner.endsWith('\n')
+    ) {
+      return `${inner}\n`;
+    }
+    return inner;
+  };
+
+  return stripZeroWidth(walk(root).replace(/\r\n?/g, '\n'));
+}
+
+/** Переводить точку DOM-Selection у лінійний символьний індекс */
+function resolvePointOffset(root: HTMLElement, targetNode: Node, targetOffset: number): number {
+  let offset = 0;
+  let found = false;
+
+  const walk = (node: Node): void => {
+    if (found) return;
+
+    if (node === targetNode) {
+      if (node.nodeType === Node.TEXT_NODE) {
+        offset += Math.min(targetOffset, (node.textContent ?? '').length);
+      } else {
+        const limit = Math.min(targetOffset, node.childNodes.length);
+        for (let i = 0; i < limit; i++) {
+          offset += getNodeTextLength(node.childNodes[i]);
+        }
+      }
+      found = true;
+      return;
+    }
+
+    if (node.nodeType === Node.TEXT_NODE) {
+      offset += (node.textContent ?? '').length;
+      return;
+    }
+
+    if (node instanceof HTMLBRElement) {
+      if (node.dataset.novaSentinel !== 'true') {
+        offset += 1;
+      }
+      return;
+    }
+
+    for (let i = 0; i < node.childNodes.length; i++) {
+      walk(node.childNodes[i]);
+      if (found) return;
+    }
+  };
+
+  walk(root);
+  return offset;
+}
+
+function getEditorSelectionOffsets(root: HTMLElement): SyntaxSelectionRange {
+  const sel = window.getSelection();
+  if (!sel || sel.rangeCount === 0) {
+    return { start: 0, end: 0 };
+  }
+  const range = sel.getRangeAt(0);
+  if (!root.contains(range.startContainer) || !root.contains(range.endContainer)) {
+    return { start: 0, end: 0 };
+  }
+
+  const a = resolvePointOffset(root, range.startContainer, range.startOffset);
+  const b = resolvePointOffset(root, range.endContainer, range.endOffset);
+  return a <= b ? { start: a, end: b } : { start: b, end: a };
+}
+
+function findDomPositionForOffset(
+  root: HTMLElement,
+  targetOffset: number
+): { node: Node; offset: number } {
+  let remaining = Math.max(0, targetOffset);
+  let lastTextNode: Text | null = null;
+
+  const walk = (node: Node): { node: Node; offset: number } | null => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      const textNode = node as Text;
+      const len = textNode.data.length;
+      lastTextNode = textNode;
+      if (remaining <= len) {
+        return { node: textNode, offset: remaining };
+      }
+      remaining -= len;
+      return null;
+    }
+
+    if (node instanceof HTMLBRElement) {
+      if (node.dataset.novaSentinel !== 'true') {
+        if (remaining === 0) {
+          const parent = node.parentNode ?? root;
+          const idx = Array.prototype.indexOf.call(parent.childNodes, node);
+          return { node: parent, offset: Math.max(0, idx) };
+        }
+        remaining = Math.max(0, remaining - 1);
+      }
+      return null;
+    }
+
+    for (let i = 0; i < node.childNodes.length; i++) {
+      const res = walk(node.childNodes[i]);
+      if (res) return res;
+    }
+    return null;
+  };
+
+  const match = walk(root);
+  if (match) return match;
+
+  if (lastTextNode) {
+    const textRef: Text = lastTextNode;
+    return { node: textRef, offset: textRef.data.length };
+  }
+  return { node: root, offset: 0 };
+}
+
+function setEditorSelectionOffsets(root: HTMLElement, start: number, end: number): void {
+  const sel = window.getSelection();
+  if (!sel) return;
+
+  const startPos = findDomPositionForOffset(root, start);
+  const endPos = start === end ? startPos : findDomPositionForOffset(root, end);
+
+  const range = document.createRange();
+  range.setStart(startPos.node, startPos.offset);
+  range.setEnd(endPos.node, endPos.offset);
+  sel.removeAllRanges();
+  sel.addRange(range);
+}
+
+/** Імперативно рендерить токени єдиного парсера всередину contenteditable без конфліктів VDOM */
+function renderTokensIntoEditor(root: HTMLElement, text: string): void {
+  const fragment = document.createDocumentFragment();
+  const tokens = tokenizeNovaSyntax(text);
+
+  for (const token of tokens) {
+    if (token.type === 'normal') {
+      fragment.appendChild(document.createTextNode(token.text));
+    } else {
+      const span = document.createElement('span');
+      span.className = NOVA_SYNTAX_CLASSES[token.type];
+      span.textContent = token.text;
+      fragment.appendChild(span);
+    }
+  }
+
+  // Sentinel <br> потрібен Chromium для коректного відображення порожнього рядка після trailing '\n'
+  if (text.endsWith('\n')) {
+    const sentinel = document.createElement('br');
+    sentinel.dataset.novaSentinel = 'true';
+    fragment.appendChild(sentinel);
+  }
+
+  root.replaceChildren(fragment);
+}
 
 export const ChatInput: React.FC = () => {
   const {
@@ -32,45 +223,161 @@ export const ChatInput: React.FC = () => {
   const [contextMenu, setContextMenu] = useState<{
     x: number;
     y: number;
-    selection: TextSelectionSnapshot;
+    selection: SyntaxSelectionRange;
   } | null>(null);
 
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const overlayRef = useRef<HTMLDivElement>(null);
+  const editorRef = useRef<HTMLDivElement>(null);
+  const isComposingRef = useRef(false);
+  const lastRenderedValueRef = useRef<string | null>(null);
+  const pendingSelectionRef = useRef<SyntaxSelectionRange | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
 
-  const syncScroll = () => {
-    if (textareaRef.current && overlayRef.current) {
-      overlayRef.current.scrollTop = textareaRef.current.scrollTop;
-      overlayRef.current.scrollLeft = textareaRef.current.scrollLeft;
+  const hasText = userInput.trim().length > 0;
+  const isInputDisabled = isLoading || isStreaming || isTranscribing;
+
+  const recalculateLayout = useCallback(() => {
+    const el = editorRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    const scrollHeight = el.scrollHeight;
+    el.style.height = `${Math.min(Math.max(scrollHeight, MIN_EDITOR_HEIGHT), MAX_EDITOR_HEIGHT)}px`;
+    setIsInputOverflowing(scrollHeight > MAX_EDITOR_HEIGHT);
+  }, []);
+
+  // Синхронізація підсвічених DOM-токенів зі збереженням каретки, скролу та автовисоти
+  useLayoutEffect(() => {
+    const el = editorRef.current;
+    if (!el) return;
+
+    const cleanValue = stripZeroWidth(userInput);
+    if (cleanValue !== userInput) {
+      setUserInput(cleanValue);
+      return;
     }
+
+    if (isComposingRef.current) return;
+
+    const currentDomText = extractPlainTextFromEditor(el);
+    if (lastRenderedValueRef.current !== cleanValue || currentDomText !== cleanValue) {
+      const prevScrollTop = el.scrollTop;
+      const shouldRestoreSelection = document.activeElement === el;
+      const savedSelection =
+        pendingSelectionRef.current ??
+        (shouldRestoreSelection ? getEditorSelectionOffsets(el) : null);
+
+      renderTokensIntoEditor(el, cleanValue);
+      lastRenderedValueRef.current = cleanValue;
+      pendingSelectionRef.current = null;
+
+      if (savedSelection && shouldRestoreSelection) {
+        const clampedStart = Math.min(savedSelection.start, cleanValue.length);
+        const clampedEnd = Math.min(savedSelection.end, cleanValue.length);
+        setEditorSelectionOffsets(el, clampedStart, clampedEnd);
+      }
+
+      el.scrollTop = prevScrollTop;
+    }
+
+    recalculateLayout();
+  }, [userInput, setUserInput, recalculateLayout]);
+
+  // Перерахунок висоти й скролу при ресайзі вікна чи переключенні Sidebar
+  useEffect(() => {
+    const el = editorRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+
+    const observer = new ResizeObserver(() => {
+      recalculateLayout();
+    });
+    observer.observe(el);
+
+    return () => observer.disconnect();
+  }, [recalculateLayout]);
+
+  const applyValueChange = useCallback(
+    (nextValue: string, nextSelectionStart: number, nextSelectionEnd = nextSelectionStart) => {
+      const sanitized = stripZeroWidth(nextValue);
+      pendingSelectionRef.current = {
+        start: Math.max(0, Math.min(sanitized.length, nextSelectionStart)),
+        end: Math.max(0, Math.min(sanitized.length, nextSelectionEnd)),
+      };
+      setUserInput(sanitized);
+    },
+    [setUserInput]
+  );
+
+  const spliceSelection = useCallback(
+    (selection: SyntaxSelectionRange, insertedText: string) => {
+      const cleanInserted = stripZeroWidth(insertedText.replace(/\r\n?/g, '\n'));
+      const before = userInput.slice(0, selection.start);
+      const after = userInput.slice(selection.end);
+      const nextCaret = selection.start + cleanInserted.length;
+      applyValueChange(`${before}${cleanInserted}${after}`, nextCaret);
+    },
+    [userInput, applyValueChange]
+  );
+
+  const handleInput = () => {
+    const el = editorRef.current;
+    if (!el || isComposingRef.current) return;
+
+    const nextRaw = extractPlainTextFromEditor(el);
+    pendingSelectionRef.current = getEditorSelectionOffsets(el);
+    lastRenderedValueRef.current = null;
+    setUserInput(nextRaw);
   };
 
-  // Автовисота поля вводу (від 24px до 120px) та контроль скролбару
-  useEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-      const scrollHeight = textareaRef.current.scrollHeight;
-      textareaRef.current.style.height = `${Math.min(Math.max(scrollHeight, 24), 120)}px`;
-      setIsInputOverflowing(scrollHeight > 120);
-      syncScroll();
-    }
-  }, [userInput]);
-
   const handleSend = () => {
-    const text = userInput.trim();
-    if (!text || isLoading || isStreaming) return;
+    const cleanText = stripZeroWidth(userInput);
+    if (!cleanText.trim() || isLoading || isStreaming) return;
     setUserInput('');
-    sendPlayerAction(text).catch((err) => {
+    sendPlayerAction(cleanText.trim()).catch((err: Error) => {
       setSystemAlert(`Помилка відправки: ${err.message}`, 'error');
     });
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.nativeEvent.isComposing || isComposingRef.current) return;
+
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
+      return;
+    }
+
+    if (e.key === 'Enter' && e.shiftKey) {
+      e.preventDefault();
+      const el = editorRef.current;
+      if (!el) return;
+      const sel = getEditorSelectionOffsets(el);
+      spliceSelection(sel, '\n');
+    }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
+    if (isInputDisabled) return;
+    e.preventDefault();
+    const el = editorRef.current;
+    if (!el) return;
+    const clipText = e.clipboardData.getData('text/plain');
+    if (!clipText) return;
+    const sel = getEditorSelectionOffsets(el);
+    spliceSelection(sel, clipText);
+  };
+
+  const handleCopyOrCut = (isCut: boolean, e: React.ClipboardEvent<HTMLDivElement>) => {
+    const el = editorRef.current;
+    if (!el) return;
+    const sel = getEditorSelectionOffsets(el);
+    if (sel.end <= sel.start) return;
+
+    e.preventDefault();
+    const selectedText = stripZeroWidth(userInput.slice(sel.start, sel.end));
+    e.clipboardData.setData('text/plain', selectedText);
+
+    if (isCut && !isInputDisabled) {
+      spliceSelection(sel, '');
     }
   };
 
@@ -102,12 +409,14 @@ export const ChatInput: React.FC = () => {
 
         setIsTranscribing(true);
         try {
-          const text = await gameApi.transcribeAudio(audioBlob, 'recording.webm');
+          const text = stripZeroWidth(await gameApi.transcribeAudio(audioBlob, 'recording.webm'));
           if (text) {
-            setUserInput(userInput ? `${userInput} ${text}` : text);
+            const currentInput = stripZeroWidth(useGameStore.getState().userInput);
+            setUserInput(currentInput ? `${currentInput} ${text}` : text);
           }
-        } catch (err: any) {
-          setSystemAlert(`Помилка розпізнавання: ${err.message}`, 'error');
+        } catch (err: unknown) {
+          const message = err instanceof Error ? err.message : 'Невідома помилка';
+          setSystemAlert(`Помилка розпізнавання: ${message}`, 'error');
         } finally {
           setIsTranscribing(false);
         }
@@ -115,8 +424,9 @@ export const ChatInput: React.FC = () => {
 
       recorder.start();
       setIsRecording(true);
-    } catch (err: any) {
-      setSystemAlert(`Не вдалося отримати доступ до мікрофона: ${err.message}`, 'error');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Невідома помилка';
+      setSystemAlert(`Не вдалося отримати доступ до мікрофона: ${message}`, 'error');
     }
   };
 
@@ -130,26 +440,26 @@ export const ChatInput: React.FC = () => {
   const handleSendOrRecordClick = () => {
     if (isRecording) {
       stopRecording();
-    } else if (userInput.trim().length > 0) {
+    } else if (hasText) {
       handleSend();
     } else {
       startRecording();
     }
   };
 
-  const hasText = userInput.trim().length > 0;
-  const isInputDisabled = isLoading || isStreaming || isTranscribing;
-
-  const handleContextMenu = (e: React.MouseEvent<HTMLTextAreaElement>) => {
+  const handleContextMenu = (e: React.MouseEvent<HTMLDivElement>) => {
     e.preventDefault();
+    const el = editorRef.current;
     setContextMenu({
       x: e.clientX,
       y: e.clientY,
-      selection: getTextareaSelection(textareaRef.current),
+      selection: el ? getEditorSelectionOffsets(el) : { start: 0, end: 0 },
     });
   };
 
   const hasSelection = !!contextMenu && contextMenu.selection.end > contextMenu.selection.start;
+  const hasFormattedTokens =
+    userInput.length > 0 && tokenizeNovaSyntax(userInput).some((token) => token.type !== 'normal');
 
   return (
     <div className="w-full flex flex-col select-none">
@@ -158,27 +468,42 @@ export const ChatInput: React.FC = () => {
 
       {/* Головна зона вводу: Border.inputBox + Кнопки праворуч */}
       <div className="flex items-end gap-3">
-        {/* Поле вводу з фірмовою рамкою #333333 -> focus #5A0010 та живою підсвіткою синтаксису */}
+        {/* Поле вводу з фірмовою рамкою #333333 -> focus #5A0010 та contenteditable-підсвіткою */}
         <div className="flex-1 bg-[#161616] border border-[#333333] hover:border-[#444444] focus-within:border-[#5A0010] focus-within:hover:border-[#5A0010] rounded-[10px] p-[14px_16px] flex items-center transition-colors shadow-inner">
           <div className="relative w-full min-w-0">
-            <SyntaxHighlightOverlay
-              text={userInput}
-              overlayRef={overlayRef}
-              isOverflowing={isInputOverflowing}
-            />
-            <textarea
-              ref={textareaRef}
-              rows={1}
-              value={userInput}
-              onChange={(e) => setUserInput(e.target.value)}
-              onScroll={syncScroll}
+            {userInput.length === 0 && (
+              <span
+                aria-hidden="true"
+                className="pointer-events-none select-none absolute inset-0 text-[15px] leading-[24px] font-sans text-[#555555] italic truncate"
+              >
+                Введіть дію, думку або фразу...
+              </span>
+            )}
+
+            <div
+              ref={editorRef}
+              role="textbox"
+              aria-multiline="true"
+              aria-label="Введіть дію, думку або фразу..."
+              contentEditable={!isInputDisabled}
+              suppressContentEditableWarning
+              spellCheck={false}
+              onInput={handleInput}
               onKeyDown={handleKeyDown}
+              onPaste={handlePaste}
+              onCopy={(e) => handleCopyOrCut(false, e)}
+              onCut={(e) => handleCopyOrCut(true, e)}
+              onCompositionStart={() => {
+                isComposingRef.current = true;
+              }}
+              onCompositionEnd={() => {
+                isComposingRef.current = false;
+                handleInput();
+              }}
               onContextMenu={handleContextMenu}
-              disabled={isInputDisabled}
-              placeholder="Введіть дію, думку або фразу..."
-              className={`relative z-10 w-full bg-transparent text-[15px] leading-[24px] font-sans [font-kerning:none] [font-variant-ligatures:none] text-transparent caret-[#E5E7EB] selection:bg-[#7E0018]/40 placeholder-[#555555] placeholder:italic resize-none outline-none select-text min-h-[24px] max-h-[120px] m-0 p-0 border-0 block ${
+              className={`w-full bg-transparent text-[15px] leading-[24px] font-sans text-[#E5E7EB] selection:bg-[#7E0018]/40 whitespace-pre-wrap break-words outline-none min-h-[24px] max-h-[120px] m-0 p-0 border-0 block ${
                 isInputOverflowing ? 'overflow-y-auto' : 'overflow-hidden'
-              }`}
+              } ${isInputDisabled ? 'opacity-60 cursor-not-allowed select-none' : 'select-text cursor-text'}`}
             />
           </div>
         </div>
@@ -207,15 +532,20 @@ export const ChatInput: React.FC = () => {
             label: 'Вирізати',
             shortcut: 'Ctrl+X',
             icon: <Scissors size={13} />,
-            disabled: !hasSelection,
+            disabled: !hasSelection || isInputDisabled,
             onClick: () => {
               if (!contextMenu) return;
-              cutTextareaSelection(
-                textareaRef.current,
-                userInput,
-                contextMenu.selection,
-                setUserInput
-              ).catch(() => {});
+              const selected = stripZeroWidth(
+                userInput.slice(contextMenu.selection.start, contextMenu.selection.end)
+              );
+              if (!selected) return;
+              navigator.clipboard
+                .writeText(selected)
+                .then(() => {
+                  editorRef.current?.focus();
+                  spliceSelection(contextMenu.selection, '');
+                })
+                .catch(() => {});
             },
           },
           {
@@ -225,7 +555,11 @@ export const ChatInput: React.FC = () => {
             disabled: !hasSelection,
             onClick: () => {
               if (!contextMenu) return;
-              copyTextareaSelection(userInput, contextMenu.selection).catch(() => {});
+              const selected = stripZeroWidth(
+                userInput.slice(contextMenu.selection.start, contextMenu.selection.end)
+              );
+              if (!selected) return;
+              navigator.clipboard.writeText(selected).catch(() => {});
             },
           },
           {
@@ -235,24 +569,27 @@ export const ChatInput: React.FC = () => {
             disabled: isInputDisabled,
             onClick: () => {
               if (!contextMenu) return;
-              pasteIntoTextarea(
-                textareaRef.current,
-                userInput,
-                contextMenu.selection,
-                setUserInput
-              ).catch(() => {});
+              navigator.clipboard
+                .readText()
+                .then((clipText) => {
+                  if (!clipText) return;
+                  editorRef.current?.focus();
+                  spliceSelection(contextMenu.selection, clipText);
+                })
+                .catch(() => {});
             },
           },
           { type: 'separator' },
           {
             label: 'Скасувати форматування',
             icon: <RemoveFormatting size={13} />,
-            disabled: !hasText || isInputDisabled,
+            disabled: !hasFormattedTokens || isInputDisabled,
             onClick: () => {
               if (!contextMenu) return;
-              const updated = toggleSyntaxFormatting(userInput, contextMenu.selection);
-              setUserInput(updated);
-              requestAnimationFrame(() => textareaRef.current?.focus());
+              const res = removeSyntaxFormatting(userInput, contextMenu.selection);
+              if (!res.changed) return;
+              editorRef.current?.focus();
+              applyValueChange(res.text, res.selectionStart, res.selectionEnd);
             },
           },
         ]}
