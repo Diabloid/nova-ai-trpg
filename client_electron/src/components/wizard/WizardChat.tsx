@@ -12,6 +12,7 @@ export const WizardChat: React.FC = () => {
     setWizardInput,
     sendWizardMessage,
     isWizardTyping,
+    isLoadingWorldSchema,
     wizardStatusText,
   } = useWizardStore();
   const setSystemAlert = useGameStore((s) => s.setSystemAlert);
@@ -71,7 +72,7 @@ export const WizardChat: React.FC = () => {
 
   const handleSend = () => {
     const text = wizardInput.trim();
-    if (!text || isWizardTyping) return;
+    if (!text || isWizardTyping || isLoadingWorldSchema) return;
     sendWizardMessage(text);
   };
 
@@ -93,7 +94,7 @@ export const WizardChat: React.FC = () => {
   };
 
   const hasText = wizardInput.trim().length > 0;
-  const isInputDisabled = isWizardTyping || isTranscribing;
+  const isInputDisabled = isWizardTyping || isTranscribing || isLoadingWorldSchema;
 
   return (
     <div className="flex-1 flex flex-col h-full bg-[#111111] border border-[#262626] rounded-xl p-4.5 pb-3 min-w-0 shadow-lg">

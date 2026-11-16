@@ -78,7 +78,9 @@ export const App: React.FC = () => {
 
   return (
     <AppLayout
-      onOpenWizard={openWizard}
+      onOpenWizard={() => {
+        openWizard();
+      }}
       onEditCharacter={handleEditCharacter}
       onRequestDeleteCharacter={(char) => setCharacterToDelete(char)}
       onNewCampaign={() => setIsNewCampaignModalOpen(true)}

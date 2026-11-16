@@ -4,13 +4,15 @@ import type {
   PlayerState,
   CharacterDialogRequest,
   CharacterDialogResponse,
+  CharacterSyncRequest,
   CharacterFinalizeRequest,
 } from '../types/api';
 
 export const charactersApi = {
-  /** Отримати список усіх заготовок героїв */
-  getCharacters: (options?: RequestInit): Promise<CharacterSummary[]> => {
-    return apiClient.get<CharacterSummary[]>('/characters', options);
+  /** Отримати список заготовок героїв (опціонально фільтрувати за world_id) */
+  getCharacters: (worldId?: string, options?: RequestInit): Promise<CharacterSummary[]> => {
+    const query = worldId ? `?world_id=${encodeURIComponent(worldId)}` : '';
+    return apiClient.get<CharacterSummary[]>(`/characters${query}`, options);
   },
 
   /** Отримати повний лист конкретного персонажа */
@@ -39,8 +41,8 @@ export const charactersApi = {
   },
 
   /** Синхронізація ручних правок прев'ю з ШІ */
-  syncDraft: (draft: PlayerState, options?: RequestInit): Promise<PlayerState> => {
-    return apiClient.post<PlayerState>('/character/sync-draft', draft, options);
+  syncDraft: (req: CharacterSyncRequest, options?: RequestInit): Promise<PlayerState> => {
+    return apiClient.post<PlayerState>('/character/sync-draft', req, options);
   },
 
   /** Фіналізація генерації персонажа та збереження на диск */

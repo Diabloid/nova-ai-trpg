@@ -1,4 +1,4 @@
-import type { PlayerState } from './api';
+import type { PlayerState, TemplateArchetype, TemplatePlacement } from './api';
 import type { NovaToken, SyntaxSelectionRange } from '../utils/novaSyntax';
 
 export interface ChatMessage {
@@ -41,6 +41,7 @@ export interface DynamicCustomBlock {
 export type DrawerTab = 'injuries' | 'worn' | 'abilities' | 'containers' | 'details';
 
 export interface CharacterWizardDraft {
+  world_id?: string;
   charName: string;
   charTitles: string;
   charAge: string;
@@ -59,4 +60,43 @@ export interface CharacterWizardDraft {
   equipment: Array<any>;
   customBlocks: Record<string, any>;
   rawState?: PlayerState | null;
+}
+
+export interface ParsedSheetSection {
+  key: string;
+  path: string;
+  title: string;
+  icon: string;
+  color: string;
+  archetype: TemplateArchetype;
+  placement: TemplatePlacement;
+  order: number;
+  value: any;
+  isAutoInferred?: boolean;
+}
+
+export interface HeaderBadgeItem {
+  key: string;
+  path: string;
+  label: string;
+  value: string;
+  color: string;
+  icon: string;
+}
+
+export interface HeaderAnchors {
+  name: string;
+  location: string;
+  overallState?: string;
+  avatar?: string;
+  headerBadges: HeaderBadgeItem[];
+}
+
+export interface ParsedDynamicSheet {
+  headers: HeaderAnchors;
+  drawerColumns: ParsedSheetSection[];
+  detailSections: ParsedSheetSection[];
+  headerBadges: HeaderBadgeItem[];
+  allSections: ParsedSheetSection[];
+  allEditableSections: ParsedSheetSection[];
 }

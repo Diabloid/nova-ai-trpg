@@ -1,7 +1,31 @@
 /**
- * NOVA AI TRPG — API & DTO Contract (v1.5.2)
+ * NOVA AI TRPG — API & DTO Contract (v2.0.0)
  * Strictly matches Backend_Python/schemas/game_dto.py and docs/API_CONTRACT.md
  */
+
+export type TemplateArchetype =
+  | 'card_list'
+  | 'container_map'
+  | 'stat_grid'
+  | 'long_text'
+  | 'tag_list'
+  | string;
+
+export type TemplatePlacement = 'drawer_column' | 'details' | 'header_badge' | string;
+
+export interface SchemaSectionMeta {
+  title: string;
+  icon?: string;
+  color?: string;
+  archetype: TemplateArchetype;
+  placement: TemplatePlacement;
+  order?: number;
+}
+
+export interface TemplateSchemaMeta {
+  version: number;
+  sections: Record<string, SchemaSectionMeta>;
+}
 
 export interface IntentItem {
   type: 'action' | 'speech' | 'thought' | 'ooc' | string;
@@ -31,6 +55,7 @@ export interface AbilityItem {
 }
 
 export interface PlayerMeta {
+  world_id?: string;
   name: string;
   first_name?: string;
   last_name?: string;
@@ -39,6 +64,8 @@ export interface PlayerMeta {
   age?: string | number;
   background?: string;
   location?: string;
+  overall_state?: string;
+  avatar?: string;
   appearance?: string;
   appearance_details?: {
     physique?: string;
@@ -66,10 +93,11 @@ export interface StorageAndEquipment {
 
 export interface PlayerState {
   meta: PlayerMeta;
-  anatomy_and_health: AnatomyAndHealth;
-  storage_and_equipment: StorageAndEquipment;
-  abilities: Array<AbilityItem | Record<string, any> | string>;
+  anatomy_and_health?: AnatomyAndHealth;
+  storage_and_equipment?: StorageAndEquipment;
+  abilities?: Array<AbilityItem | Record<string, any> | string>;
   custom_blocks?: Record<string, any>;
+  _schema_meta?: TemplateSchemaMeta;
   [key: string]: any;
 }
 
@@ -83,15 +111,19 @@ export interface ActionResponse {
 
 export interface CharacterSummary {
   char_id: string;
+  world_id: string;
   name: string;
   background: string;
   appearance?: string;
+  avatar?: string;
   created_at: string;
+  updated_at?: string;
 }
 
 export interface CampaignSummary {
   campaign_id: string;
   char_id: string;
+  world_id: string;
   title: string;
   current_location: string;
   is_pinned: boolean;
@@ -128,6 +160,8 @@ export interface CharacterDialogRequest {
   message: string;
   history?: CharacterDialogHistoryItem[];
   include_draft?: boolean;
+  world_id?: string;
+  template_override?: Record<string, any> | null;
 }
 
 export interface CharacterDialogResponse {
@@ -135,13 +169,67 @@ export interface CharacterDialogResponse {
   draft_state?: PlayerState | null;
 }
 
+export interface CharacterSyncRequest {
+  draft_state: Record<string, any>;
+  world_id?: string;
+  template_override?: Record<string, any> | null;
+}
+
 export interface CharacterFinalizeRequest {
   dialog_summary?: string;
   history?: CharacterDialogHistoryItem[];
   char_id?: string;
-  draft_state?: PlayerState | null;
+  draft_state?: PlayerState | Record<string, any> | null;
+  world_id?: string;
+  template_override?: Record<string, any> | null;
 }
 
 export interface VoiceTranscriptionResponse {
   text: string;
+}
+
+export interface WorldAiPrompts {
+  narrator_rules: string;
+  analyzer_rules: string;
+  creator_rules: string;
+  world_tone: string;
+}
+
+export interface WorldSummary {
+  world_id: string;
+  title: string;
+  genre: string;
+  description: string;
+  icon: string;
+  accent_color: string;
+  character_count: number;
+  is_default: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WorldLoreArticleInfo {
+  filename: string;
+  title: string;
+  size_bytes: number;
+  est_tokens: number;
+}
+
+export interface WorldDetailResponse extends WorldSummary {
+  author: string;
+  starting_locations: string[];
+  ai_prompts: WorldAiPrompts;
+  character_template: Record<string, any>;
+  lore_articles: WorldLoreArticleInfo[];
+  total_lore_bytes: number;
+  total_lore_tokens: number;
+}
+
+export interface TemplatePreset {
+  id: string;
+  title: string;
+  genre: string;
+  description: string;
+  icon: string;
+  template: Record<string, any>;
 }
