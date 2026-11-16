@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ChevronDown, ScrollText } from 'lucide-react';
 import type { ParsedSheetSection } from '../../types/game';
 import { DynamicSectionRenderer } from '../dynamic-sheet';
@@ -64,6 +64,15 @@ function formatSectionForDetailsRead(
 
 export const DrawerDetails: React.FC<DrawerDetailsProps> = ({ sections }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isExpanded) return;
+    const rafId = requestAnimationFrame(() => {
+      contentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
+    return () => cancelAnimationFrame(rafId);
+  }, [isExpanded]);
 
   const visibleSections = sections
     .filter(hasSectionContent)
@@ -72,7 +81,7 @@ export const DrawerDetails: React.FC<DrawerDetailsProps> = ({ sections }) => {
   if (visibleSections.length === 0) return null;
 
   return (
-    <div className="bg-[#141414] border border-[#262626] rounded-lg overflow-hidden transition-all duration-150 mt-1">
+    <div className="shrink-0 bg-[#141414] border border-[#262626] rounded-lg overflow-hidden transition-all duration-150 mt-1">
       {/* Заголовок спойлера */}
       <button
         type="button"
@@ -95,7 +104,10 @@ export const DrawerDetails: React.FC<DrawerDetailsProps> = ({ sections }) => {
 
       {/* Вміст спойлера */}
       {isExpanded && (
-        <div className="p-3 border-t border-[#222222] grid grid-cols-1 md:grid-cols-2 gap-2.5 animate-fade-in">
+        <div
+          ref={contentRef}
+          className="p-3 border-t border-[#222222] grid grid-cols-1 md:grid-cols-2 gap-2.5 animate-fade-in"
+        >
           {visibleSections.map((section) => (
             <div
               key={section.path}

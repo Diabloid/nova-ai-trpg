@@ -239,7 +239,7 @@ export const StatGridSection: React.FC<DynamicSectionProps<Record<string, any>>>
                 onClick={handleAddEntry}
                 disabled={!newKey.trim()}
                 title="Додати параметр"
-                className="h-7 px-2 rounded bg-[#1E1E1E] hover:bg-[#2A2A2A] disabled:opacity-40 border border-[#333333] text-[#E5E7EB] text-[11px] font-medium flex items-center gap-1 transition-colors cursor-pointer"
+                className="h-7 px-2 rounded bg-[#1E1E1E] border border-[#333333] text-[#E5E7EB] text-[11px] font-medium flex items-center gap-1 transition-all duration-150 enabled:hover:bg-[#2A2A2A] enabled:hover:border-[#444444] enabled:active:scale-[0.98] enabled:cursor-pointer disabled:opacity-40 disabled:cursor-default"
               >
                 <Plus size={11} />
                 <span>Додати</span>

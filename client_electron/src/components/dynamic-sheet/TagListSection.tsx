@@ -100,7 +100,7 @@ export const TagListSection: React.FC<DynamicSectionProps<string[]>> = ({
               type="button"
               onClick={handleAddTag}
               disabled={!newTag.trim()}
-              className="text-[11px] font-semibold px-2.5 py-1 rounded bg-[#1E1E1E] hover:bg-[#2A2A2A] disabled:opacity-40 border border-[#333333] text-[#E5E7EB] flex items-center gap-1 transition-colors cursor-pointer shrink-0"
+              className="text-[11px] font-semibold px-2.5 py-1 rounded bg-[#1E1E1E] border border-[#333333] text-[#E5E7EB] flex items-center gap-1 transition-all duration-150 shrink-0 enabled:hover:bg-[#2A2A2A] enabled:hover:border-[#444444] enabled:active:scale-[0.98] enabled:cursor-pointer disabled:opacity-40 disabled:cursor-default"
             >
               <Plus size={11} />
               <span>Додати</span>

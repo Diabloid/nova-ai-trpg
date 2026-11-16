@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { Globe, LayoutTemplate, Upload, X } from 'lucide-react';
 import { useGameStore } from '../../store/useGameStore';
 import { useWizardStore } from '../../store/useWizardStore';
@@ -6,6 +6,7 @@ import { DynamicLucideIcon } from '../dynamic-sheet';
 import { LivePreview } from './LivePreview';
 import { WizardChat } from './WizardChat';
 import { Button } from '../ui/Button';
+import { CustomSelect, type CustomSelectOption } from '../ui/CustomSelect';
 import { ConfirmModal } from '../modals/ConfirmModal';
 
 type PendingWizardAction =
@@ -38,6 +39,72 @@ export const WizardScreen: React.FC = () => {
 
   const [pendingAction, setPendingAction] = useState<PendingWizardAction | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const worldOptions = useMemo<CustomSelectOption[]>(() => {
+    if (availableWorlds.length > 0) {
+      return availableWorlds.map((world) => ({
+        value: world.world_id,
+        label: world.title,
+        sublabel: world.genre,
+        icon: (
+          <DynamicLucideIcon
+            icon={world.icon}
+            fallback={Globe}
+            size={13}
+            style={{ color: world.accent_color || '#C084FC' }}
+          />
+        ),
+      }));
+    }
+
+    return [
+      {
+        value: selectedWorldId,
+        label: activeWorldDetail?.title || selectedWorldId,
+        sublabel: activeWorldDetail?.genre,
+        icon: (
+          <DynamicLucideIcon
+            icon={activeWorldDetail?.icon}
+            fallback={Globe}
+            size={13}
+            style={{ color: activeWorldDetail?.accent_color || '#C084FC' }}
+          />
+        ),
+      },
+    ];
+  }, [availableWorlds, selectedWorldId, activeWorldDetail]);
+
+  const presetOptions = useMemo<CustomSelectOption[]>(() => {
+    const items: CustomSelectOption[] = [
+      {
+        value: '',
+        label: 'Стандартний шаблон цього світу',
+      },
+      ...availablePresets.map((preset) => ({
+        value: preset.id,
+        label: `Пресет: ${preset.title}`,
+        sublabel: preset.genre,
+        icon: (
+          <DynamicLucideIcon
+            icon={preset.icon}
+            fallback={LayoutTemplate}
+            size={13}
+            className="text-[#9CA3AF]"
+          />
+        ),
+      })),
+    ];
+
+    if (selectedPresetId === '__custom_json__') {
+      items.push({
+        value: '__custom_json__',
+        label: 'Користувацький JSON-шаблон',
+        icon: <Upload size={13} className="text-[#A78BFA]" />,
+      });
+    }
+
+    return items;
+  }, [availablePresets, selectedPresetId]);
 
   if (!isWizardOpen) return null;
 
@@ -74,18 +141,12 @@ export const WizardScreen: React.FC = () => {
     }
   };
 
-  const handleWorldSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const nextWorldId = e.target.value;
+  const handleWorldChange = (nextWorldId: string) => {
     if (!nextWorldId || nextWorldId === selectedWorldId) return;
     requestGuardedAction({ kind: 'world', worldId: nextWorldId });
   };
 
-  const handlePresetSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const rawVal = e.target.value;
-    if (rawVal === '__import_trigger__') {
-      fileInputRef.current?.click();
-      return;
-    }
+  const handlePresetChange = (rawVal: string) => {
     const nextPresetId = rawVal === '' ? null : rawVal;
     if (nextPresetId === selectedPresetId) return;
     requestGuardedAction({ kind: 'preset', presetId: nextPresetId });
@@ -145,74 +206,49 @@ export const WizardScreen: React.FC = () => {
           <Button
             variant="secondary"
             onClick={() => requestGuardedAction({ kind: 'cancel' })}
-            className="text-xs px-3 py-1.5 text-[#9CA3AF] hover:text-[#EF4444] hover:bg-[#201014] border-[#333333] hover:border-[#7E0018] cursor-pointer transition-colors shrink-0"
+            className="text-xs px-3 py-1.5 text-[#9CA3AF] enabled:hover:text-[#EF4444] enabled:hover:bg-[#201014] border-[#333333] enabled:hover:border-[#7E0018] shrink-0"
           >
             <X size={13} />
             <span>Скасувати</span>
           </Button>
         </div>
 
-        {/* Селектор Світу та Шаблону анкети */}
+        {/* Селектор Світу, Шаблону анкети (однакова компактна ширина + h-[34px]) та кнопка Імпорт JSON (h-[34px]) */}
         <div className="flex flex-wrap items-center gap-2.5">
-          {/* Селектор Світу */}
-          <div className="flex items-center gap-2 bg-[#161616] border border-[#2A2A2A] rounded-lg px-2.5 py-1.5">
-            <DynamicLucideIcon
-              icon={activeWorldSummary?.icon}
-              fallback={Globe}
-              size={14}
-              className="shrink-0"
-              style={{ color: activeWorldSummary?.accent_color || '#C084FC' }}
-            />
-            <span className="text-[11px] font-medium text-[#9CA3AF] shrink-0">Світ:</span>
-            <select
+          <div className="flex-1 min-w-[210px] max-w-[310px]">
+            <CustomSelect
               value={selectedWorldId}
-              onChange={handleWorldSelect}
+              options={worldOptions}
+              onChange={handleWorldChange}
               disabled={isSwitchingDisabled || availableWorlds.length === 0}
-              aria-label="Оберіть світ для створення персонажа"
-              className="bg-[#161616] text-xs font-semibold text-[#F3F4F6] outline-none cursor-pointer disabled:opacity-60 pr-1"
-            >
-              {availableWorlds.length > 0 ? (
-                availableWorlds.map((world) => (
-                  <option key={world.world_id} value={world.world_id} className="bg-[#161616] text-[#E5E7EB]">
-                    {world.title} ({world.genre})
-                  </option>
-                ))
-              ) : (
-                <option value={selectedWorldId} className="bg-[#161616] text-[#E5E7EB]">
-                  {activeWorldSummary?.title || selectedWorldId}
-                </option>
-              )}
-            </select>
+              prefixLabel="Світ:"
+              ariaLabel="Оберіть світ для створення персонажа"
+              leftIcon={
+                <DynamicLucideIcon
+                  icon={activeWorldSummary?.icon}
+                  fallback={Globe}
+                  size={14}
+                  style={{ color: activeWorldSummary?.accent_color || '#C084FC' }}
+                />
+              }
+            />
           </div>
 
-          {/* Селектор Шаблону анкети */}
-          <div className="flex items-center gap-2 bg-[#161616] border border-[#2A2A2A] rounded-lg px-2.5 py-1.5">
-            <LayoutTemplate size={14} className="text-[#9CA3AF] shrink-0" />
-            <span className="text-[11px] font-medium text-[#9CA3AF] shrink-0">Шаблон:</span>
-            <select
+          <div className="flex-1 min-w-[210px] max-w-[310px]">
+            <CustomSelect
               value={selectedPresetId ?? ''}
-              onChange={handlePresetSelect}
+              options={presetOptions}
+              onChange={handlePresetChange}
               disabled={isSwitchingDisabled}
-              aria-label="Оберіть шаблон анкети"
-              className="bg-[#161616] text-xs font-medium text-[#E5E7EB] outline-none cursor-pointer disabled:opacity-60 pr-1"
-            >
-              <option value="" className="bg-[#161616] text-[#E5E7EB]">
-                Стандартний шаблон цього світу
-              </option>
-              {availablePresets.map((preset) => (
-                <option key={preset.id} value={preset.id} className="bg-[#161616] text-[#E5E7EB]">
-                  Пресет: {preset.title} ({preset.genre})
-                </option>
-              ))}
-              {selectedPresetId === '__custom_json__' && (
-                <option value="__custom_json__" className="bg-[#161616] text-[#E5E7EB]">
-                  Користувацький JSON-шаблон
-                </option>
-              )}
-              <option value="__import_trigger__" className="bg-[#161616] text-[#A78BFA]">
-                Імпортувати JSON-шаблон...
-              </option>
-            </select>
+              prefixLabel="Шаблон:"
+              ariaLabel="Оберіть шаблон анкети"
+              leftIcon={<LayoutTemplate size={14} className="text-[#9CA3AF]" />}
+              actionItem={{
+                label: 'Імпортувати JSON-шаблон...',
+                icon: <Upload size={13} />,
+                onClick: () => fileInputRef.current?.click(),
+              }}
+            />
           </div>
 
           <button
@@ -220,9 +256,9 @@ export const WizardScreen: React.FC = () => {
             onClick={() => fileInputRef.current?.click()}
             disabled={isSwitchingDisabled}
             title="Імпортувати власний JSON-шаблон анкети з файлу"
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#161616] hover:bg-[#1E1E1E] border border-[#2A2A2A] hover:border-[#444444] text-[11px] font-medium text-[#D1D5DB] transition-colors cursor-pointer disabled:opacity-50"
+            className="h-[34px] shrink-0 inline-flex items-center gap-1.5 px-3 rounded-[8px] bg-[#161616] border border-[#2A2A2A] text-xs font-medium text-[#E5E7EB] transition-all duration-150 enabled:hover:bg-[#1E1E1E] enabled:hover:border-[#3E3E3E] enabled:active:bg-[#141414] enabled:active:scale-[0.985] enabled:cursor-pointer disabled:opacity-50 disabled:cursor-default"
           >
-            <Upload size={12} />
+            <Upload size={13} className="text-[#9CA3AF] shrink-0" />
             <span>Імпорт JSON</span>
           </button>
 

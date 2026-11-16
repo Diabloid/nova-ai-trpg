@@ -72,7 +72,7 @@ export const LivePreview: React.FC = () => {
           onClick={() => syncWizardDraft()}
           disabled={isSyncingDraft || isWizardTyping || isLoadingWorldSchema}
           title="Синхронізувати ручні правки з ШІ за схемою світу"
-          className="flex items-center gap-1.5 px-2 py-1 bg-[#1A1A1A] hover:bg-[#252525] border border-[#333333] rounded-md text-[#D1D5DB] text-[10px] font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shrink-0"
+          className="flex items-center gap-1.5 px-2 py-1 bg-[#1A1A1A] border border-[#333333] rounded-md text-[#D1D5DB] text-[10px] font-semibold transition-all duration-150 shrink-0 enabled:hover:bg-[#252525] enabled:hover:border-[#444444] enabled:active:scale-[0.98] enabled:cursor-pointer disabled:opacity-50 disabled:cursor-default"
         >
           <RefreshCw className={`w-3 h-3 ${isSyncingDraft ? 'animate-spin text-[#A78BFA]' : ''}`} />
           <span>{isSyncingDraft ? 'Синхронізація...' : 'Синхронізувати'}</span>
@@ -156,7 +156,7 @@ export const LivePreview: React.FC = () => {
           variant="primary"
           onClick={() => finalizeWizard()}
           disabled={isWizardTyping || isLoadingWorldSchema || wizardMessages.length <= 1}
-          className="w-full justify-center text-xs py-2.5 font-bold shadow-md cursor-pointer"
+          className="w-full justify-center text-xs py-2.5 font-bold shadow-md"
         >
           <span>Завершити створення</span>
           <ArrowRight size={13} />

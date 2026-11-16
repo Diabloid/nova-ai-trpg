@@ -53,9 +53,9 @@ export const DrawerSheet: React.FC = () => {
   const gridClass = getDrawerGridClass(drawerColumns);
 
   return (
-    <div className="w-full bg-[#181818] border border-[#2A2A2A] rounded-[10px] p-[16px_16px_8px_16px] mt-1 flex flex-col gap-2.5 shadow-2xl animate-fade-in max-h-[460px] overflow-y-auto">
+    <div className="w-full bg-[#181818] border border-[#2A2A2A] rounded-[10px] p-4 pb-3 mt-1 flex flex-col gap-2.5 shadow-2xl animate-fade-in max-h-[70vh] overflow-y-auto">
       {drawerColumns.length > 0 ? (
-        <div className={`grid ${gridClass} gap-2.5`}>
+        <div className={`grid ${gridClass} gap-2.5 shrink-0`}>
           {drawerColumns.map((section) => (
             <DynamicSectionRenderer
               key={section.path}
