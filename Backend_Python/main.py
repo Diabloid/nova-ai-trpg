@@ -31,6 +31,7 @@ from routers import (
     gameplay_router,
     voice_router,
     legacy_router,
+    worlds_router,
 )
 
 
@@ -40,22 +41,25 @@ async def lifespan(app: FastAPI):
     Керування життєвим циклом додатку (Lifespan):
     Виконується СТРОГО ОДИН РАЗ під час старту робочого worker-процесу Uvicorn.
     """
-    logger.info("⏳ Ініціалізація бази знань та лору всесвіту...")
+    logger.info("🌍 Перевірка та ідемпотентна міграція пакетів світів...")
+    llm_controller.world_manager.migrate_if_needed()
+    logger.info("⏳ Ініціалізація бази знань та лору базового світу...")
     llm_controller.prompt_service.ensure_lore_loaded()
     logger.info("🔍 Динамічне опитування та евристичне ранжування ШІ-моделей Odirouter...")
     await llm_controller.refresh_ai_models()
-    logger.info("🚀 NOVA AI TRPG Engine API успішно запущено та готовий до гри!")
+    logger.info("🚀 NOVA AI TRPG Engine API v2.0.0 успішно запущено та готовий до гри!")
     yield
     logger.info("🛑 Зупинка NOVA AI TRPG Engine API...")
 
 
 app = FastAPI(
     title="NOVA AI TRPG Engine API",
-    version="1.5.2",
+    version="2.0.0",
     lifespan=lifespan,
     description=(
-        "Офіційний бекенд дипломного проєкту NOVA AI TRPG (API v1.5.2).\n\n"
+        "Офіційний бекенд дипломного проєкту NOVA AI TRPG (API v2.0.0).\n\n"
         "Модульна архітектура:\n"
+        "- Світи (Worlds): ізольовані пакети світів (паспорт, ai_prompts, character_template, лор), клонування та захищене видалення.\n"
         "- Персонажі (Blueprints): створення, редагування, Character Wizard з AI Творцем Долі, Live Preview та Live Sync.\n"
         "- Кампанії (Campaigns / Чати): мультисесійність за кожним героєм, авто-генерація вступного наративу (Intro Post), закріплення (Pin), відкат ходу (Rollback).\n"
         "- Ігровий цикл: суворо послідовний пайплайн (Гравець -> Оповідач -> Аналізатор -> Стан) з транзакційним відкатом (Unit of Work) та SSE-стрімінгом.\n"
@@ -72,7 +76,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Реєстрація модульних роутерів (Фаза 4)
+# Реєстрація модульних роутерів (Фаза 4 + Етап 1 v2.0.0)
+app.include_router(worlds_router)
 app.include_router(characters_router)
 app.include_router(wizard_router)
 app.include_router(campaigns_router)

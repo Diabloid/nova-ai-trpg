@@ -18,6 +18,8 @@ from core.state_manager import GameState
 from core.services.history_service import HistoryService
 from core.services.chat_log_service import ChatLogService
 from core.character_manager import CharacterManager
+from core.world_manager import WorldManager, DEFAULT_WORLD_ID
+from core.slugify import slugify_ascii, ensure_unique_slug
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SAVES_DIR = os.path.join(BASE_DIR, "data", "saves")
@@ -29,13 +31,20 @@ class CampaignManager:
     Кожна кампанія прив'язана до заготовки персонажа (char_id) та підтримує
     незалежні збереження, історію, статус закріплення (is_pinned) та авто-вступ.
     """
-    def __init__(self, saves_dir: Optional[str] = None, character_manager: Optional[CharacterManager] = None):
+    def __init__(
+        self,
+        saves_dir: Optional[str] = None,
+        character_manager: Optional[CharacterManager] = None,
+        world_manager: Optional[WorldManager] = None,
+    ):
         self.saves_dir = saves_dir or SAVES_DIR
         self.character_manager = character_manager or CharacterManager()
+        self.world_manager = world_manager or WorldManager(saves_dir=self.saves_dir, characters_dir=self.character_manager.characters_dir)
         os.makedirs(self.saves_dir, exist_ok=True)
         self._state_cache: Dict[str, GameState] = {}
         self._history_cache: Dict[str, HistoryService] = {}
         self._chat_log_cache: Dict[str, ChatLogService] = {}
+        self._world_cache: Dict[str, str] = {}
         self._ensure_default_campaign_metadata()
 
     def _ensure_default_campaign_metadata(self):
@@ -48,6 +57,7 @@ class CampaignManager:
                 meta = {
                     "campaign_id": "default",
                     "char_id": "ayven_mage",
+                    "world_id": DEFAULT_WORLD_ID,
                     "title": "Основна пригода Айвена",
                     "current_location": "Вулиця покинутого селища",
                     "is_pinned": True,
@@ -56,6 +66,37 @@ class CampaignManager:
                 }
                 with open(meta_path, "w", encoding="utf-8") as f:
                     json.dump(meta, f, ensure_ascii=False, indent=4)
+
+    def get_campaign_world_id(self, campaign_id: str) -> str:
+        """Повертає world_id для кампанії з кешу, metadata.json або пов'язаного персонажа."""
+        clean_id = self._sanitize_id(campaign_id)
+        if clean_id in self._world_cache:
+            return self._world_cache[clean_id]
+
+        c_dir = self.get_campaign_dir(clean_id)
+        meta_path = os.path.join(c_dir, "metadata.json")
+        world_id: Optional[str] = None
+        char_id: Optional[str] = None
+
+        if os.path.isfile(meta_path):
+            try:
+                with open(meta_path, "r", encoding="utf-8") as f:
+                    meta = json.load(f)
+                world_id = meta.get("world_id")
+                char_id = meta.get("char_id")
+            except Exception:
+                pass
+
+        if not world_id and char_id:
+            try:
+                char_state = self.character_manager.get_character(char_id)
+                world_id = getattr(char_state.meta, "world_id", None)
+            except Exception:
+                pass
+
+        resolved = world_id or DEFAULT_WORLD_ID
+        self._world_cache[clean_id] = resolved
+        return resolved
 
     def _sanitize_id(self, raw_id: str) -> str:
         clean = "".join(c for c in raw_id if c.isalnum() or c in ("-", "_")).strip().lower()
@@ -145,6 +186,7 @@ class CampaignManager:
                             campaigns.append(CampaignSummary(
                                 campaign_id=meta.get("campaign_id", entry),
                                 char_id=clean_char_id,
+                                world_id=meta.get("world_id") or DEFAULT_WORLD_ID,
                                 title=meta.get("title", "Пригода"),
                                 current_location=loc,
                                 is_pinned=meta.get("is_pinned", False),
@@ -185,38 +227,69 @@ class CampaignManager:
                 detail="Заборонено створювати ігрову кампанію з системного шаблону '_template'!"
             )
 
-        # 1. Завантажуємо базовий стан героя
+        # 1. Завантажуємо базовий стан героя та world_id
         char_state = self.character_manager.get_character(clean_char_id)
+        world_id = getattr(char_state.meta, "world_id", None) or DEFAULT_WORLD_ID
 
-        # 2. Формуємо унікальний ID кампанії
+        world_passport = (
+            self.world_manager.get_world_passport(world_id)
+            if self.world_manager and self.world_manager.world_exists(world_id)
+            else {}
+        )
+        world_ai = world_passport.get("ai_prompts") or {}
+        world_tone = world_ai.get("world_tone") or "Відповідна до канону та жанру світу напружена атмосфера"
+        starting_locations = world_passport.get("starting_locations") or []
+
+        # 2. Формуємо унікальний ASCII ID кампанії
         now = datetime.now(timezone.utc)
         now_iso = now.isoformat()
-        campaign_slug = self._sanitize_id(title) if title else "run"
-        campaign_id = f"{clean_char_id}_{campaign_slug}_{int(now.timestamp())}"
+        char_slug = slugify_ascii(clean_char_id, default="hero", max_length=24)
+        title_slug = slugify_ascii(title, default="run", max_length=24) if title else "run"
+        existing_saves = os.listdir(self.saves_dir) if os.path.exists(self.saves_dir) else []
+        campaign_id = ensure_unique_slug(f"{char_slug}_{title_slug}_{int(now.timestamp())}", existing_saves)
         c_dir = self.get_campaign_dir(campaign_id)
         os.makedirs(c_dir, exist_ok=True)
 
         # 3. Копіюємо стан персонажа у savegame.json та savegame.prev.json кампанії
         savegame_path = os.path.join(c_dir, "savegame.json")
         savegame_prev_path = os.path.join(c_dir, "savegame.prev.json")
+        state_dump = char_state.model_dump()
         with open(savegame_path, "w", encoding="utf-8") as f:
-            json.dump(char_state.model_dump(), f, ensure_ascii=False, indent=4)
+            json.dump(state_dump, f, ensure_ascii=False, indent=4)
         with open(savegame_prev_path, "w", encoding="utf-8") as f:
-            json.dump(char_state.model_dump(), f, ensure_ascii=False, indent=4)
+            json.dump(state_dump, f, ensure_ascii=False, indent=4)
 
-        # 4. Авто-генерація вступного художнього посту Оповідача
+        # 4. Авто-генерація вступного художнього посту Оповідача в тоні обраного світу
         char_meta = char_state.meta
+        start_location = (
+            char_meta.location
+            if char_meta.location and char_meta.location != "Невідомий ліс"
+            else (starting_locations[0] if starting_locations else (char_meta.location or "Стартова локація"))
+        )
         intro_prompt = (
-            f"Створи стартовий художній вступ (зав'язку нової пригоди) для початку гри. "
+            f"Створи стартовий художній вступ (зав'язку нової пригоди) для початку гри у світі '{world_passport.get('title', world_id)}'. "
             f"Персонаж: {char_meta.name}. Передісторія: {char_meta.background or 'Мандрівник'}. "
-            f"Стартова локація: {char_meta.location or 'Занедбана місцевість'}. "
+            f"Стартова локація: {start_location}. "
             f"Зовнішність: {char_meta.appearance or 'Непримітний вигляд'}. "
-            f"Опиши похмуру, напружену атмосферу навколо, в якому стані персонаж зустрічає цей момент, "
-            f"та одну конкретну стартову подію чи загрозу, що вимагає негайної дії гравця. "
+            f"Тон світу: {world_tone}. "
+            f"Опиши відповідну світу атмосферу навколо, в якому стані персонаж зустрічає цей момент, "
+            f"та одну конкретну стартову подію чи виклик, що вимагає негайної дії гравця. "
             f"Починай одразу з художнього тексту, без жодних привітань."
         )
 
-        intro_text = await narrator_generator(intro_prompt, json.dumps(char_state.model_dump(), ensure_ascii=False))
+        # Очищаємо службові поля перед передачею в LLM
+        clean_state_dict = dict(state_dump)
+        clean_state_dict.pop("_schema_meta", None)
+        if isinstance(clean_state_dict.get("meta"), dict):
+            clean_meta = dict(clean_state_dict["meta"])
+            clean_meta.pop("avatar", None)
+            clean_state_dict["meta"] = clean_meta
+
+        intro_text = await narrator_generator(
+            intro_prompt,
+            json.dumps(clean_state_dict, ensure_ascii=False),
+            world_id,
+        )
 
         # 5. Ініціалізуємо history.json та chat_log.json зі вступним постом
         history_path = os.path.join(c_dir, "history.json")
@@ -231,14 +304,16 @@ class CampaignManager:
         self._history_cache[campaign_id] = history_service
         self._chat_log_cache[campaign_id] = chat_log_service
         self._state_cache[campaign_id] = GameState(savegame_path)
+        self._world_cache[campaign_id] = world_id
 
         # 6. Зберігаємо metadata.json
         campaign_title = title.strip() if title and title.strip() else f"Пригода {char_meta.name}"
         metadata = {
             "campaign_id": campaign_id,
             "char_id": clean_char_id,
+            "world_id": world_id,
             "title": campaign_title,
-            "current_location": char_meta.location or "Невідомий ліс",
+            "current_location": start_location,
             "is_pinned": False,
             "created_at": now_iso,
             "last_played": now_iso
@@ -249,8 +324,9 @@ class CampaignManager:
         return CampaignSummary(
             campaign_id=campaign_id,
             char_id=clean_char_id,
+            world_id=world_id,
             title=campaign_title,
-            current_location=char_meta.location or "Невідомий ліс",
+            current_location=start_location,
             is_pinned=False,
             created_at=now_iso,
             last_played=now_iso
@@ -292,6 +368,7 @@ class CampaignManager:
         self._state_cache.pop(clean_id, None)
         self._history_cache.pop(clean_id, None)
         self._chat_log_cache.pop(clean_id, None)
+        self._world_cache.pop(clean_id, None)
 
         shutil.rmtree(c_dir, ignore_errors=True)
         return True

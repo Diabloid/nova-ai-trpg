@@ -27,12 +27,16 @@ class StateAnalyzerService:
         self,
         intents: List[Any],
         story_text: str,
-        player_state_str: str
+        player_state_str: str,
+        world_id: str = "default_dark_fantasy"
     ) -> Tuple[str, bool]:
         """
         Аналізує дії та розповідь, повертаючи кортеж: (json_рядок, успіх_валідації).
         """
-        full_system_prompt = self.prompt_service.build_state_system_prompt(player_state_str)
+        full_system_prompt = self.prompt_service.build_state_system_prompt(
+            player_state_str,
+            world_id=world_id
+        )
 
         # Фільтрація інтенсів: тільки physical action та speech (thought та ooc відкидаються)
         actions = []

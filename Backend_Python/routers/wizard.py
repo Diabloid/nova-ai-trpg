@@ -19,7 +19,8 @@ async def character_wizard_dialog(request: CharacterDialogRequest):
     reply, draft_state = await llm_controller.dialog_with_creator(
         message=request.message,
         history=request.history,
-        include_draft=request.include_draft
+        include_draft=request.include_draft,
+        world_id=request.world_id
     )
     return CharacterDialogResponse(reply=reply, draft_state=draft_state)
 
@@ -47,7 +48,8 @@ async def character_wizard_finalize(request: CharacterFinalizeRequest):
         player_state = await llm_controller.finalize_character_concept(
             dialog_summary=request.dialog_summary,
             history=request.history,
-            draft_state=request.draft_state
+            draft_state=request.draft_state,
+            world_id=request.world_id
         )
     except Exception as e:
         logger.error(f"❌ Помилка генерації листа героя через ШІ: {e}")
@@ -56,8 +58,8 @@ async def character_wizard_finalize(request: CharacterFinalizeRequest):
             detail=f"Не вдалося згенерувати лист героя через збій ШІ-провайдерів: {e}"
         )
 
-    # Зберігаємо створеного персонажа в базу
-    target_char_id = request.char_id or player_state.meta.name.strip().lower().replace(" ", "_")
+    # Зберігаємо створеного персонажа в базу (для нового ID — ASCII-slugify)
+    target_char_id = request.char_id or llm_controller.character_manager.generate_new_char_id(player_state.meta.name)
     llm_controller.character_manager.save_character(target_char_id, player_state)
     logger.info(f"✨ Створено нового героя з AI: '{player_state.meta.name}' (ID: {target_char_id})")
     return player_state

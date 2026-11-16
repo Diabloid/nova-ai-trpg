@@ -9,10 +9,10 @@ router = APIRouter(prefix="/api/v1/characters", tags=["Персонажі"])
 @router.get(
     "",
     response_model=List[CharacterSummary],
-    summary="Отримати список усіх заготовок героїв"
+    summary="Отримати список усіх заготовок героїв (опційно за world_id)"
 )
-async def list_characters():
-    return llm_controller.character_manager.list_characters()
+async def list_characters(world_id: Optional[str] = Query(default=None, description="Фільтр за ідентифікатором світу")):
+    return llm_controller.character_manager.list_characters(world_id=world_id)
 
 
 @router.get(
@@ -31,7 +31,7 @@ async def get_character(char_id: str = Path(..., description="ID персона�
     summary="Створити нову заготовку персонажа вручну"
 )
 async def create_character(state: PlayerState, char_id: Optional[str] = Query(default=None)):
-    target_id = char_id or state.meta.name.strip().lower().replace(" ", "_")
+    target_id = char_id or llm_controller.character_manager.generate_new_char_id(state.meta.name)
     return llm_controller.character_manager.save_character(target_id, state)
 
 

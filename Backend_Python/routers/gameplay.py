@@ -46,8 +46,8 @@ async def process_action(request: ActionRequest) -> ActionResponse:
         # ТРАНЗАКЦІЙНІСТЬ (Крок A): Підготовлюємо хід у буфері сесії
         llm_controller.stage_turn(raw_text, story_text, session_id=session_id)
         
-        # 2. Послідовний крок 2: Аналізатор стану
-        state_json_str = await llm_controller.generate_state_json(intents, story_text, context_str)
+        # 2. Послідовний крок 2: Аналізатор стану (з world_id кампанії)
+        state_json_str = await llm_controller.generate_state_json(intents, story_text, context_str, session_id=session_id)
         
         if '{"error"' in state_json_str:
             logger.warning(f"⚠️ Аналізатор повернув помилку: {state_json_str}. Відкат ходу кампанії {session_id}...")
@@ -134,8 +134,8 @@ async def process_action_stream(request: ActionRequest):
             status_payload = json.dumps({"message": "Аналізую зміни інвентарю та здоров'я..."}, ensure_ascii=False)
             yield f"event: state_analyzing\ndata: {status_payload}\n\n"
 
-            # 3. Аналізатор стану
-            state_json_str = await llm_controller.generate_state_json(intents, full_story, context_str)
+            # 3. Аналізатор стану (з world_id кампанії)
+            state_json_str = await llm_controller.generate_state_json(intents, full_story, context_str, session_id=session_id)
 
             if '{"error"' in state_json_str:
                 llm_controller.rollback_staged_turn(session_id=session_id)

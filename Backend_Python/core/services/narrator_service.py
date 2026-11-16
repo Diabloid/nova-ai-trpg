@@ -33,14 +33,16 @@ class NarratorService:
         raw_text: str,
         player_state_str: str,
         recent_messages: Optional[List[Dict[str, str]]] = None,
-        summary_text: Optional[str] = None
+        summary_text: Optional[str] = None,
+        world_id: str = "default_dark_fantasy"
     ) -> List[Dict[str, str]]:
         active_summary = summary_text if summary_text is not None else self.history_service.summary
         active_history = recent_messages if recent_messages is not None else self.history_service.recent_messages
 
         full_system_prompt = self.prompt_service.build_narrator_system_prompt(
             player_state_str=player_state_str,
-            summary_text=active_summary
+            summary_text=active_summary,
+            world_id=world_id
         )
 
         messages = [{"role": "system", "content": full_system_prompt}]
@@ -53,10 +55,17 @@ class NarratorService:
         raw_text: str,
         player_state_str: str,
         recent_messages: Optional[List[Dict[str, str]]] = None,
-        summary_text: Optional[str] = None
+        summary_text: Optional[str] = None,
+        world_id: str = "default_dark_fantasy"
     ) -> str:
         """Повна генерація тексту (Non-streaming)."""
-        messages = self._build_messages(raw_text, player_state_str, recent_messages, summary_text)
+        messages = self._build_messages(
+            raw_text,
+            player_state_str,
+            recent_messages,
+            summary_text,
+            world_id=world_id
+        )
 
         raw_response = await self.provider_service.execute_with_fallback(
             provider_type="story",
@@ -80,10 +89,17 @@ class NarratorService:
         raw_text: str,
         player_state_str: str,
         recent_messages: Optional[List[Dict[str, str]]] = None,
-        summary_text: Optional[str] = None
+        summary_text: Optional[str] = None,
+        world_id: str = "default_dark_fantasy"
     ) -> AsyncGenerator[str, None]:
         """Стрімінг художньої оповіді токен за токеном у реальному часі (SSE)."""
-        messages = self._build_messages(raw_text, player_state_str, recent_messages, summary_text)
+        messages = self._build_messages(
+            raw_text,
+            player_state_str,
+            recent_messages,
+            summary_text,
+            world_id=world_id
+        )
 
         async for chunk in self.provider_service.stream_with_fallback(
             provider_type="story",

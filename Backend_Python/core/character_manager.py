@@ -13,9 +13,11 @@ if sys.stdout and hasattr(sys.stdout, "reconfigure"):
         pass
 
 from schemas.game_dto import PlayerState, CharacterSummary
+from core.slugify import slugify_ascii, ensure_unique_slug
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CHARACTERS_DIR = os.path.join(BASE_DIR, "data", "characters")
+DEFAULT_WORLD_ID = "default_dark_fantasy"
 
 
 class CharacterManager:
@@ -68,11 +70,26 @@ class CharacterManager:
                 json.dump(empty_template, f, ensure_ascii=False, indent=4)
 
     def _ensure_default_character(self):
-        """Створює базового персонажа Айвена, якщо немає жодного користувацького героя."""
+        """
+        Створює базового персонажа Айвена ЛИШЕ при первинній ініціалізації:
+        якщо в директорії ще немає жодного користувацького героя та не виконано міграцію світів.
+        """
+        existing_user_chars = [
+            f for f in os.listdir(self.characters_dir)
+            if f.endswith(".json") and not f.startswith("_")
+        ]
+        if existing_user_chars:
+            return
+
+        worlds_marker = os.path.join(os.path.dirname(self.characters_dir), "worlds", DEFAULT_WORLD_ID, "world.json")
+        if os.path.isfile(worlds_marker):
+            return
+
         ayven_path = os.path.join(self.characters_dir, "ayven_mage.json")
         if not os.path.exists(ayven_path):
             ayven_data = {
                 "meta": {
+                    "world_id": DEFAULT_WORLD_ID,
                     "name": "Айвен",
                     "background": "Найманець, маг вогню та вітру 3-го кола",
                     "location": "Вулиця покинутого селища",
@@ -132,8 +149,17 @@ class CharacterManager:
             clean = f"hero_{int(datetime.now(timezone.utc).timestamp())}"
         return clean
 
-    def list_characters(self) -> List[CharacterSummary]:
-        """Повертає список усіх створених персонажів (без системного _template)."""
+    def generate_new_char_id(self, name: str) -> str:
+        """Генерує унікальний ASCII-ідентифікатор для нового персонажа."""
+        existing_ids = [
+            f[:-5] for f in os.listdir(self.characters_dir)
+            if f.endswith(".json") and not f.startswith("_")
+        ] if os.path.exists(self.characters_dir) else []
+        base_slug = slugify_ascii(name, default="hero")
+        return ensure_unique_slug(base_slug, existing_ids)
+
+    def list_characters(self, world_id: Optional[str] = None) -> List[CharacterSummary]:
+        """Повертає список створених персонажів (опційно відфільтрований за world_id)."""
         characters: List[CharacterSummary] = []
         if not os.path.exists(self.characters_dir):
             return characters
@@ -145,17 +171,24 @@ class CharacterManager:
                 try:
                     with open(filepath, "r", encoding="utf-8") as f:
                         data = json.load(f)
-                    
+
+                    meta = data.get("meta", {})
+                    char_world_id = meta.get("world_id") or DEFAULT_WORLD_ID
+                    if world_id is not None and char_world_id != world_id:
+                        continue
+
                     mtime = os.path.getmtime(filepath)
                     iso_time = datetime.fromtimestamp(mtime, tz=timezone.utc).isoformat()
-                    meta = data.get("meta", {})
 
                     characters.append(CharacterSummary(
                         char_id=char_id,
+                        world_id=char_world_id,
                         name=meta.get("name", char_id),
                         background=meta.get("background", ""),
                         appearance=meta.get("appearance", ""),
-                        created_at=data.get("created_at") or iso_time
+                        avatar=meta.get("avatar"),
+                        created_at=data.get("created_at") or iso_time,
+                        updated_at=data.get("updated_at") or data.get("created_at") or iso_time,
                     ))
                 except Exception as e:
                     print(f"⚠️ Помилка зчитування заготовки {filename}: {e}")
@@ -189,18 +222,34 @@ class CharacterManager:
         filepath = os.path.join(self.characters_dir, f"{clean_id}.json")
         now_iso = datetime.now(timezone.utc).isoformat()
 
+        created_at = now_iso
+        if os.path.isfile(filepath):
+            try:
+                with open(filepath, "r", encoding="utf-8") as f:
+                    existing_data = json.load(f)
+                created_at = existing_data.get("created_at") or now_iso
+            except Exception:
+                pass
+
+        if not state.meta.world_id:
+            state.meta.world_id = DEFAULT_WORLD_ID
+
         payload = state.model_dump()
-        payload["created_at"] = now_iso
+        payload["created_at"] = created_at
+        payload["updated_at"] = now_iso
 
         with open(filepath, "w", encoding="utf-8") as f:
             json.dump(payload, f, ensure_ascii=False, indent=4)
 
         return CharacterSummary(
             char_id=clean_id,
+            world_id=state.meta.world_id,
             name=state.meta.name,
             background=state.meta.background or "",
             appearance=state.meta.appearance or "",
-            created_at=now_iso
+            avatar=state.meta.avatar,
+            created_at=created_at,
+            updated_at=now_iso,
         )
 
     def delete_character(self, char_id: str) -> bool:

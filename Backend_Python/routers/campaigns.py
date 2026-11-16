@@ -32,13 +32,14 @@ async def create_campaign(
     char_id: str = Path(..., description="ID персонажа"),
     request: CampaignCreateRequest = CampaignCreateRequest()
 ):
-    # Генератор оповіді для вступного посту з чистим контекстом (без залишків минулих сесій)
-    async def generate_intro(prompt: str, player_state_str: str) -> str:
+    # Генератор оповіді для вступного посту з чистим контекстом і world_id обраного світу
+    async def generate_intro(prompt: str, player_state_str: str, world_id: str = "default_dark_fantasy") -> str:
         return await llm_controller.generate_story(
             raw_text=prompt,
             player_state=player_state_str,
             recent_messages=[],
-            summary_text=""
+            summary_text="",
+            world_id=world_id
         )
 
     summary = await llm_controller.campaign_manager.create_campaign(

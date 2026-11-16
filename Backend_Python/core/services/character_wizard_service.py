@@ -34,21 +34,16 @@ class CharacterWizardService:
         self,
         message: str,
         history: List[Dict[str, str]],
-        include_draft: bool = False
+        include_draft: bool = False,
+        world_id: Optional[str] = None
     ) -> Tuple[str, Optional[PlayerState]]:
         """
-        Крок інтерактивного діалогу з Творцем Долі (v1.3.0).
+        Крок інтерактивного діалогу з Творцем Долі (v2.0.0).
         Якщо include_draft == False: генерує лише швидку репліку Творця Долі.
         Якщо include_draft == True: додатково формує актуальну чернетку draft_state для Live Preview.
         """
-        system_creator = self.prompt_service.get_prompt("character_creator_system.txt")
-        world_lore = self.prompt_service.cached_lore
-
-        full_system = (
-            f"{system_creator}\n\n"
-            f"КОНТЕКСТ СВІТУ (ЛОР ДЛЯ НАДХНЕННЯ):\n{world_lore[:15000]}...\n\n"
-            f"Залишайся в ролі Творця Долі. Відповідай влучно й атмосферно."
-        )
+        target_world = world_id or "default_dark_fantasy"
+        full_system = self.prompt_service.build_creator_system_prompt(world_id=target_world)
 
         messages = [{"role": "system", "content": full_system}]
         for h in history:
@@ -72,7 +67,10 @@ class CharacterWizardService:
                     {"role": "user", "content": message},
                     {"role": "assistant", "content": reply}
                 ]
-                draft_state = await self.finalize_character_concept(history=updated_history)
+                draft_state = await self.finalize_character_concept(
+                    history=updated_history,
+                    world_id=target_world
+                )
             except Exception as e:
                 print(f"⚠️ [CharacterWizardService] Не вдалося згенерувати draft_state для Live Preview: {e}")
                 draft_state = None
@@ -83,22 +81,26 @@ class CharacterWizardService:
         self,
         dialog_summary: Optional[str] = None,
         history: Optional[List[Dict[str, str]]] = None,
-        draft_state: Optional[PlayerState] = None
+        draft_state: Optional[PlayerState] = None,
+        world_id: Optional[str] = None
     ) -> PlayerState:
-        """Перетворює узгоджений діалог створення на валідний об'єкт PlayerState (з урахуванням draft_state)."""
+        """Перетворює узгоджений діалог створення на валідний об'єкт PlayerState (з урахуванням draft_state та world_id)."""
+        target_world = world_id or (
+            draft_state.meta.world_id if draft_state and draft_state.meta.world_id else "default_dark_fantasy"
+        )
         finalizer_prompt = self.prompt_service.get_prompt("character_finalizer_system.txt")
 
         if dialog_summary:
-            context = f"ПІДСУМОК КОНЦЕПТУ ГЕРОЯ:\n{dialog_summary}"
+            context = f"ПІДСУМОК КОНЦЕПТУ ГЕРОЯ (СВІТ: {target_world}):\n{dialog_summary}"
         else:
             lines = []
             for m in (history or []):
                 r = "Гравець" if m.get("role") in ("user", "player") else "Творець Долі"
                 lines.append(f"{r}: {m.get('content') or m.get('text', '')}")
-            context = "ДІАЛОГ СТВОРЕННЯ ГЕРОЯ:\n" + "\n".join(lines)
+            context = f"ДІАЛОГ СТВОРЕННЯ ГЕРОЯ (СВІТ: {target_world}):\n" + "\n".join(lines)
 
         if draft_state:
-            draft_json = draft_state.model_dump_json(indent=2)
+            draft_json = self.prompt_service.sanitize_player_state_for_llm(draft_state.model_dump())
             context += (
                 "\n\nАКТУАЛЬНИЙ ДРАФТ З РУЧНИМИ ПРАВКАМИ ПРЕВ'Ю:\n"
                 f"{draft_json}\n\n"
@@ -182,6 +184,11 @@ class CharacterWizardService:
             if draft_state.abilities and not result.abilities:
                 result.abilities = draft_state.abilities
 
+            # 5. Збереження аватара (оскільки вирізався перед LLM)
+            if draft_state.meta.avatar and not result.meta.avatar:
+                result.meta.avatar = draft_state.meta.avatar
+
+        result.meta.world_id = target_world
         return result
 
     async def sync_character_draft(self, current_state: PlayerState) -> PlayerState:
@@ -202,9 +209,10 @@ class CharacterWizardService:
             "Поверни ВИКЛЮЧНО валідний JSON-об'єкт PlayerState (із ключами meta, anatomy_and_health, storage_and_equipment, abilities, custom_blocks)."
         )
 
+        clean_state_json = self.prompt_service.sanitize_player_state_for_llm(current_state.model_dump())
         messages = [
             {"role": "system", "content": system_instruction},
-            {"role": "user", "content": f"ПОТОЧНИЙ СТАН ПЕРСОНАЖА З РУЧНИМИ ПРАВКАМИ:\n{current_state.model_dump_json(indent=2)}"}
+            {"role": "user", "content": f"ПОТОЧНИЙ СТАН ПЕРСОНАЖА З РУЧНИМИ ПРАВКАМИ:\n{clean_state_json}"}
         ]
 
         try:
@@ -232,7 +240,12 @@ class CharacterWizardService:
 
             parsed = json.loads(cleaned)
             if isinstance(parsed, dict) and "error" not in parsed:
-                return PlayerState.model_validate(parsed)
+                synced = PlayerState.model_validate(parsed)
+                if current_state.meta.world_id:
+                    synced.meta.world_id = current_state.meta.world_id
+                if current_state.meta.avatar and not synced.meta.avatar:
+                    synced.meta.avatar = current_state.meta.avatar
+                return synced
         except Exception as e:
             print(f"⚠️ [CharacterWizardService] Помилка синхронізації драфту ({e}). Повертаємо вихідний стан гравця.")
 

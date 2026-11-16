@@ -4,6 +4,7 @@ from .campaigns import router as campaigns_router
 from .gameplay import router as gameplay_router
 from .voice import router as voice_router
 from .legacy import router as legacy_router
+from .worlds import router as worlds_router
 
 __all__ = [
     "characters_router",
@@ -12,4 +13,5 @@ __all__ = [
     "gameplay_router",
     "voice_router",
     "legacy_router",
+    "worlds_router",
 ]

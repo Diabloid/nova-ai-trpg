@@ -48,9 +48,10 @@ class ActionRequest(BaseModel):
 # =========================================================================
 
 class PlayerMeta(BaseModel):
-    """Метадані персонажа та поточна сцена (розширено у v1.4.0)."""
+    """Метадані персонажа та поточна сцена (розширено у v2.0.0)."""
     model_config = ConfigDict(extra="allow")
 
+    world_id: str = Field(default="default_dark_fantasy", description="Ідентифікатор світу персонажа")
     name: str = Field(default="Мандрівник", description="Ім'я або повне звертання до персонажа")
     first_name: Optional[str] = Field(default=None, description="Власне ім'я")
     last_name: Optional[str] = Field(default=None, description="Прізвище або родове ім'я")
@@ -65,6 +66,7 @@ class PlayerMeta(BaseModel):
         description="Деталі зовнішності: статура, зріст, очі, волосся, расові ознаки"
     )
     biography: Optional[str] = Field(default=None, description="Детальна хронологія / передісторія")
+    avatar: Optional[str] = Field(default=None, description="Data URI аватара або ключ іконки lucide-react")
 
 
 class InjuryItem(BaseModel):
@@ -170,14 +172,17 @@ class ActionResponse(BaseModel):
 # =========================================================================
 
 class CharacterSummary(BaseModel):
-    """Коротка інформація про заготовку персонажа."""
+    """Коротка інформація про заготовку персонажа (v2.0.0)."""
     model_config = ConfigDict(extra="allow")
 
     char_id: str = Field(..., description="Унікальний ідентифікатор заготовки героя")
+    world_id: str = Field(default="default_dark_fantasy", description="Ідентифікатор світу персонажа")
     name: str = Field(..., description="Ім'я персонажа")
     background: str = Field(default="", description="Передісторія / фах")
     appearance: Optional[str] = Field(default="", description="Опис зовнішності")
+    avatar: Optional[str] = Field(default=None, description="Аватар з meta.avatar")
     created_at: str = Field(..., description="ISO 8601 дата створення заготовки")
+    updated_at: Optional[str] = Field(default=None, description="ISO 8601 дата останнього оновлення")
 
 
 # =========================================================================
@@ -185,11 +190,12 @@ class CharacterSummary(BaseModel):
 # =========================================================================
 
 class CampaignSummary(BaseModel):
-    """Інформація про ігрову кампанію/чат."""
+    """Інформація про ігрову кампанію/чат (v2.0.0)."""
     model_config = ConfigDict(extra="allow")
 
     campaign_id: str = Field(..., description="Унікальний ідентифікатор кампанії (session_id)")
     char_id: str = Field(..., description="ID прив'язаного персонажа-шаблону")
+    world_id: str = Field(default="default_dark_fantasy", description="Ідентифікатор світу кампанії")
     title: str = Field(..., description="Назва кампанії")
     current_location: str = Field(default="Невідомий ліс", description="Поточна локація персонажа в кампанії")
     is_pinned: bool = Field(default=False, description="Чи закріплена кампанія вгорі списку")
@@ -238,7 +244,7 @@ class RollbackResponse(BaseModel):
 # =========================================================================
 
 class CharacterDialogRequest(BaseModel):
-    """Запит діалогу зі створення героя через Творця Долі (v1.3.0)."""
+    """Запит діалогу зі створення героя через Творця Долі (v2.0.0)."""
     model_config = ConfigDict(extra="allow")
 
     message: str = Field(..., description="Репліка гравця до Творця Долі")
@@ -250,6 +256,7 @@ class CharacterDialogRequest(BaseModel):
         default=False,
         description="Чи формувати проміжний стан PlayerState (Live Preview) для правої панелі клієнта"
     )
+    world_id: Optional[str] = Field(default=None, description="ID світу, в якому створюється персонаж")
 
 
 class CharacterDialogResponse(BaseModel):
@@ -277,6 +284,7 @@ class CharacterFinalizeRequest(BaseModel):
         default=None,
         description="Актуальний драфт з ручними правками прев'ю"
     )
+    world_id: Optional[str] = Field(default=None, description="ID світу, в якому фіналізується персонаж")
 
 
 # =========================================================================
@@ -288,6 +296,126 @@ class VoiceTranscriptionResponse(BaseModel):
     model_config = ConfigDict(extra="allow")
 
     text: str = Field(..., description="Розпізнаний текст дії гравця")
+
+
+# =========================================================================
+# 8. Світи та База знань (Worlds System, v2.0.0)
+# =========================================================================
+
+class WorldAiPrompts(BaseModel):
+    """Сеттингові ШІ-інструкції конкретного світу (Шар 2 промпту)."""
+    model_config = ConfigDict(extra="allow")
+
+    narrator_rules: str = Field(default="", description="Правила атмосфери та фізики світу для Оповідача")
+    analyzer_rules: str = Field(default="", description="Правила мутації стану та ресурсів для Аналізатора")
+    creator_rules: str = Field(default="", description="Правила створення героя (раси, класи, артефакти) для Творця Долі")
+    world_tone: str = Field(default="", description="Короткий опис тону та жанру світу")
+
+
+class WorldSummary(BaseModel):
+    """Коротка картка світу для списку та селекторів (v2.0.0)."""
+    model_config = ConfigDict(extra="allow")
+
+    world_id: str = Field(..., description="Унікальний ASCII-ідентифікатор світу")
+    title: str = Field(..., description="Назва світу")
+    genre: str = Field(default="Фентезі", description="Жанр світу")
+    description: str = Field(default="", description="Опис світу")
+    icon: str = Field(default="globe", description="Ключ векторної іконки lucide-react")
+    accent_color: str = Field(default="#7E0018", description="HEX-колір акценту світу")
+    character_count: int = Field(default=0, description="Кількість персонажів у цьому світі")
+    is_default: bool = Field(default=False, description="Чи є світ базовим (захищеним)")
+    created_at: str = Field(..., description="ISO 8601 дата створення")
+    updated_at: str = Field(..., description="ISO 8601 дата останнього оновлення")
+
+
+class WorldLoreArticleInfo(BaseModel):
+    """Метадані окремої статті лору світу."""
+    model_config = ConfigDict(extra="allow")
+
+    filename: str = Field(..., description="Ім'я файлу статті (.md або .txt)")
+    title: str = Field(..., description="Заголовок статті")
+    size_bytes: int = Field(default=0, description="Розмір файлу в байтах")
+    est_tokens: int = Field(default=0, description="Орієнтовна кількість токенів")
+
+
+class WorldDetailResponse(WorldSummary):
+    """Детальна інформація про світ (паспорт, промпти, шаблон та статті лору)."""
+    author: str = Field(default="System", description="Автор світу")
+    starting_locations: List[str] = Field(default_factory=list, description="Стартові локації світу")
+    ai_prompts: WorldAiPrompts = Field(default_factory=WorldAiPrompts)
+    character_template: Dict[str, Any] = Field(default_factory=dict, description="Еталонний шаблон персонажа світу")
+    lore_articles: List[WorldLoreArticleInfo] = Field(default_factory=list, description="Список статей лору")
+    total_lore_bytes: int = Field(default=0, description="Загальний розмір лору в байтах")
+    total_lore_tokens: int = Field(default=0, description="Загальна оцінка токенів лору")
+
+
+class WorldCreateRequest(BaseModel):
+    """Запит на ручне створення нового світу."""
+    model_config = ConfigDict(extra="allow")
+
+    world_id: Optional[str] = Field(default=None, description="Бажаний ID світу (буде приведено до ASCII-slug)")
+    title: str = Field(..., description="Назва світу")
+    genre: str = Field(default="Фентезі", description="Жанр")
+    description: str = Field(default="", description="Опис світу")
+    author: str = Field(default="User", description="Автор")
+    icon: str = Field(default="globe", description="Ключ векторної іконки lucide-react")
+    accent_color: str = Field(default="#38BDF8", description="HEX-колір акценту")
+    starting_locations: List[str] = Field(default_factory=list, description="Стартові локації")
+    ai_prompts: WorldAiPrompts = Field(default_factory=WorldAiPrompts)
+    character_template: Optional[Dict[str, Any]] = Field(default=None, description="Опціональний шаблон персонажа")
+
+
+class WorldUpdateRequest(BaseModel):
+    """Запит на оновлення паспорта, промптів або шаблону світу."""
+    model_config = ConfigDict(extra="allow")
+
+    title: Optional[str] = None
+    genre: Optional[str] = None
+    description: Optional[str] = None
+    author: Optional[str] = None
+    icon: Optional[str] = None
+    accent_color: Optional[str] = None
+    starting_locations: Optional[List[str]] = None
+    ai_prompts: Optional[WorldAiPrompts] = None
+    character_template: Optional[Dict[str, Any]] = None
+
+
+class WorldCloneRequest(BaseModel):
+    """Запит на клонування існуючого світу."""
+    model_config = ConfigDict(extra="allow")
+
+    new_title: str = Field(..., description="Назва нового клонованого світу")
+    new_world_id: Optional[str] = Field(default=None, description="Опціональний бажаний ID нового світу")
+    include_lore: bool = Field(default=True, description="Чи копіювати статті лору")
+
+
+class WorldDeleteConflict(BaseModel):
+    """Тіло відповіді HTTP 409 при спробі видалити світ із залежними сутностями."""
+    model_config = ConfigDict(extra="allow")
+
+    detail: str
+    world_id: str
+    dependent_characters: int
+    dependent_campaigns: int
+
+
+class LoreArticleResponse(BaseModel):
+    """Повний вміст статті лору світу."""
+    model_config = ConfigDict(extra="allow")
+
+    world_id: str
+    filename: str
+    title: str
+    content: str
+    size_bytes: int
+    est_tokens: int
+
+
+class LoreArticleSaveRequest(BaseModel):
+    """Запит на створення або оновлення статті лору."""
+    model_config = ConfigDict(extra="allow")
+
+    content: str = Field(..., description="Текст статті лору (Markdown або Plain Text)")
 
 
 # Для сумісності зі старими викликами

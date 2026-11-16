@@ -29,6 +29,7 @@ from core.services.character_wizard_service import CharacterWizardService
 from core.services.voice_service import VoiceService
 from core.character_manager import CharacterManager
 from core.campaign_manager import CampaignManager
+from core.world_manager import WorldManager
 from schemas.game_dto import PlayerState
 
 
@@ -52,19 +53,30 @@ class LLMController:
             print(f"❌ КРИТИЧНА ПОМИЛКА: Файл {config_path} не знайдено!")
             self.config = {"story": [], "state": []}
 
-        # 1. Сервіси ядра
+        # 1. Менеджери сутностей та світів (Персонажі, Світи, Кампанії)
+        self.character_manager = CharacterManager(os.path.join(self.base_dir, "data", "characters"))
+        self.world_manager = WorldManager(
+            worlds_dir=os.path.join(self.base_dir, "data", "worlds"),
+            legacy_lore_dir=self.lore_dir,
+            characters_dir=self.character_manager.characters_dir,
+            saves_dir=os.path.join(self.base_dir, "data", "saves"),
+        )
+        self.campaign_manager = CampaignManager(
+            saves_dir=os.path.join(self.base_dir, "data", "saves"),
+            character_manager=self.character_manager,
+            world_manager=self.world_manager,
+        )
+
+        # 2. Сервіси ядра
         self.provider_service = LLMProviderService(self.config)
-        self.prompt_service = PromptService(self.prompts_dir, self.lore_dir)
+        self.prompt_service = PromptService(
+            self.prompts_dir,
+            self.lore_dir,
+            world_manager=self.world_manager,
+        )
         self.analyzer_service = StateAnalyzerService(self.provider_service, self.prompt_service)
         self.character_wizard_service = CharacterWizardService(self.provider_service, self.prompt_service)
         self.voice_service = VoiceService()
-
-        # 2. Менеджери сутностей (Персонажі та Кампанії)
-        self.character_manager = CharacterManager(os.path.join(self.base_dir, "data", "characters"))
-        self.campaign_manager = CampaignManager(
-            saves_dir=os.path.join(self.base_dir, "data", "saves"),
-            character_manager=self.character_manager
-        )
 
     def _get_history(self, session_id: str = "default") -> HistoryService:
         _, hist, _ = self.campaign_manager.get_campaign_session(session_id)
@@ -128,16 +140,19 @@ class LLMController:
         player_state: str,
         session_id: str = "default",
         recent_messages: Optional[List[Dict[str, str]]] = None,
-        summary_text: Optional[str] = None
+        summary_text: Optional[str] = None,
+        world_id: Optional[str] = None
     ) -> str:
         """1-й крок пайплайну: генерація повної реакції Оповідача."""
         hist = self._get_history(session_id)
+        resolved_world = world_id or self.campaign_manager.get_campaign_world_id(session_id)
         narrator = NarratorService(self.provider_service, self.prompt_service, hist)
         return await narrator.generate_story(
             raw_text,
             player_state,
             recent_messages=recent_messages,
-            summary_text=summary_text
+            summary_text=summary_text,
+            world_id=resolved_world
         )
 
     # Генерація Оповідача (Streaming SSE)
@@ -145,23 +160,39 @@ class LLMController:
         self,
         raw_text: str,
         player_state: str,
-        session_id: str = "default"
+        session_id: str = "default",
+        world_id: Optional[str] = None
     ) -> AsyncGenerator[str, None]:
         """Стрімінг реакції Оповідача токен за токеном (Server-Sent Events)."""
         hist = self._get_history(session_id)
+        resolved_world = world_id or self.campaign_manager.get_campaign_world_id(session_id)
         narrator = NarratorService(self.provider_service, self.prompt_service, hist)
         async for chunk in narrator.stream_story(
             raw_text,
             player_state,
             recent_messages=hist.recent_messages,
-            summary_text=hist.summary
+            summary_text=hist.summary,
+            world_id=resolved_world
         ):
             yield chunk
 
     # Генерація Аналізатора стану
-    async def generate_state_json(self, intents: list, story_text: str, player_state: str) -> str:
+    async def generate_state_json(
+        self,
+        intents: list,
+        story_text: str,
+        player_state: str,
+        session_id: str = "default",
+        world_id: Optional[str] = None
+    ) -> str:
         """2-й крок пайплайну: витягування JSON дельти стану."""
-        json_str, _ = await self.analyzer_service.analyze_state_changes(intents, story_text, player_state)
+        resolved_world = world_id or self.campaign_manager.get_campaign_world_id(session_id)
+        json_str, _ = await self.analyzer_service.analyze_state_changes(
+            intents,
+            story_text,
+            player_state,
+            world_id=resolved_world
+        )
         return json_str
 
     # =========================================================================
@@ -172,26 +203,30 @@ class LLMController:
         self,
         message: str,
         history: List[Dict[str, str]],
-        include_draft: bool = False
+        include_draft: bool = False,
+        world_id: Optional[str] = None
     ) -> Tuple[str, Optional[PlayerState]]:
-        """Крок інтерактивного діалогу зі створення героя через Творця Долі (v1.3.0)."""
+        """Крок інтерактивного діалогу зі створення героя через Творця Долі (v2.0.0)."""
         return await self.character_wizard_service.dialog_with_creator(
             message=message,
             history=history,
-            include_draft=include_draft
+            include_draft=include_draft,
+            world_id=world_id
         )
 
     async def finalize_character_concept(
         self,
         dialog_summary: Optional[str] = None,
         history: Optional[List[Dict[str, str]]] = None,
-        draft_state: Optional[PlayerState] = None
+        draft_state: Optional[PlayerState] = None,
+        world_id: Optional[str] = None
     ) -> PlayerState:
         """Перетворює узгоджений діалог створення на валідний об'єкт PlayerState."""
         return await self.character_wizard_service.finalize_character_concept(
             dialog_summary=dialog_summary,
             history=history,
-            draft_state=draft_state
+            draft_state=draft_state,
+            world_id=world_id
         )
 
     async def sync_character_draft(self, current_state: PlayerState) -> PlayerState:
@@ -217,8 +252,11 @@ class LLMController:
         """Опитує Odirouter API та динамічно ранжує пул безкоштовних моделей."""
         return await self.provider_service.discover_and_rank_models()
 
-    def reload_lore(self):
-        self.prompt_service.reload_lore()
+    def reload_lore(self, world_id: Optional[str] = None):
+        if world_id:
+            self.prompt_service.reload_world_lore(world_id)
+        else:
+            self.prompt_service.reload_lore()
 
     def reload_prompts(self):
         self.prompt_service.reload_prompts()
