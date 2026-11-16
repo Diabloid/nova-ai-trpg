@@ -16,7 +16,9 @@ from schemas.game_dto import (
     HistoryMessage,
     CharacterDialogRequest,
     CharacterDialogResponse,
+    CharacterSyncRequest,
     CharacterFinalizeRequest,
+    TemplatePreset,
     SessionInfo,
 )
 
@@ -38,6 +40,8 @@ __all__ = [
     "HistoryMessage",
     "CharacterDialogRequest",
     "CharacterDialogResponse",
+    "CharacterSyncRequest",
     "CharacterFinalizeRequest",
+    "TemplatePreset",
     "SessionInfo",
 ]

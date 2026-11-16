@@ -1,6 +1,6 @@
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Path, Query, status
-from schemas.game_dto import CharacterSummary, PlayerState
+from schemas.game_dto import CharacterSummary
 from dependencies import llm_controller
 
 router = APIRouter(prefix="/api/v1/characters", tags=["Персонажі"])
@@ -17,8 +17,8 @@ async def list_characters(world_id: Optional[str] = Query(default=None, descript
 
 @router.get(
     "/{char_id}",
-    response_model=PlayerState,
-    summary="Отримати повний стан заготовки персонажа"
+    response_model=Dict[str, Any],
+    summary="Отримати повний динамічний стан заготовки персонажа"
 )
 async def get_character(char_id: str = Path(..., description="ID персонажа")):
     return llm_controller.character_manager.get_character(char_id)
@@ -30,22 +30,23 @@ async def get_character(char_id: str = Path(..., description="ID персона�
     status_code=status.HTTP_201_CREATED,
     summary="Створити нову заготовку персонажа вручну"
 )
-async def create_character(state: PlayerState, char_id: Optional[str] = Query(default=None)):
-    target_id = char_id or llm_controller.character_manager.generate_new_char_id(state.meta.name)
+async def create_character(state: Dict[str, Any], char_id: Optional[str] = Query(default=None)):
+    char_name = (state.get("meta") or {}).get("name") or "hero"
+    target_id = char_id or llm_controller.character_manager.generate_new_char_id(char_name)
     return llm_controller.character_manager.save_character(target_id, state)
 
 
 @router.put(
     "/{char_id}",
-    response_model=PlayerState,
+    response_model=Dict[str, Any],
     summary="Редагувати заготовку героя"
 )
 async def update_character(
     char_id: str = Path(..., description="ID персонажа"),
-    state: PlayerState = ...
+    state: Dict[str, Any] = ...
 ):
     llm_controller.character_manager.save_character(char_id, state)
-    return state
+    return llm_controller.character_manager.get_character(char_id)
 
 
 @router.delete(

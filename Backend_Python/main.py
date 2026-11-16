@@ -27,6 +27,7 @@ from dependencies import llm_controller, logger
 from routers import (
     characters_router,
     wizard_router,
+    templates_router,
     campaigns_router,
     gameplay_router,
     voice_router,
@@ -76,10 +77,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Реєстрація модульних роутерів (Фаза 4 + Етап 1 v2.0.0)
+# Реєстрація модульних роутерів (Фаза 4 + Етап 1/2A v2.0.0)
 app.include_router(worlds_router)
 app.include_router(characters_router)
 app.include_router(wizard_router)
+app.include_router(templates_router)
 app.include_router(campaigns_router)
 app.include_router(gameplay_router)
 app.include_router(voice_router)

@@ -90,7 +90,7 @@ class CampaignManager:
         if not world_id and char_id:
             try:
                 char_state = self.character_manager.get_character(char_id)
-                world_id = getattr(char_state.meta, "world_id", None)
+                world_id = char_state.get("meta", {}).get("world_id")
             except Exception:
                 pass
 
@@ -229,7 +229,8 @@ class CampaignManager:
 
         # 1. Завантажуємо базовий стан героя та world_id
         char_state = self.character_manager.get_character(clean_char_id)
-        world_id = getattr(char_state.meta, "world_id", None) or DEFAULT_WORLD_ID
+        char_meta = char_state.get("meta", {}) if isinstance(char_state, dict) else {}
+        world_id = char_meta.get("world_id") or DEFAULT_WORLD_ID
 
         world_passport = (
             self.world_manager.get_world_passport(world_id)
@@ -253,24 +254,25 @@ class CampaignManager:
         # 3. Копіюємо стан персонажа у savegame.json та savegame.prev.json кампанії
         savegame_path = os.path.join(c_dir, "savegame.json")
         savegame_prev_path = os.path.join(c_dir, "savegame.prev.json")
-        state_dump = char_state.model_dump()
+        state_dump = dict(char_state)
         with open(savegame_path, "w", encoding="utf-8") as f:
             json.dump(state_dump, f, ensure_ascii=False, indent=4)
         with open(savegame_prev_path, "w", encoding="utf-8") as f:
             json.dump(state_dump, f, ensure_ascii=False, indent=4)
 
         # 4. Авто-генерація вступного художнього посту Оповідача в тоні обраного світу
-        char_meta = char_state.meta
+        raw_loc = char_meta.get("location")
         start_location = (
-            char_meta.location
-            if char_meta.location and char_meta.location != "Невідомий ліс"
-            else (starting_locations[0] if starting_locations else (char_meta.location or "Стартова локація"))
+            raw_loc
+            if raw_loc and raw_loc != "Невідомий ліс"
+            else (starting_locations[0] if starting_locations else (raw_loc or "Стартова локація"))
         )
+        char_name = char_meta.get("name") or clean_char_id
         intro_prompt = (
             f"Створи стартовий художній вступ (зав'язку нової пригоди) для початку гри у світі '{world_passport.get('title', world_id)}'. "
-            f"Персонаж: {char_meta.name}. Передісторія: {char_meta.background or 'Мандрівник'}. "
+            f"Персонаж: {char_name}. Передісторія: {char_meta.get('background') or 'Мандрівник'}. "
             f"Стартова локація: {start_location}. "
-            f"Зовнішність: {char_meta.appearance or 'Непримітний вигляд'}. "
+            f"Зовнішність: {char_meta.get('appearance') or 'Непримітний вигляд'}. "
             f"Тон світу: {world_tone}. "
             f"Опиши відповідну світу атмосферу навколо, в якому стані персонаж зустрічає цей момент, "
             f"та одну конкретну стартову подію чи виклик, що вимагає негайної дії гравця. "
@@ -307,7 +309,7 @@ class CampaignManager:
         self._world_cache[campaign_id] = world_id
 
         # 6. Зберігаємо metadata.json
-        campaign_title = title.strip() if title and title.strip() else f"Пригода {char_meta.name}"
+        campaign_title = title.strip() if title and title.strip() else f"Пригода {char_name}"
         metadata = {
             "campaign_id": campaign_id,
             "char_id": clean_char_id,

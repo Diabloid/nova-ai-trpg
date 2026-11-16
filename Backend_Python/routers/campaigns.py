@@ -63,6 +63,7 @@ async def get_campaign_history(campaign_id: str = Path(..., description="ID ка
 @router.post(
     "/campaigns/{campaign_id}/rollback",
     response_model=RollbackResponse,
+    response_model_exclude_none=True,
     summary="Відкат останнього ходу кампанії на 1 крок назад (Undo)"
 )
 async def rollback_campaign_turn(campaign_id: str = Path(..., description="ID кампанії")):
@@ -70,7 +71,7 @@ async def rollback_campaign_turn(campaign_id: str = Path(..., description="ID к
     msg = "Хід успішно відкочено на 1 крок назад" if prev_input else "Немає ходів гравця для відкату"
     return RollbackResponse(
         previous_user_input=prev_input,
-        current_state=PlayerState.model_validate(state_dict),
+        current_state=state_dict,
         message=msg
     )
 

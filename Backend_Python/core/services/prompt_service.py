@@ -212,6 +212,84 @@ class PromptService:
             pass
         return player_state
 
+    @staticmethod
+    def build_schema_paths_hint(state_dict: Dict[str, Any]) -> str:
+        """
+        Генерує компактну шпаргалку доступних JSON-шляхів для Аналізатора стану
+        на основі поточного стану персонажа та його _schema_meta (до вирізання службових полів).
+        """
+        if not isinstance(state_dict, dict):
+            return ""
+
+        schema_meta = state_dict.get("_schema_meta") or {}
+        sections_meta = schema_meta.get("sections") if isinstance(schema_meta, dict) else {}
+        if not isinstance(sections_meta, dict):
+            sections_meta = {}
+
+        scalar_paths = []
+        list_paths = []
+        ignored_top = {"_schema_meta", "created_at", "updated_at"}
+        ignored_meta = {"world_id", "avatar", "created_at", "updated_at"}
+
+        def _walk(node: Any, prefix: str = "") -> None:
+            if isinstance(node, dict):
+                sec_info = sections_meta.get(prefix) if prefix else None
+                archetype = sec_info.get("archetype") if isinstance(sec_info, dict) else None
+
+                if archetype == "container_map":
+                    existing_keys = list(node.keys())
+                    keys_hint = f" (існуючі: {', '.join(existing_keys)})" if existing_keys else ""
+                    list_paths.append(
+                        f"- {prefix}.<Контейнер> [container_map: масив об'єктів {{name, desc}}]{keys_hint}"
+                    )
+                    return
+
+                if archetype == "stat_grid":
+                    for k, v in node.items():
+                        scalar_paths.append(f"- {prefix}.{k} (поточне: {json.dumps(v, ensure_ascii=False)})")
+                    return
+
+                for k, v in node.items():
+                    if not prefix and k in ignored_top:
+                        continue
+                    if prefix == "meta" and k in ignored_meta:
+                        continue
+                    full_path = f"{prefix}.{k}" if prefix else k
+
+                    if isinstance(v, list):
+                        v_meta = sections_meta.get(full_path)
+                        v_arch = v_meta.get("archetype") if isinstance(v_meta, dict) else None
+                        if not v_arch:
+                            if all(isinstance(item, str) for item in v) and len(v) > 0:
+                                v_arch = "tag_list"
+                            else:
+                                v_arch = "card_list"
+
+                        if v_arch == "tag_list":
+                            list_paths.append(f"- {full_path} [tag_list: масив рядків]")
+                        else:
+                            list_paths.append(f"- {full_path} [card_list: масив об'єктів]")
+                    elif isinstance(v, dict):
+                        if full_path == "storage_and_equipment.containers":
+                            existing_keys = list(v.keys())
+                            keys_hint = f" (існуючі: {', '.join(existing_keys)})" if existing_keys else ""
+                            list_paths.append(
+                                f"- {full_path}.<Контейнер> [container_map: масив об'єктів {{name, desc}}]{keys_hint}"
+                            )
+                        else:
+                            _walk(v, full_path)
+                    else:
+                        scalar_paths.append(f"- {full_path}")
+
+        _walk(state_dict)
+
+        parts = []
+        if scalar_paths:
+            parts.append("Скалярні поля (для field_updates):\n" + "\n".join(scalar_paths[:25]))
+        if list_paths:
+            parts.append("Списки, картки, теги та контейнери (для section_changes):\n" + "\n".join(list_paths[:20]))
+        return "\n".join(parts)
+
     # ------------------------------------------------------------------
     # Двошарова збірка системних промптів (Шар 1 + Шар 2 світу)
     # ------------------------------------------------------------------
@@ -265,11 +343,27 @@ class PromptService:
         player_state_str: str,
         world_id: str = DEFAULT_WORLD_ID,
     ) -> str:
-        """Збирає двошаровий системний промпт Аналізатора (Шар 1 + analyzer_rules світу)."""
+        """Збирає двошаровий системний промпт Аналізатора (Шар 1 + analyzer_rules + шпаргалка шляхів)."""
         base_instruction = self.get_prompt("state_system.txt")
         passport = self._get_world_passport_safe(world_id)
         ai_prompts = passport.get("ai_prompts") or {}
         analyzer_rules = (ai_prompts.get("analyzer_rules") or "").strip()
+
+        # Генеруємо шпаргалку доступних шляхів ДО вирізання _schema_meta
+        schema_hint = ""
+        raw_state_dict: Optional[Dict[str, Any]] = None
+        if isinstance(player_state_str, dict):
+            raw_state_dict = player_state_str
+        elif isinstance(player_state_str, str):
+            try:
+                parsed = json.loads(player_state_str)
+                if isinstance(parsed, dict):
+                    raw_state_dict = parsed
+            except Exception:
+                pass
+
+        if raw_state_dict is not None:
+            schema_hint = self.build_schema_paths_hint(raw_state_dict)
 
         clean_state = self.sanitize_player_state_for_llm(player_state_str)
 
@@ -277,11 +371,51 @@ class PromptService:
         if analyzer_rules:
             world_title = passport.get("title") or world_id
             parts.append(f"ПРАВИЛА СВІТУ ДЛЯ АНАЛІЗАТОРА СТАНУ ({world_title}):\n{analyzer_rules}")
+        if schema_hint:
+            parts.append(f"ДОСТУПНІ JSON-ШЛЯХИ ПОТОЧНОГО ЛИСТА:\n{schema_hint}")
         parts.append(f"ВАЖЛИВО! Поточний стан гравця:\n{clean_state}")
         return "\n\n".join(parts)
 
+    def build_lore_digest(self, world_id: str = DEFAULT_WORLD_ID, max_chars: int = 12000) -> str:
+        """
+        Формує збалансований дайджест усіх статей лору світу в межах бюджету max_chars
+        (щоб жодна стаття не була відрізана при великому обсязі лору).
+        """
+        target_dir = self._resolve_lore_dir(world_id)
+        if not target_dir or not os.path.exists(target_dir):
+            return ""
+
+        files = [
+            f for f in sorted(os.listdir(target_dir))
+            if f.lower().endswith(ALLOWED_LORE_EXTS) and os.path.isfile(os.path.join(target_dir, f))
+        ]
+        if not files:
+            return ""
+
+        per_file_budget = max(180, (max_chars // len(files)) - 40)
+        digest_parts = []
+        total_len = 0
+
+        for fname in files:
+            try:
+                text = self._read_lore_file_safe(os.path.join(target_dir, fname)).strip()
+                if not text:
+                    continue
+                snippet = text[:per_file_budget].strip()
+                if len(text) > per_file_budget:
+                    snippet += "..."
+                block = f"### {os.path.splitext(fname)[0]}\n{snippet}"
+                if total_len + len(block) > max_chars and digest_parts:
+                    break
+                digest_parts.append(block)
+                total_len += len(block) + 2
+            except Exception:
+                continue
+
+        return "\n\n".join(digest_parts)
+
     def build_creator_system_prompt(self, world_id: str = DEFAULT_WORLD_ID) -> str:
-        """Збирає двошаровий системний промпт Творця Долі (Шар 1 + creator_rules + лор світу)."""
+        """Збирає двошаровий системний промпт Творця Долі (Шар 1 + creator_rules + дайджест лору)."""
         base_creator = self.get_prompt("character_creator_system.txt")
         passport = self._get_world_passport_safe(world_id)
         ai_prompts = passport.get("ai_prompts") or {}
@@ -303,9 +437,9 @@ class PromptService:
         if creator_rules:
             parts.append(f"ПРАВИЛА СТВОРЕННЯ ПЕРСОНАЖА В ЦЬОМУ СВІТІ:\n{creator_rules}")
 
-        world_lore = self.get_world_lore(world_id).content
-        if world_lore:
-            parts.append(f"ЛОР СВІТУ ДЛЯ ОРІЄНТИРУ:\n{world_lore}")
+        lore_digest = self.build_lore_digest(world_id, max_chars=12000)
+        if lore_digest:
+            parts.append(f"ДАЙДЖЕСТ ЛОРУ СВІТУ ДЛЯ ОРІЄНТИРУ:\n{lore_digest}")
 
         return "\n\n".join(parts)
 

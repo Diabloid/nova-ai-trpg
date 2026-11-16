@@ -11,6 +11,7 @@ router = APIRouter(prefix="/api/v1", tags=["Геймплей"])
 @router.post(
     "/action",
     response_model=ActionResponse,
+    response_model_exclude_none=True,
     status_code=status.HTTP_200_OK,
     summary="Виконання ігрового кроку гравця (REST)",
     description=(
@@ -131,7 +132,7 @@ async def process_action_stream(request: ActionRequest):
             llm_controller.stage_turn(raw_text, full_story, session_id=session_id)
 
             # 2. Сповіщення клієнта про запуск Аналізатора
-            status_payload = json.dumps({"message": "Аналізую зміни інвентарю та здоров'я..."}, ensure_ascii=False)
+            status_payload = json.dumps({"message": "Аналізую зміни стану..."}, ensure_ascii=False)
             yield f"event: state_analyzing\ndata: {status_payload}\n\n"
 
             # 3. Аналізатор стану (з world_id кампанії)
@@ -187,9 +188,9 @@ async def process_action_stream(request: ActionRequest):
 
 @router.get(
     "/state",
-    response_model=Union[PlayerState, Dict[str, Any]],
+    response_model=Dict[str, Any],
     summary="Отримання повного поточного стану гравця в кампанії",
-    description="Повертає актуальний об'єкт PlayerState для заданої кампанії."
+    description="Повертає актуальний JSON стану гравця для заданої кампанії."
 )
 async def get_current_state(session_id: str = Query(default="default", description="ID кампанії (session_id)")):
     game_state = llm_controller.get_game_state(session_id)
@@ -200,10 +201,29 @@ async def get_current_state(session_id: str = Query(default="default", descripti
     "/state/containers",
     response_model=Dict[str, Any],
     summary="Отримання стану контейнерів інвентарю",
-    description="Повертає словник контейнерів (рюкзак, кишені тощо) та списки предметів у них."
+    description="Повертає словник контейнерів (через _schema_meta archetype='container_map' або storage_and_equipment.containers)."
 )
 async def get_containers_state(session_id: str = Query(default="default", description="ID кампанії (session_id)")):
     game_state = llm_controller.get_game_state(session_id)
     current_state = game_state.get_current_state()
+
+    # 1. Пошук секції з archetype == 'container_map' у _schema_meta
+    schema_meta = current_state.get("_schema_meta")
+    if isinstance(schema_meta, dict) and isinstance(schema_meta.get("sections"), dict):
+        for sec_path, sec_info in schema_meta["sections"].items():
+            if isinstance(sec_info, dict) and sec_info.get("archetype") == "container_map":
+                node: Any = current_state
+                for part in sec_path.split("."):
+                    if isinstance(node, dict) and part in node:
+                        node = node[part]
+                    else:
+                        node = None
+                        break
+                if isinstance(node, dict):
+                    return node
+
+    # 2. Fallback на класичний storage_and_equipment.containers
     storage = current_state.get("storage_and_equipment", {})
-    return storage.get("containers", {})
+    if isinstance(storage, dict) and isinstance(storage.get("containers"), dict):
+        return storage["containers"]
+    return {}

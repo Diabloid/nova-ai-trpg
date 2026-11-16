@@ -1,7 +1,7 @@
 import os
 import sys
 import json
-from typing import Optional, List, Dict, Any, AsyncGenerator, Tuple
+from typing import Optional, List, Dict, Any, AsyncGenerator, Tuple, Union
 from dotenv import load_dotenv
 
 # Безпечне кодування консолі для Windows
@@ -75,7 +75,11 @@ class LLMController:
             world_manager=self.world_manager,
         )
         self.analyzer_service = StateAnalyzerService(self.provider_service, self.prompt_service)
-        self.character_wizard_service = CharacterWizardService(self.provider_service, self.prompt_service)
+        self.character_wizard_service = CharacterWizardService(
+            self.provider_service,
+            self.prompt_service,
+            world_manager=self.world_manager,
+        )
         self.voice_service = VoiceService()
 
     def _get_history(self, session_id: str = "default") -> HistoryService:
@@ -204,34 +208,47 @@ class LLMController:
         message: str,
         history: List[Dict[str, str]],
         include_draft: bool = False,
-        world_id: Optional[str] = None
-    ) -> Tuple[str, Optional[PlayerState]]:
+        world_id: Optional[str] = None,
+        template_override: Optional[Dict[str, Any]] = None
+    ) -> Tuple[str, Optional[Union[Dict[str, Any], PlayerState]]]:
         """Крок інтерактивного діалогу зі створення героя через Творця Долі (v2.0.0)."""
         return await self.character_wizard_service.dialog_with_creator(
             message=message,
             history=history,
             include_draft=include_draft,
-            world_id=world_id
+            world_id=world_id,
+            template_override=template_override
         )
 
     async def finalize_character_concept(
         self,
         dialog_summary: Optional[str] = None,
         history: Optional[List[Dict[str, str]]] = None,
-        draft_state: Optional[PlayerState] = None,
-        world_id: Optional[str] = None
-    ) -> PlayerState:
-        """Перетворює узгоджений діалог створення на валідний об'єкт PlayerState."""
+        draft_state: Optional[Union[Dict[str, Any], PlayerState]] = None,
+        world_id: Optional[str] = None,
+        template_override: Optional[Dict[str, Any]] = None
+    ) -> Union[Dict[str, Any], PlayerState]:
+        """Перетворює узгоджений діалог створення на валідний стан персонажа."""
         return await self.character_wizard_service.finalize_character_concept(
             dialog_summary=dialog_summary,
             history=history,
             draft_state=draft_state,
-            world_id=world_id
+            world_id=world_id,
+            template_override=template_override
         )
 
-    async def sync_character_draft(self, current_state: PlayerState) -> PlayerState:
-        """Синхронізує та перераховує залежні поля після ручного редагування прев'ю (Live Sync, v1.5.0)."""
-        return await self.character_wizard_service.sync_character_draft(current_state)
+    async def sync_character_draft(
+        self,
+        current_state: Union[Dict[str, Any], PlayerState],
+        world_id: Optional[str] = None,
+        template_override: Optional[Dict[str, Any]] = None
+    ) -> Union[Dict[str, Any], PlayerState]:
+        """Синхронізує та перераховує залежні поля після ручного редагування прев'ю (Live Sync, v2.0.0)."""
+        return await self.character_wizard_service.sync_character_draft(
+            current_state,
+            world_id=world_id,
+            template_override=template_override
+        )
 
     # 🎙️ Voice-to-Text (Голосове розпізнавання дій)
     async def transcribe_audio(

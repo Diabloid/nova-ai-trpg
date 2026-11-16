@@ -48,7 +48,7 @@ class ActionRequest(BaseModel):
 # =========================================================================
 
 class PlayerMeta(BaseModel):
-    """Метадані персонажа та поточна сцена (розширено у v2.0.0)."""
+    """Метадані персонажа та поточна сцена (розширено у v2.0.0 — без фентезі-дефолтів)."""
     model_config = ConfigDict(extra="allow")
 
     world_id: str = Field(default="default_dark_fantasy", description="Ідентифікатор світу персонажа")
@@ -58,8 +58,9 @@ class PlayerMeta(BaseModel):
     patronymic: Optional[str] = Field(default=None, description="По батькові")
     titles: Optional[Union[str, List[str]]] = Field(default=None, description="Титули, епітети або військові звання")
     age: Optional[Union[str, int]] = Field(default=None, description="Вік персонажа")
-    background: Optional[str] = Field(default="Шукач пригод", description="Передісторія / фах / клас")
-    location: Optional[str] = Field(default="Невідомий ліс", description="Поточна локація персонажа")
+    background: Optional[str] = Field(default=None, description="Передісторія / фах / клас")
+    location: Optional[str] = Field(default=None, description="Поточна локація персонажа")
+    overall_state: Optional[str] = Field(default=None, description="Загальний стан героя (для кастомних шаблонів)")
     appearance: Optional[str] = Field(default=None, description="Загальний художній опис зовнішності")
     appearance_details: Optional[Dict[str, Any]] = Field(
         default=None,
@@ -123,18 +124,24 @@ class StorageAndEquipment(BaseModel):
 
 
 class PlayerState(BaseModel):
-    """Повний стан персонажа (PlayerState DTO, v1.4.0)."""
+    """Повний стан персонажа (PlayerState DTO, v2.0.0 — без жорстких фентезі-дефолтів)."""
     model_config = ConfigDict(extra="allow")
 
     meta: PlayerMeta = Field(default_factory=PlayerMeta)
-    anatomy_and_health: AnatomyAndHealth = Field(default_factory=AnatomyAndHealth)
-    storage_and_equipment: StorageAndEquipment = Field(default_factory=StorageAndEquipment)
-    abilities: List[Union[AbilityItem, Dict[str, Any], str]] = Field(
-        default_factory=list,
+    anatomy_and_health: Optional[AnatomyAndHealth] = Field(
+        default=None,
+        description="Анатомія та здоров'я (для фентезі-шаблонів)"
+    )
+    storage_and_equipment: Optional[StorageAndEquipment] = Field(
+        default=None,
+        description="Екіпірування та контейнери (для фентезі-шаблонів)"
+    )
+    abilities: Optional[List[Union[AbilityItem, Dict[str, Any], str]]] = Field(
+        default=None,
         description="Активні та пасивні навички/здібності персонажа"
     )
     custom_blocks: Optional[Dict[str, Any]] = Field(
-        default_factory=dict,
+        default=None,
         description="Динамічні довільні блоки шаблону"
     )
 
@@ -157,7 +164,7 @@ class ActionResponse(BaseModel):
         default=None,
         description="Сирий JSON дельти від Аналізатора"
     )
-    player_state: Optional[Union[PlayerState, Dict[str, Any]]] = Field(
+    player_state: Optional[Union[Dict[str, Any], PlayerState]] = Field(
         default=None,
         description="Повний оновлений стан персонажа після валідації та мутації"
     )
@@ -231,11 +238,11 @@ class HistoryMessage(BaseModel):
 
 
 class RollbackResponse(BaseModel):
-    """Відповідь на запит відкату ходу (Undo, v1.4.0)."""
+    """Відповідь на запит відкату ходу (Undo, v2.0.0)."""
     model_config = ConfigDict(extra="allow")
 
     previous_user_input: str = Field(..., description="Текст попередньої дії гравця для повернення в інпут клієнта")
-    current_state: PlayerState = Field(..., description="Відновлений стан героя після відкату")
+    current_state: Union[Dict[str, Any], PlayerState] = Field(..., description="Відновлений стан героя після відкату")
     message: str = Field(default="Хід успішно відкочено на 1 крок назад", description="Статус операції відкату")
 
 
@@ -257,21 +264,37 @@ class CharacterDialogRequest(BaseModel):
         description="Чи формувати проміжний стан PlayerState (Live Preview) для правої панелі клієнта"
     )
     world_id: Optional[str] = Field(default=None, description="ID світу, в якому створюється персонаж")
+    template_override: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Опціональний оверрайд шаблону персонажа"
+    )
 
 
 class CharacterDialogResponse(BaseModel):
-    """Відповідь Творця Долі (v1.3.0)."""
+    """Відповідь Творця Долі (v2.0.0)."""
     model_config = ConfigDict(extra="allow")
 
     reply: str = Field(..., description="Атмосферна відповідь Творця Долі")
-    draft_state: Optional[PlayerState] = Field(
+    draft_state: Optional[Union[Dict[str, Any], PlayerState]] = Field(
         default=None,
         description="Актуальний проміжний стан героя для панелі Live Preview клієнта (якщо include_draft=True)"
     )
 
 
+class CharacterSyncRequest(BaseModel):
+    """Запит на синхронізацію ручних правок прев'ю за схемою світу (v2.0.0)."""
+    model_config = ConfigDict(extra="allow")
+
+    draft_state: Dict[str, Any] = Field(..., description="Актуальний JSON чернетки з ручними правками")
+    world_id: Optional[str] = Field(default=None, description="ID світу")
+    template_override: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Опціональний оверрайд шаблону персонажа"
+    )
+
+
 class CharacterFinalizeRequest(BaseModel):
-    """Запит на фінальну генерацію заготовки персонажа на основі діалогу (v1.5.1)."""
+    """Запит на фінальну генерацію заготовки персонажа на основі діалогу (v2.0.0)."""
     model_config = ConfigDict(extra="allow")
 
     dialog_summary: Optional[str] = Field(default=None, description="Підсумок діалогу створення")
@@ -280,11 +303,27 @@ class CharacterFinalizeRequest(BaseModel):
         description="Повна історія діалогу створення, якщо summary немає"
     )
     char_id: Optional[str] = Field(default=None, description="Бажаний унікальний ID заготовки героя")
-    draft_state: Optional[PlayerState] = Field(
+    draft_state: Optional[Union[Dict[str, Any], PlayerState]] = Field(
         default=None,
         description="Актуальний драфт з ручними правками прев'ю"
     )
     world_id: Optional[str] = Field(default=None, description="ID світу, в якому фіналізується персонаж")
+    template_override: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Опціональний оверрайд шаблону персонажа"
+    )
+
+
+class TemplatePreset(BaseModel):
+    """Вбудований жанровий пресет анкети персонажа (v2.0.0)."""
+    model_config = ConfigDict(extra="allow")
+
+    id: str = Field(..., description="Унікальний ID пресету")
+    title: str = Field(..., description="Назва пресету")
+    genre: str = Field(..., description="Жанр")
+    description: str = Field(default="", description="Короткий опис")
+    icon: str = Field(default="scroll-text", description="Ключ векторної іконки lucide-react")
+    template: Dict[str, Any] = Field(default_factory=dict, description="JSON-шаблон анкети зі схемою _schema_meta")
 
 
 # =========================================================================

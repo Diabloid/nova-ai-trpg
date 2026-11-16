@@ -1,8 +1,9 @@
+import copy
 import os
 import sys
 import json
 from datetime import datetime, timezone
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Union
 from fastapi import HTTPException, status
 
 # Безпечне кодування консолі для Windows
@@ -195,8 +196,8 @@ class CharacterManager:
 
         return characters
 
-    def get_character(self, char_id: str) -> PlayerState:
-        """Отримує повний стан заготовки персонажа."""
+    def get_character(self, char_id: str) -> Dict[str, Any]:
+        """Отримує повний стан заготовки персонажа як чистий словник (без фентезі-дефолтів та null-ключів)."""
         clean_id = self._sanitize_char_id(char_id)
         filepath = os.path.join(self.characters_dir, f"{clean_id}.json")
 
@@ -208,10 +209,15 @@ class CharacterManager:
 
         with open(filepath, "r", encoding="utf-8") as f:
             data = json.load(f)
-        return PlayerState.model_validate(data)
 
-    def save_character(self, char_id: str, state: PlayerState) -> CharacterSummary:
-        """Створює або перезаписує заготовку персонажа."""
+        if isinstance(data, dict):
+            meta = data.setdefault("meta", {})
+            if not meta.get("world_id"):
+                meta["world_id"] = DEFAULT_WORLD_ID
+        return data
+
+    def save_character(self, char_id: str, state: Union[PlayerState, Dict[str, Any]]) -> CharacterSummary:
+        """Створює або перезаписує заготовку персонажа без зайвих null-ключів."""
         clean_id = self._sanitize_char_id(char_id)
         if clean_id.startswith("_template"):
             raise HTTPException(
@@ -231,10 +237,15 @@ class CharacterManager:
             except Exception:
                 pass
 
-        if not state.meta.world_id:
-            state.meta.world_id = DEFAULT_WORLD_ID
+        if isinstance(state, PlayerState):
+            payload = state.model_dump(exclude_none=True)
+        else:
+            payload = copy.deepcopy(dict(state))
 
-        payload = state.model_dump()
+        meta = payload.setdefault("meta", {})
+        if not meta.get("world_id"):
+            meta["world_id"] = DEFAULT_WORLD_ID
+
         payload["created_at"] = created_at
         payload["updated_at"] = now_iso
 
@@ -243,11 +254,11 @@ class CharacterManager:
 
         return CharacterSummary(
             char_id=clean_id,
-            world_id=state.meta.world_id,
-            name=state.meta.name,
-            background=state.meta.background or "",
-            appearance=state.meta.appearance or "",
-            avatar=state.meta.avatar,
+            world_id=meta["world_id"],
+            name=meta.get("name") or clean_id,
+            background=meta.get("background") or "",
+            appearance=meta.get("appearance") or "",
+            avatar=meta.get("avatar"),
             created_at=created_at,
             updated_at=now_iso,
         )
