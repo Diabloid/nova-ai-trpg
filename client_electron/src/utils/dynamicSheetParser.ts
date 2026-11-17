@@ -67,6 +67,9 @@ const CLASSIC_SECTION_FALLBACKS: Record<string, SchemaSectionMeta & { order: num
 };
 
 const META_DETAIL_LABELS: Record<string, { title: string; icon: string; color: string }> = {
+  first_name: { title: "ІМ'Я", icon: 'user', color: '#E5E7EB' },
+  last_name: { title: 'ПРІЗВИЩЕ', icon: 'user', color: '#E5E7EB' },
+  patronymic: { title: 'ПО БАТЬКОВІ', icon: 'user', color: '#E5E7EB' },
   titles: { title: 'ТИТУЛИ ТА ЗВАННЯ', icon: 'crown', color: '#FBBF24' },
   age: { title: 'ВІК', icon: 'user', color: '#E5E7EB' },
   background: { title: 'ПЕРЕДІСТОРІЯ', icon: 'scroll-text', color: '#9CA3AF' },
@@ -416,11 +419,25 @@ export function parseDynamicSheet(
   // 3. Авто-інференс нерозмічених полів у meta.*
   let autoOrder = 1000;
   if (isPlainObject(state.meta)) {
+    const fullNameNorm = typeof state.meta.name === 'string' ? state.meta.name.trim() : '';
+    const hasLastName =
+      typeof state.meta.last_name === 'string' && state.meta.last_name.trim() !== '';
+    const hasPatronymic =
+      typeof state.meta.patronymic === 'string' && state.meta.patronymic.trim() !== '';
+
     for (const [metaKey, metaVal] of Object.entries(state.meta)) {
       if (IGNORED_META_KEYS.has(metaKey)) continue;
       const metaPath = `meta.${metaKey}`;
       if (isPathCovered(metaPath, coveredPaths)) continue;
       if (metaVal === undefined || metaVal === null) continue;
+
+      if (metaKey === 'first_name') {
+        const firstNameNorm = typeof metaVal === 'string' ? metaVal.trim() : '';
+        if (firstNameNorm === fullNameNorm && !hasLastName && !hasPatronymic) {
+          coveredPaths.add(metaPath);
+          continue;
+        }
+      }
 
       coveredPaths.add(metaPath);
       const labelInfo = META_DETAIL_LABELS[metaKey];

@@ -182,7 +182,7 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({
               onClick={() => {
                 retryFailedAction(message.id).catch(() => {});
               }}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-[#7E0018] hover:bg-[#9E0020] text-white border border-[#9E0020] transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-[#7E0018] enabled:hover:bg-[#9E0020] enabled:active:scale-[0.98] text-white border border-[#9E0020] transition-all enabled:cursor-pointer disabled:opacity-50 disabled:cursor-default"
             >
               <RotateCcw size={11} />
               <span>Повторити хід</span>

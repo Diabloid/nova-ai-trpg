@@ -53,10 +53,46 @@ export const KNOWN_BLOCK_STYLES: Record<string, CharacterBlockStyle> = {
   },
 };
 
+export const KNOWN_FIELD_LABELS: Record<string, string> = {
+  magic_circle: 'Магічне коло',
+  faction: 'Фракція',
+  patron: 'Покровитель',
+  rank: 'Ранг',
+  title: 'Титул',
+  titles: 'Титули',
+  reputation: 'Репутація',
+  religion: 'Віра',
+  faith: 'Віра',
+  notes: 'Нотатки',
+  guild: 'Гільдія',
+  order: 'Орден',
+  clan: 'Клан',
+  status: 'Статус',
+  origin: 'Походження',
+  race: 'Раса',
+  class: 'Клас',
+  level: 'Рівень',
+  specialty: 'Спеціалізація',
+  alignment: 'Світогляд',
+  allegiance: 'Вірність',
+  physique: 'Статура',
+  height: 'Зріст',
+  eyes: 'Очі',
+  hair: 'Волосся',
+  race_traits: 'Расові риси',
+};
+
 export function formatBlockTitle(raw: string): string {
   if (!raw) return '';
   const cleaned = raw.replace(/[_-]+/g, ' ').trim();
   return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+}
+
+/** Локалізує ключ поля для read-відображення, залишаючи JSON-ключі незмінними у mode="edit" */
+export function localizeFieldKey(rawKey: string): string {
+  if (!rawKey) return '';
+  const normalized = rawKey.trim().toLowerCase().replace(/[\s-]+/g, '_');
+  return KNOWN_FIELD_LABELS[normalized] ?? formatBlockTitle(rawKey);
 }
 
 export function getCharacterBlockStyle(rawKey: string, uppercaseFallback = true): CharacterBlockStyle {
@@ -64,7 +100,7 @@ export function getCharacterBlockStyle(rawKey: string, uppercaseFallback = true)
   const known = KNOWN_BLOCK_STYLES[normalized];
   if (known) return known;
 
-  const formatted = formatBlockTitle(rawKey);
+  const formatted = localizeFieldKey(rawKey);
   return {
     title: uppercaseFallback ? formatted.toUpperCase() : formatted,
     color: uppercaseFallback ? '#E5E7EB' : '#9CA3AF',

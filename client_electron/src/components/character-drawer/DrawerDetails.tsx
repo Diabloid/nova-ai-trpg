@@ -23,14 +23,6 @@ function hasSectionContent(section: ParsedSheetSection): boolean {
   return String(val).trim().length > 0;
 }
 
-const APPEARANCE_KEY_LABELS: Record<string, string> = {
-  physique: 'Статура',
-  height: 'Зріст',
-  eyes: 'Очі',
-  hair: 'Волосся',
-  race_traits: 'Расові риси',
-};
-
 function formatSectionForDetailsRead(
   section: ParsedSheetSection,
   allSections: ParsedSheetSection[]
@@ -44,19 +36,6 @@ function formatSectionForDetailsRead(
     ) {
       return null;
     }
-  }
-
-  if (
-    section.path === 'meta.appearance_details' &&
-    section.value &&
-    typeof section.value === 'object' &&
-    !Array.isArray(section.value)
-  ) {
-    const localized: Record<string, any> = {};
-    for (const [k, v] of Object.entries(section.value as Record<string, any>)) {
-      localized[APPEARANCE_KEY_LABELS[k] || k] = v;
-    }
-    return { ...section, value: localized };
   }
 
   return section;

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Plus, X } from 'lucide-react';
+import { localizeFieldKey } from '../../utils/characterBlockStyles';
 import { hexToRgba } from '../../utils/lucideIconMap';
 import { DynamicLucideIcon } from './DynamicLucideIcon';
 import type { DynamicSectionProps } from './types';
@@ -140,28 +141,47 @@ export const StatGridSection: React.FC<DynamicSectionProps<Record<string, any>>>
         ) : mode === 'read' ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
             {readableEntries.map(([k, v]) => {
+              const displayLabel = localizeFieldKey(k);
               const displayVal = Array.isArray(v)
                 ? v.join(', ')
                 : isPlainRecord(v)
                   ? JSON.stringify(v)
                   : String(v ?? '');
               const progressPct = extractProgressPercent(v);
+              const isLongPair =
+                displayVal.length > 18 || displayLabel.length + displayVal.length > 26;
+              const isVeryLongValue = displayVal.length > 40;
 
               return (
                 <div
                   key={k}
-                  className="rounded-md px-2.5 py-2 border flex flex-col gap-1 min-w-0"
+                  className={`rounded-md px-2.5 py-2 border flex flex-col gap-1 min-w-0 ${
+                    isVeryLongValue ? 'sm:col-span-2' : ''
+                  }`}
                   style={{
                     backgroundColor: tileBg,
                     borderColor: tileBorder,
                   }}
                 >
-                  <div className="flex items-baseline justify-between gap-2 min-w-0">
-                    <span className="text-[11px] text-[#9CA3AF] truncate">{k}</span>
-                    <span className="text-xs font-semibold text-[#F3F4F6] shrink-0">
-                      {displayVal || '—'}
-                    </span>
-                  </div>
+                  {isLongPair ? (
+                    <div className="flex flex-col gap-0.5 min-w-0">
+                      <span className="text-[11px] text-[#9CA3AF] whitespace-normal break-words leading-snug">
+                        {displayLabel}
+                      </span>
+                      <span className="text-xs font-semibold text-[#F3F4F6] whitespace-normal break-words leading-snug">
+                        {displayVal || '—'}
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="flex items-baseline justify-between gap-2 min-w-0">
+                      <span className="text-[11px] text-[#9CA3AF] shrink-0">
+                        {displayLabel}
+                      </span>
+                      <span className="text-xs font-semibold text-[#F3F4F6] text-right whitespace-normal break-words leading-snug">
+                        {displayVal || '—'}
+                      </span>
+                    </div>
+                  )}
 
                   {progressPct !== null && (
                     <div className="w-full h-1.5 rounded-full bg-[#111111] overflow-hidden">
