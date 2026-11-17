@@ -241,19 +241,31 @@ export const createEntitySlice: StateCreator<GameState, [], [], EntitySlice> = (
     }
   },
 
-  // --- РЕДАГУВАННЯ ПЕРСОНАЖА ---
+  // --- РЕДАГУВАННЯ ПЕРСОНАЖА (ЗАГОТОВКА) ---
   updateCharacter: async (charId: string, data: PlayerState) => {
     try {
       set({ isLoading: true });
       const updated = await charactersApi.updateCharacter(charId, data);
+      const nextMeta = updated?.meta ?? data.meta;
+      const nextAvatar =
+        typeof nextMeta?.avatar === 'string' && nextMeta.avatar.trim()
+          ? nextMeta.avatar.trim()
+          : undefined;
+      const nextUpdatedAt =
+        typeof updated?.updated_at === 'string'
+          ? updated.updated_at
+          : new Date().toISOString();
+
       set((state) => ({
         characters: state.characters.map((c) =>
           c.char_id === charId
             ? {
                 ...c,
-                name: data.meta?.name || c.name,
-                background: data.meta?.background || c.background,
-                appearance: data.meta?.appearance || c.appearance,
+                name: nextMeta?.name || c.name,
+                background: nextMeta?.background ?? c.background,
+                appearance: nextMeta?.appearance ?? c.appearance,
+                avatar: nextAvatar,
+                updated_at: nextUpdatedAt,
               }
             : c
         ),
@@ -262,6 +274,47 @@ export const createEntitySlice: StateCreator<GameState, [], [], EntitySlice> = (
       get().setSystemAlert('Дані персонажа успішно оновлено', 'success');
     } catch (err: any) {
       get().setSystemAlert(`Помилка оновлення персонажа: ${err.message}`, 'error');
+      throw err;
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+
+  // --- РУЧНЕ ОНОВЛЕННЯ ЖИВОГО СТАНУ КАМПАНІЇ ---
+  updateCampaignState: async (campaignId: string, data: PlayerState) => {
+    try {
+      set({ isLoading: true });
+      const updated = await campaignsApi.updateCampaignState(campaignId, data);
+      const nextLocation =
+        (typeof updated?.meta?.location === 'string' && updated.meta.location.trim()) ||
+        (typeof data.meta?.location === 'string' && data.meta.location.trim()) ||
+        '';
+      const nowIso = new Date().toISOString();
+
+      set((state) => ({
+        playerState: state.activeCampaignId === campaignId ? updated : state.playerState,
+        campaigns: state.campaigns.map((camp) =>
+          camp.campaign_id === campaignId
+            ? {
+                ...camp,
+                current_location: nextLocation || camp.current_location,
+                last_played: nowIso,
+              }
+            : camp
+        ),
+        activeCampaign:
+          state.activeCampaign?.campaign_id === campaignId
+            ? {
+                ...state.activeCampaign,
+                current_location: nextLocation || state.activeCampaign.current_location,
+                last_played: nowIso,
+              }
+            : state.activeCampaign,
+      }));
+      get().setSystemAlert('Живий лист персонажа оновлено', 'success');
+    } catch (err: any) {
+      get().setSystemAlert(`Помилка оновлення живого листа: ${err.message}`, 'error');
+      throw err;
     } finally {
       set({ isLoading: false });
     }

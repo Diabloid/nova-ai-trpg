@@ -1,9 +1,10 @@
 import React, { useMemo } from 'react';
-import { WifiOff, User, Heart, ChevronDown } from 'lucide-react';
+import { WifiOff, Heart, ChevronDown } from 'lucide-react';
 import { useGameStore } from '../../store/useGameStore';
 import { extractHeaderAnchors } from '../../utils/dynamicSheetParser';
 import { hexToRgba } from '../../utils/lucideIconMap';
 import { DynamicLucideIcon } from '../dynamic-sheet';
+import { HeroAvatar } from '../ui/HeroAvatar';
 
 export const HeaderStatusBar: React.FC = () => {
   const {
@@ -27,7 +28,6 @@ export const HeaderStatusBar: React.FC = () => {
   const location = anchors.location || 'Невідома локація';
   const overallState = anchors.overallState;
   const avatar = anchors.avatar;
-  const isImageAvatar = !!avatar && avatar.startsWith('data:image/');
 
   return (
     <div className="w-full select-none">
@@ -60,19 +60,13 @@ export const HeaderStatusBar: React.FC = () => {
           <>
             {/* Ліва частина: Аватар + Ім'я + бейдж активної кампанії + Локація */}
             <div className="flex items-center gap-3 min-w-[130px] flex-1">
-              <div className="w-7 h-7 rounded-lg bg-[#222222] border border-[#2E2E2E] flex items-center justify-center text-[#9CA3AF] group-hover:text-white shrink-0 overflow-hidden transition-colors">
-                {isImageAvatar ? (
-                  <img
-                    src={avatar}
-                    alt={heroName}
-                    className="w-full h-full object-cover"
-                  />
-                ) : avatar ? (
-                  <DynamicLucideIcon icon={avatar} fallback={User} size={15} />
-                ) : (
-                  <User size={15} />
-                )}
-              </div>
+              <HeroAvatar
+                avatar={avatar}
+                name={heroName}
+                iconSize={15}
+                iconClassName="text-[#9CA3AF] group-hover:text-white transition-colors"
+                containerClassName="w-7 h-7 rounded-lg bg-[#222222] border border-[#2E2E2E] transition-colors"
+              />
 
               <div className="flex flex-col text-left min-w-0">
                 <div className="flex items-center gap-2 min-w-0">

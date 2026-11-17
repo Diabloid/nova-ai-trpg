@@ -1,7 +1,8 @@
 import React from 'react';
-import { User, RefreshCw, Edit3, Trash2 } from 'lucide-react';
+import { RefreshCw, Edit3, Trash2 } from 'lucide-react';
 import { useGameStore } from '../../store/useGameStore';
 import type { CharacterSummary } from '../../types/api';
+import { HeroAvatar } from '../ui/HeroAvatar';
 
 interface ActiveHeroCardProps {
   onEditCharacter?: (char: CharacterSummary) => void;
@@ -25,6 +26,7 @@ export const ActiveHeroCard: React.FC<ActiveHeroCardProps> = ({
   const heroName = activeCharacter?.meta?.name || currentSummary?.name || 'Не обрано';
   const heroBackground =
     activeCharacter?.meta?.background || currentSummary?.background || 'Оберіть героя зі списку';
+  const heroAvatar = activeCharacter?.meta?.avatar || currentSummary?.avatar;
 
   return (
     <div className="flex flex-col">
@@ -36,9 +38,13 @@ export const ActiveHeroCard: React.FC<ActiveHeroCardProps> = ({
       <div className="bg-[#161616] border border-[#262626] rounded-lg p-2.5 flex items-center justify-between transition-colors duration-150 hover:border-[#333333]">
         {/* Аватар + Інфо */}
         <div className="flex items-center gap-2.5 min-w-0 flex-1">
-          <div className="w-9 h-9 rounded-full bg-[#222222] border border-[#353535] flex items-center justify-center shrink-0">
-            <User size={16} className="text-[#60A5FA]" />
-          </div>
+          <HeroAvatar
+            avatar={heroAvatar}
+            name={heroName}
+            iconSize={16}
+            iconClassName="text-[#60A5FA]"
+            containerClassName="w-9 h-9 rounded-full bg-[#222222] border border-[#353535]"
+          />
           <div className="flex flex-col min-w-0 flex-1">
             <span className="text-[13px] font-bold text-[#F3F4F6] truncate">
               {heroName}
@@ -56,7 +62,7 @@ export const ActiveHeroCard: React.FC<ActiveHeroCardProps> = ({
             type="button"
             onClick={toggleHeroSelector}
             title="Змінити активного героя"
-            className={`w-7 h-7 rounded flex items-center justify-center text-[#9CA3AF] hover:text-[#E5E7EB] hover:bg-[#222222] transition-colors cursor-pointer ${
+            className={`w-7 h-7 rounded flex items-center justify-center text-[#9CA3AF] enabled:hover:text-[#E5E7EB] enabled:hover:bg-[#222222] transition-colors enabled:cursor-pointer ${
               isHeroSelectorOpen ? 'bg-[#222222] text-[#60A5FA]' : ''
             }`}
           >
@@ -69,7 +75,7 @@ export const ActiveHeroCard: React.FC<ActiveHeroCardProps> = ({
               type="button"
               onClick={() => onEditCharacter(currentSummary)}
               title="Редагувати заготовку"
-              className="w-7 h-7 rounded flex items-center justify-center text-[#9CA3AF] hover:text-[#E5E7EB] hover:bg-[#222222] transition-colors cursor-pointer"
+              className="w-7 h-7 rounded flex items-center justify-center text-[#9CA3AF] enabled:hover:text-[#E5E7EB] enabled:hover:bg-[#222222] transition-colors enabled:cursor-pointer"
             >
               <Edit3 size={12} />
             </button>
@@ -81,7 +87,7 @@ export const ActiveHeroCard: React.FC<ActiveHeroCardProps> = ({
               type="button"
               onClick={() => onRequestDeleteCharacter(currentSummary)}
               title="Видалити героя"
-              className="w-7 h-7 rounded flex items-center justify-center text-[#9CA3AF] hover:text-[#EF4444] hover:bg-[#2A1418] transition-colors cursor-pointer"
+              className="w-7 h-7 rounded flex items-center justify-center text-[#9CA3AF] enabled:hover:text-[#EF4444] enabled:hover:bg-[#2A1418] transition-colors enabled:cursor-pointer"
             >
               <Trash2 size={12} />
             </button>
@@ -119,7 +125,13 @@ export const ActiveHeroCard: React.FC<ActiveHeroCardProps> = ({
                       : 'text-[#E5E7EB] hover:bg-[#222222]'
                   }`}
                 >
-                  <User size={13} className={isSelected ? 'text-[#EF4444]' : 'text-[#9CA3AF]'} />
+                  <HeroAvatar
+                    avatar={char.avatar}
+                    name={char.name}
+                    iconSize={12}
+                    iconClassName={isSelected ? 'text-[#EF4444]' : 'text-[#9CA3AF]'}
+                    containerClassName="w-5 h-5 rounded-full bg-[#222222] border border-[#333333]"
+                  />
                   <span className="truncate flex-1">{char.name}</span>
                   {isSelected && <span className="text-[10px] text-[#EF4444]">Активний</span>}
                 </button>

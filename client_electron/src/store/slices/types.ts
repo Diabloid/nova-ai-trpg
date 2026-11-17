@@ -43,6 +43,7 @@ export interface EntitySlice {
   loadCharacters: () => Promise<void>;
   selectCharacter: (charId: string) => Promise<void>;
   updateCharacter: (charId: string, data: PlayerState) => Promise<void>;
+  updateCampaignState: (campaignId: string, data: PlayerState) => Promise<void>;
   loadCampaigns: (charId: string, autoSelectFirst?: boolean) => Promise<void>;
   selectCampaign: (campaignId: string) => Promise<void>;
   createCampaign: (title?: string) => Promise<CampaignSummary | null>;

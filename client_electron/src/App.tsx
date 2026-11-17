@@ -5,17 +5,23 @@ import { DrawerSheet } from './components/character-drawer/DrawerSheet';
 import { ChatContainer } from './components/chat/ChatContainer';
 import { ChatInput } from './components/input/ChatInput';
 import { WizardScreen } from './components/wizard/WizardScreen';
-import { EditHeroModal } from './components/modals/EditHeroModal';
+import {
+  CharacterEditorModal,
+  type CharacterEditorMode,
+} from './components/character-editor';
 import { NewCampaignModal } from './components/modals/NewCampaignModal';
 import { ConfirmModal } from './components/modals/ConfirmModal';
 import { GlobalContextMenu } from './components/ui/GlobalContextMenu';
+import { charactersApi } from './api/charactersApi';
 import { useGameStore } from './store/useGameStore';
 import { useWizardStore } from './store/useWizardStore';
-import type { CharacterSummary, CampaignSummary } from './types/api';
+import type { CharacterSummary, CampaignSummary, PlayerState } from './types/api';
 
 export const App: React.FC = () => {
   const {
     loadCharacters,
+    updateCharacter,
+    updateCampaignState,
     deleteCampaign,
     deleteCharacter,
     setSystemAlert,
@@ -24,8 +30,12 @@ export const App: React.FC = () => {
 
   // Стан модальних вікон
   const [isNewCampaignModalOpen, setIsNewCampaignModalOpen] = useState(false);
-  const [isEditHeroModalOpen, setIsEditHeroModalOpen] = useState(false);
-  const [editingCharId, setEditingCharId] = useState<string | null>(null);
+  const [editorConfig, setEditorConfig] = useState<{
+    mode: CharacterEditorMode;
+    targetId: string;
+    initialState: PlayerState | Record<string, any>;
+  } | null>(null);
+  const [isOpeningEditor, setIsOpeningEditor] = useState(false);
 
   const [campaignToDelete, setCampaignToDelete] = useState<CampaignSummary | null>(null);
   const [characterToDelete, setCharacterToDelete] = useState<CharacterSummary | null>(null);
@@ -38,10 +48,37 @@ export const App: React.FC = () => {
     });
   }, [loadCharacters]);
 
-  // Редагування героя
-  const handleEditCharacter = (char: CharacterSummary) => {
-    setEditingCharId(char.char_id);
-    setIsEditHeroModalOpen(true);
+  // Режим A — Редагування заготовки персонажа (завжди підвантажуємо актуальний стан заготовки)
+  const handleEditCharacter = async (char: CharacterSummary) => {
+    if (isOpeningEditor) return;
+    try {
+      setIsOpeningEditor(true);
+      const blueprintState = await charactersApi.getCharacter(char.char_id);
+      setEditorConfig({
+        mode: 'blueprint',
+        targetId: char.char_id,
+        initialState: blueprintState,
+      });
+    } catch (err: any) {
+      setSystemAlert(
+        `Не вдалося завантажити заготовку героя: ${err?.message || 'Помилка'}`,
+        'error'
+      );
+    } finally {
+      setIsOpeningEditor(false);
+    }
+  };
+
+  // Режим B — Редагування живого листа поточної кампанії
+  const handleEditLiveSheet = () => {
+    const state = useGameStore.getState();
+    const liveState = state.playerState || state.activeCharacter;
+    if (!state.activeCampaignId || !liveState) return;
+    setEditorConfig({
+      mode: 'live_state',
+      targetId: state.activeCampaignId,
+      initialState: liveState,
+    });
   };
 
   // Видалення кампанії
@@ -97,7 +134,7 @@ export const App: React.FC = () => {
         {/* ВЕРХНЯ ПАНЕЛЬ: Картка персонажа Button.characterCard + Висувна шторка Border.drawerSheet */}
         <div className="mb-4 flex flex-col gap-1 shrink-0">
           <HeaderStatusBar />
-          <DrawerSheet />
+          <DrawerSheet onEditLiveSheet={handleEditLiveSheet} />
         </div>
 
         {/* ЛОГ ПОВІДОМЛЕНЬ + ІНДИКАТОР: Border.chatContainer (Row="1") */}
@@ -114,14 +151,20 @@ export const App: React.FC = () => {
       {/* 2. ПОВНОЕКРАННИЙ ВІЗАРД ТВОРЦЯ ДОЛІ */}
       <WizardScreen />
 
-      {/* 3. МОДАЛЬНЕ ВІКНО: ШВИДКЕ РЕДАГУВАННЯ ГЕРОЯ */}
-      <EditHeroModal
-        isOpen={isEditHeroModalOpen}
-        onClose={() => {
-          setIsEditHeroModalOpen(false);
-          setEditingCharId(null);
+      {/* 3. СТУДІЯ РЕДАГУВАННЯ ПЕРСОНАЖА (Режим A: Заготовка / Режим B: Живий лист) */}
+      <CharacterEditorModal
+        isOpen={!!editorConfig}
+        mode={editorConfig?.mode ?? 'blueprint'}
+        targetId={editorConfig?.targetId ?? null}
+        initialState={editorConfig?.initialState ?? null}
+        onClose={() => setEditorConfig(null)}
+        onSave={async (targetId, updatedState) => {
+          if (editorConfig?.mode === 'live_state') {
+            await updateCampaignState(targetId, updatedState);
+          } else {
+            await updateCharacter(targetId, updatedState);
+          }
         }}
-        charId={editingCharId}
       />
 
       {/* 4. МОДАЛЬНЕ ВІКНО: СТВОРЕННЯ НОВОЇ КАМПАНІЇ */}

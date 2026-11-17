@@ -45,4 +45,17 @@ export const campaignsApi = {
   getCampaignState: (sessionId: string, options?: RequestInit): Promise<PlayerState> => {
     return apiClient.get<PlayerState>(`/state?session_id=${encodeURIComponent(sessionId)}`, options);
   },
+
+  /** Ручне оновлення живого стану сейву кампанії (Студія: Режим B) */
+  updateCampaignState: (
+    campaignId: string,
+    state: PlayerState | Record<string, any>,
+    options?: RequestInit
+  ): Promise<PlayerState> => {
+    return apiClient.put<PlayerState>(
+      `/campaigns/${encodeURIComponent(campaignId)}/state`,
+      state,
+      options
+    );
+  },
 };

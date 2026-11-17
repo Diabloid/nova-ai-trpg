@@ -31,7 +31,7 @@ const IGNORED_META_KEYS = new Set([
   'overall_state',
 ]);
 
-const CLASSIC_SECTION_FALLBACKS: Record<string, SchemaSectionMeta & { order: number }> = {
+export const CLASSIC_SECTION_FALLBACKS: Record<string, SchemaSectionMeta & { order: number }> = {
   'anatomy_and_health.injuries': {
     title: 'АНАТОМІЯ ТА ТРАВМИ',
     icon: 'heart-pulse',
@@ -243,7 +243,28 @@ function buildHeaderBadges(
       continue;
     }
 
-    if (Array.isArray(rawVal)) continue;
+    if (Array.isArray(rawVal)) {
+      const itemsText = rawVal
+        .map((item) =>
+          typeof item === 'object' && item !== null
+            ? String(item.name || item.title || item.label || '').trim()
+            : String(item ?? '').trim()
+        )
+        .filter(Boolean)
+        .join(', ');
+      if (itemsText) {
+        const shortKey = path.split('.').pop() || path;
+        badges.push({
+          key: path,
+          path,
+          label: meta.title || formatBlockTitle(shortKey),
+          value: itemsText,
+          color,
+          icon,
+        });
+      }
+      continue;
+    }
 
     const textVal = String(rawVal).trim();
     if (!textVal) continue;

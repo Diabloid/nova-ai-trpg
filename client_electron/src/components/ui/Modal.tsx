@@ -1,4 +1,5 @@
 import React, { useEffect, useLayoutEffect, useRef } from 'react';
+import { twMerge } from 'tailwind-merge';
 
 interface ModalProps {
   isOpen: boolean;
@@ -61,7 +62,10 @@ export const Modal: React.FC<ModalProps> = ({
         tabIndex={-1}
         role="dialog"
         aria-modal="true"
-        className={`relative z-10 max-w-full bg-[#161616] border rounded-xl p-6 shadow-2xl flex flex-col text-[#E5E7EB] outline-none ${className}`}
+        className={twMerge(
+          'relative z-10 max-w-full bg-[#161616] border rounded-xl p-6 shadow-2xl flex flex-col text-[#E5E7EB] outline-none',
+          className
+        )}
       >
         {children}
       </div>

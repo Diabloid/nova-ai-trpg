@@ -105,6 +105,12 @@ export const LUCIDE_ICON_MAP: Record<string, LucideIcon> = {
 
 export const SUPPORTED_LUCIDE_ICON_KEYS = Object.keys(LUCIDE_ICON_MAP);
 
+const ALIAS_KEYS = new Set(['book', 'scroll', 'wand', 'flask']);
+
+export const CANONICAL_LUCIDE_ICON_KEYS = SUPPORTED_LUCIDE_ICON_KEYS.filter(
+  (key) => !ALIAS_KEYS.has(key)
+);
+
 /** Нормалізує строковий ключ іконки і повертає відповідний Lucide-компонент із безпечним fallback */
 export function getLucideIcon(
   iconKey?: string | null,
