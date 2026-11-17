@@ -329,8 +329,15 @@ class CharacterWizardService:
             if isinstance(state_dict.get("_schema_meta"), dict)
             else target_template.get("_schema_meta")
         )
-        skeleton = self.prompt_service.strip_service_fields(target_template)
-        sections_guide = self._describe_template_sections(target_template)
+        skeleton_source = (
+            state_dict
+            if (template_override is None and isinstance(state_dict.get("_schema_meta"), dict))
+            else target_template
+        )
+        skeleton = self.prompt_service.strip_service_fields(skeleton_source)
+        # Якщо гравець додав кастомні секції в конструкторі, описуємо саме його актуальну _schema_meta
+        schema_source = {"_schema_meta": schema_meta} if isinstance(schema_meta, dict) else target_template
+        sections_guide = self._describe_template_sections(schema_source)
 
         system_instruction = (
             "Ти — системний модуль балансування та синхронізації концепту персонажа для текстової RPG (v2.0.0).\n"

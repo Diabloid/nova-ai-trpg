@@ -2,7 +2,9 @@ import copy
 import json
 import os
 import sys
+from datetime import datetime, timezone
 from typing import Dict, Any, Optional, List, Tuple, Set
+from core.slugify import validate_and_normalize_meta_avatar
 from core.state_parser import StateDelta, DynamicListChange
 
 # Безпечне кодування консолі для Windows
@@ -96,6 +98,36 @@ class GameState:
     def get_current_state(self) -> dict:
         """Повертає повний стан персонажа без спотворень чи примусового сплощення."""
         return self.data
+
+    def replace_state(self, new_state: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Повністю замінює живий стан кампанії (Режим B — «Редагувати лист», v2.0.0):
+        1. Обов'язково створює snapshot у savegame.prev.json перед перезаписом;
+        2. Очищає верхньорівневі None-ключі та гарантує meta як словник;
+        3. Страхує meta.world_id і created_at, оновлює updated_at;
+        4. Дозволяє оновлювати/видаляти meta.avatar, будь-які секції та _schema_meta.
+        """
+        raw_copy = copy.deepcopy(dict(new_state or {}))
+        payload: Dict[str, Any] = {k: v for k, v in raw_copy.items() if v is not None}
+
+        if not isinstance(payload.get("meta"), dict):
+            payload["meta"] = {}
+
+        prev_meta = self.data.get("meta") if isinstance(self.data.get("meta"), dict) else {}
+        if not payload["meta"].get("world_id"):
+            payload["meta"]["world_id"] = prev_meta.get("world_id") or "default_dark_fantasy"
+        validate_and_normalize_meta_avatar(payload["meta"])
+
+        now_iso = datetime.now(timezone.utc).isoformat()
+        if not payload.get("created_at"):
+            payload["created_at"] = self.data.get("created_at") or now_iso
+        payload["updated_at"] = now_iso
+
+        # Створюємо snapshot лише після успішної валідації вхідного стану
+        self.create_snapshot()
+        self.data = payload
+        self.save()
+        return self.get_current_state()
 
     # ------------------------------------------------------------------
     # Schema-aware хелпери для довільних шаблонів v2.0.0

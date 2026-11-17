@@ -1,5 +1,8 @@
 import re
-from typing import Iterable, Optional
+from typing import Any, Dict, Iterable, Optional
+from fastapi import HTTPException, status
+
+MAX_AVATAR_DATA_URI_CHARS = 512 * 1024  # ~512 КБ ліміт для Data URI аватара
 
 # Таблиця транслітерації української та російської кирилиці в ASCII
 CYRILLIC_TO_ASCII = {
@@ -106,3 +109,30 @@ def sanitize_icon_key(icon: Optional[str], default: str = "globe") -> str:
         return normalized
 
     return default
+
+
+def validate_and_normalize_meta_avatar(meta: Dict[str, Any]) -> None:
+    """
+    Sanity-валідація поля meta.avatar:
+    - видаляє ключ avatar, якщо значення порожнє ("") або None;
+    - відхиляє завеликі data:image/... (>512 КБ) з HTTP 400.
+    """
+    if not isinstance(meta, dict) or "avatar" not in meta:
+        return
+
+    val = meta.get("avatar")
+    if val is None or (isinstance(val, str) and not val.strip()):
+        meta.pop("avatar", None)
+        return
+
+    if isinstance(val, str):
+        cleaned = val.strip()
+        if cleaned.startswith("data:image/") and len(cleaned) > MAX_AVATAR_DATA_URI_CHARS:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    f"Розмір аватара перевищує ліміт ({MAX_AVATAR_DATA_URI_CHARS // 1024} КБ). "
+                    "Стисніть зображення (наприклад, 256x256 WebP) перед збереженням."
+                ),
+            )
+        meta["avatar"] = cleaned

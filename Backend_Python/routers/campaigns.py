@@ -1,4 +1,4 @@
-from typing import List
+from typing import Any, Dict, List
 from fastapi import APIRouter, Path, status
 from schemas.game_dto import (
     CampaignSummary,
@@ -58,6 +58,18 @@ async def create_campaign(
 )
 async def get_campaign_history(campaign_id: str = Path(..., description="ID кампанії")):
     return llm_controller.campaign_manager.get_campaign_history(campaign_id)
+
+
+@router.put(
+    "/campaigns/{campaign_id}/state",
+    response_model=Dict[str, Any],
+    summary="Ручне оновлення живого стану сейву (Студія: Режим B)"
+)
+async def update_campaign_state(
+    campaign_id: str = Path(..., description="ID кампанії"),
+    state: Dict[str, Any] = ...,
+):
+    return llm_controller.campaign_manager.update_campaign_state(campaign_id, state)
 
 
 @router.post(

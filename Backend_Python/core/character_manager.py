@@ -14,7 +14,7 @@ if sys.stdout and hasattr(sys.stdout, "reconfigure"):
         pass
 
 from schemas.game_dto import PlayerState, CharacterSummary
-from core.slugify import slugify_ascii, ensure_unique_slug
+from core.slugify import slugify_ascii, ensure_unique_slug, validate_and_normalize_meta_avatar
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CHARACTERS_DIR = os.path.join(BASE_DIR, "data", "characters")
@@ -240,11 +240,12 @@ class CharacterManager:
         if isinstance(state, PlayerState):
             payload = state.model_dump(exclude_none=True)
         else:
-            payload = copy.deepcopy(dict(state))
+            payload = {k: v for k, v in copy.deepcopy(dict(state)).items() if v is not None}
 
         meta = payload.setdefault("meta", {})
         if not meta.get("world_id"):
             meta["world_id"] = DEFAULT_WORLD_ID
+        validate_and_normalize_meta_avatar(meta)
 
         payload["created_at"] = created_at
         payload["updated_at"] = now_iso

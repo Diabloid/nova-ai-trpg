@@ -375,6 +375,30 @@ class CampaignManager:
         shutil.rmtree(c_dir, ignore_errors=True)
         return True
 
+    def update_campaign_state(self, campaign_id: str, new_state: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Ручне оновлення живого стану сейву кампанії (Режим B, v2.0.0):
+        - Перевіряє існування кампанії (404, якщо не існує);
+        - Синхронно оновлює кеш _state_cache та savegame.json через replace_state (зі snapshot);
+        - Синхронізує current_location і last_played у metadata.json.
+        """
+        clean_id = self._sanitize_id(campaign_id)
+        c_dir = self.get_campaign_dir(clean_id)
+        has_meta = os.path.isfile(os.path.join(c_dir, "metadata.json"))
+        has_save = os.path.isfile(os.path.join(c_dir, "savegame.json"))
+        if not (os.path.isdir(c_dir) and (has_meta or has_save)):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Кампанію '{campaign_id}' не знайдено."
+            )
+
+        game_state, _, _ = self.get_campaign_session(clean_id)
+        saved_state = game_state.replace_state(new_state)
+
+        new_location = (saved_state.get("meta") or {}).get("location")
+        self.touch_campaign_played(clean_id, new_location)
+        return saved_state
+
     def get_campaign_history(self, campaign_id: str) -> List[HistoryMessage]:
         """Повертає повну хронологічну історію повідомлень кампанії виключно з chat_log.json."""
         clean_id = self._sanitize_id(campaign_id)
