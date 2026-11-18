@@ -222,3 +222,8 @@ __marimo__/
 # Local AI agent docs & rules
 docs/
 GEMINI.md
+
+# Local/custom worlds are ignored, while the reference base world remains tracked
+Backend_Python/data/worlds/*
+!Backend_Python/data/worlds/default_dark_fantasy/
+!Backend_Python/data/worlds/default_dark_fantasy/**

@@ -14,7 +14,12 @@ if sys.stdout and hasattr(sys.stdout, "reconfigure"):
         pass
 
 from schemas.game_dto import PlayerState, CharacterSummary
-from core.slugify import slugify_ascii, ensure_unique_slug, validate_and_normalize_meta_avatar
+from core.slugify import (
+    slugify_ascii,
+    ensure_unique_slug,
+    validate_and_normalize_meta_avatar,
+    sanitize_strict_ascii_id,
+)
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CHARACTERS_DIR = os.path.join(BASE_DIR, "data", "characters")
@@ -145,10 +150,11 @@ class CharacterManager:
                 json.dump(ayven_data, f, ensure_ascii=False, indent=4)
 
     def _sanitize_char_id(self, char_id: str) -> str:
-        clean = "".join(c for c in char_id if c.isalnum() or c in ("-", "_")).strip().lower()
-        if not clean:
-            clean = f"hero_{int(datetime.now(timezone.utc).timestamp())}"
-        return clean
+        return sanitize_strict_ascii_id(
+            char_id,
+            default=f"hero_{int(datetime.now(timezone.utc).timestamp())}",
+            max_length=64,
+        )
 
     def generate_new_char_id(self, name: str) -> str:
         """Генерує унікальний ASCII-ідентифікатор для нового персонажа."""

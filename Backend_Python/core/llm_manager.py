@@ -55,7 +55,6 @@ class LLMController:
     def __init__(self):
         self.base_dir = BASE_DIR
         self.prompts_dir = os.path.join(self.base_dir, "data", "prompts")
-        self.lore_dir = os.path.join(self.base_dir, "data", "lore")
         
         # Завантаження конфігурації провайдерів
         config_path = os.path.join(self.base_dir, "data", "config", "providers.json")
@@ -70,10 +69,11 @@ class LLMController:
         self.character_manager = CharacterManager(os.path.join(self.base_dir, "data", "characters"))
         self.world_manager = WorldManager(
             worlds_dir=os.path.join(self.base_dir, "data", "worlds"),
-            legacy_lore_dir=self.lore_dir,
             characters_dir=self.character_manager.characters_dir,
             saves_dir=os.path.join(self.base_dir, "data", "saves"),
         )
+        # Ідемпотентна міграція світів, персонажів та сейвів до ініціалізації кешу CampaignManager
+        self.world_manager.migrate_if_needed()
         self.campaign_manager = CampaignManager(
             saves_dir=os.path.join(self.base_dir, "data", "saves"),
             character_manager=self.character_manager,
@@ -84,7 +84,6 @@ class LLMController:
         self.provider_service = LLMProviderService(self.config)
         self.prompt_service = PromptService(
             self.prompts_dir,
-            self.lore_dir,
             world_manager=self.world_manager,
         )
         self.analyzer_service = StateAnalyzerService(self.provider_service, self.prompt_service)

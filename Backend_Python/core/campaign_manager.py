@@ -19,7 +19,7 @@ from core.services.history_service import HistoryService
 from core.services.chat_log_service import ChatLogService
 from core.character_manager import CharacterManager
 from core.world_manager import WorldManager, DEFAULT_WORLD_ID
-from core.slugify import slugify_ascii, ensure_unique_slug
+from core.slugify import slugify_ascii, ensure_unique_slug, sanitize_strict_ascii_id
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SAVES_DIR = os.path.join(BASE_DIR, "data", "saves")
@@ -99,8 +99,7 @@ class CampaignManager:
         return resolved
 
     def _sanitize_id(self, raw_id: str) -> str:
-        clean = "".join(c for c in raw_id if c.isalnum() or c in ("-", "_")).strip().lower()
-        return clean or "campaign"
+        return sanitize_strict_ascii_id(raw_id, default="campaign", max_length=96)
 
     def get_campaign_dir(self, campaign_id: str) -> str:
         clean = self._sanitize_id(campaign_id)

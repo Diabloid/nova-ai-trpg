@@ -36,13 +36,11 @@ class PromptService:
     def __init__(
         self,
         prompts_dir: str,
-        lore_dir: Optional[str] = None,
         auto_load: bool = False,
         world_manager: Optional[WorldManager] = None,
     ):
         self.prompts_dir = prompts_dir
-        self.lore_dir = lore_dir
-        self.world_manager = world_manager or WorldManager(legacy_lore_dir=lore_dir)
+        self.world_manager = world_manager or WorldManager()
         self._prompt_cache: Dict[str, str] = {}
         self._world_lore_cache: Dict[str, WorldLoreCache] = {}
 
@@ -63,8 +61,6 @@ class PromptService:
     def _resolve_lore_dir(self, world_id: str) -> Optional[str]:
         if self.world_manager and self.world_manager.world_exists(world_id):
             return self.world_manager.get_world_lore_dir(world_id)
-        if world_id == DEFAULT_WORLD_ID and self.lore_dir and os.path.exists(self.lore_dir):
-            return self.lore_dir
         return None
 
     def _read_lore_file_safe(self, filepath: str) -> str:

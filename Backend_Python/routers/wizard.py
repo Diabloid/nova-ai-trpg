@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List
 from fastapi import APIRouter, HTTPException, status
 from core.template_presets import get_template_presets
 from schemas.game_dto import (
@@ -50,28 +50,18 @@ async def character_wizard_dialog(request: CharacterDialogRequest):
     response_model=Dict[str, Any],
     summary="Синхронізувати та перерахувати залежні поля після ручного редагування прев'ю (Live Sync, v2.0.0)"
 )
-async def character_wizard_sync_draft(request: Union[CharacterSyncRequest, Dict[str, Any]]):
+async def character_wizard_sync_draft(request: CharacterSyncRequest):
     """
-    Приймає CharacterSyncRequest (v2.0.0) або тимчасово старий плоский словник стану
+    Приймає суворо типізований CharacterSyncRequest (v2.0.0)
     та перераховує взаємозалежні атрибути без втрати ручних правок.
     """
-    if isinstance(request, CharacterSyncRequest):
-        draft_dict = request.draft_state
-        world_id = request.world_id or (draft_dict.get("meta") or {}).get("world_id")
-        template_override = request.template_override
-    elif isinstance(request, dict) and "draft_state" in request and isinstance(request["draft_state"], dict):
-        draft_dict = request["draft_state"]
-        world_id = request.get("world_id") or (draft_dict.get("meta") or {}).get("world_id")
-        template_override = request.get("template_override")
-    else:
-        draft_dict = dict(request)
-        world_id = (draft_dict.get("meta") or {}).get("world_id")
-        template_override = None
+    draft_dict = request.draft_state
+    world_id = request.world_id or (draft_dict.get("meta") or {}).get("world_id")
 
     synced = await llm_controller.sync_character_draft(
         draft_dict,
         world_id=world_id,
-        template_override=template_override
+        template_override=request.template_override
     )
     if isinstance(synced, PlayerState):
         return synced.model_dump(exclude_none=True)

@@ -31,7 +31,6 @@ from routers import (
     campaigns_router,
     gameplay_router,
     voice_router,
-    legacy_router,
     worlds_router,
 )
 
@@ -85,7 +84,16 @@ app.include_router(templates_router)
 app.include_router(campaigns_router)
 app.include_router(gameplay_router)
 app.include_router(voice_router)
-app.include_router(legacy_router)
+
+
+@app.get(
+    "/api/v1/health",
+    tags=["Системні сервіси"],
+    summary="Readiness/health check для перевірки старту sidecar-сервера",
+)
+async def health_check():
+    """Легкий readiness probe без запитів до LLM або диска."""
+    return {"status": "ok", "version": app.version}
 
 
 if __name__ == "__main__":

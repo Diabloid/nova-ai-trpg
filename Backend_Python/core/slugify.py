@@ -3,6 +3,7 @@ from typing import Any, Dict, Iterable, Optional
 from fastapi import HTTPException, status
 
 MAX_AVATAR_DATA_URI_CHARS = 512 * 1024  # ~512 КБ ліміт для Data URI аватара
+STRICT_ASCII_ID_RE = re.compile(r"^[a-z0-9_-]+$")
 
 # Таблиця транслітерації української та російської кирилиці в ASCII
 CYRILLIC_TO_ASCII = {
@@ -136,3 +137,21 @@ def validate_and_normalize_meta_avatar(meta: Dict[str, Any]) -> None:
                 ),
             )
         meta["avatar"] = cleaned
+
+
+def is_strict_ascii_id(value: Optional[str]) -> bool:
+    """Перевіряє, чи ідентифікатор складається виключно зі строгого ASCII [a-z0-9_-]+."""
+    if not value or not isinstance(value, str):
+        return False
+    return bool(STRICT_ASCII_ID_RE.fullmatch(value))
+
+
+def sanitize_strict_ascii_id(raw_id: Optional[str], default: str = "item", max_length: int = 64) -> str:
+    """
+    Нормалізує ідентифікатор до строгого ASCII [a-z0-9_-]+.
+    Уже валідні ASCII-ідентифікатори (у т.ч. з дефісами та провідним '_') зберігаються без спотворень.
+    """
+    normalized = (raw_id or "").strip().lower()
+    if STRICT_ASCII_ID_RE.fullmatch(normalized):
+        return normalized
+    return slugify_ascii(normalized, default=default, max_length=max_length)
