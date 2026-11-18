@@ -1,18 +1,27 @@
 from typing import List
-from fastapi import APIRouter, Path, Query, status
+from fastapi import APIRouter, HTTPException, Path, Query, status
 from fastapi.responses import JSONResponse
 
 from core.world_manager import WorldDeleteConflictError
 from dependencies import llm_controller
 from schemas.game_dto import (
+    CharacterTemplateDraftResponse,
     LoreArticleResponse,
     LoreArticleSaveRequest,
+    WorldAiPrompts,
     WorldCloneRequest,
     WorldCreateRequest,
     WorldDeleteConflict,
     WorldDetailResponse,
+    WorldFinalizeRequest,
+    WorldLoreGenRequest,
+    WorldLoreGenResponse,
+    WorldPassportDraftResponse,
+    WorldPromptsGenRequest,
     WorldSummary,
+    WorldTemplateGenRequest,
     WorldUpdateRequest,
+    WorldWizardStepRequest,
 )
 
 router = APIRouter(prefix="/api/v1/worlds", tags=["Світи"])
@@ -140,3 +149,101 @@ async def delete_lore_article(
     res = llm_controller.world_manager.delete_lore_article(world_id, filename)
     llm_controller.prompt_service.invalidate_world_cache(world_id.strip().lower())
     return res
+
+
+# =========================================================================
+# ✨ 4-Кроковий AI-Майстер Світів (/api/v1/worlds/wizard/*, v2.0.0)
+# =========================================================================
+
+@router.post(
+    "/wizard/step-passport",
+    response_model=WorldPassportDraftResponse,
+    summary="Крок 1: Діалог або one-shot генерація чернетки паспорта світу"
+)
+async def world_wizard_step_passport(request: WorldWizardStepRequest):
+    try:
+        return await llm_controller.world_wizard_step_passport(request)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Помилка ШІ-провайдера на Кроці 1 (паспорт світу): {e}",
+        )
+
+
+@router.post(
+    "/wizard/generate-prompts",
+    response_model=WorldAiPrompts,
+    summary="Крок 2: Генерація/оновлення 4 сеттингових ШІ-правил світу"
+)
+async def world_wizard_generate_prompts(request: WorldPromptsGenRequest):
+    try:
+        return await llm_controller.world_wizard_generate_prompts(request)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Помилка ШІ-провайдера на Кроці 2 (генерація промптів): {e}",
+        )
+
+
+@router.post(
+    "/wizard/generate-lore",
+    response_model=WorldLoreGenResponse,
+    response_model_exclude_none=True,
+    summary="Крок 3: Планування 5 тем або генерація/розширення статті лору"
+)
+async def world_wizard_generate_lore(request: WorldLoreGenRequest):
+    mode = (request.mode or "plan_topics").strip().lower()
+    if mode not in ("plan_topics", "generate_article", "expand_article"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Невідомий режим генерації лору: '{request.mode}'",
+        )
+    try:
+        return await llm_controller.world_wizard_generate_lore(request)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Помилка ШІ-провайдера на Кроці 3 (генерація лору): {e}",
+        )
+
+
+@router.post(
+    "/wizard/generate-template",
+    response_model=CharacterTemplateDraftResponse,
+    response_model_exclude_none=True,
+    summary="Крок 4: AI-генерація/правка character_template.json + demo_state"
+)
+async def world_wizard_generate_template(request: WorldTemplateGenRequest):
+    try:
+        return await llm_controller.world_wizard_generate_template(request)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Помилка ШІ-провайдера на Кроці 4 (генерація шаблону): {e}",
+        )
+
+
+@router.post(
+    "/wizard/finalize",
+    response_model=WorldDetailResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Фіналізація: атомарне створення пакета світу на диску"
+)
+async def world_wizard_finalize(request: WorldFinalizeRequest):
+    try:
+        return await llm_controller.world_wizard_finalize(request)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Помилка фіналізації пакета світу (зміни відкочено): {e}",
+        )

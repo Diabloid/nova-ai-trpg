@@ -6,6 +6,8 @@ from core.services.narrator_service import NarratorService
 from core.services.state_analyzer_service import StateAnalyzerService
 from core.services.character_wizard_service import CharacterWizardService
 from core.services.voice_service import VoiceService
+from core.services.template_validator import TemplateValidator
+from core.services.world_wizard_service import WorldWizardService
 
 __all__ = [
     "LLMProviderService",
@@ -16,4 +18,6 @@ __all__ = [
     "StateAnalyzerService",
     "CharacterWizardService",
     "VoiceService",
+    "TemplateValidator",
+    "WorldWizardService",
 ]

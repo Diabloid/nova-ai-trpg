@@ -27,10 +27,23 @@ from core.services.narrator_service import NarratorService
 from core.services.state_analyzer_service import StateAnalyzerService
 from core.services.character_wizard_service import CharacterWizardService
 from core.services.voice_service import VoiceService
+from core.services.world_wizard_service import WorldWizardService
 from core.character_manager import CharacterManager
 from core.campaign_manager import CampaignManager
 from core.world_manager import WorldManager
-from schemas.game_dto import PlayerState
+from schemas.game_dto import (
+    PlayerState,
+    WorldWizardStepRequest,
+    WorldPassportDraftResponse,
+    WorldPromptsGenRequest,
+    WorldAiPrompts,
+    WorldLoreGenRequest,
+    WorldLoreGenResponse,
+    WorldTemplateGenRequest,
+    CharacterTemplateDraftResponse,
+    WorldFinalizeRequest,
+    WorldDetailResponse,
+)
 
 
 class LLMController:
@@ -79,6 +92,12 @@ class LLMController:
             self.provider_service,
             self.prompt_service,
             world_manager=self.world_manager,
+        )
+        self.world_wizard_service = WorldWizardService(
+            provider_service=self.provider_service,
+            world_manager=self.world_manager,
+            prompt_service=self.prompt_service,
+            template_validator=self.world_manager.template_validator,
         )
         self.voice_service = VoiceService()
 
@@ -249,6 +268,25 @@ class LLMController:
             world_id=world_id,
             template_override=template_override
         )
+
+    # =========================================================================
+    # 🌍 4-Кроковий AI-Майстер Світів — Делегування в WorldWizardService
+    # =========================================================================
+
+    async def world_wizard_step_passport(self, request: WorldWizardStepRequest) -> WorldPassportDraftResponse:
+        return await self.world_wizard_service.step_passport(request)
+
+    async def world_wizard_generate_prompts(self, request: WorldPromptsGenRequest) -> WorldAiPrompts:
+        return await self.world_wizard_service.generate_prompts(request)
+
+    async def world_wizard_generate_lore(self, request: WorldLoreGenRequest) -> WorldLoreGenResponse:
+        return await self.world_wizard_service.generate_lore(request)
+
+    async def world_wizard_generate_template(self, request: WorldTemplateGenRequest) -> CharacterTemplateDraftResponse:
+        return await self.world_wizard_service.generate_template(request)
+
+    async def world_wizard_finalize(self, request: WorldFinalizeRequest) -> WorldDetailResponse:
+        return await self.world_wizard_service.finalize_world(request)
 
     # 🎙️ Voice-to-Text (Голосове розпізнавання дій)
     async def transcribe_audio(

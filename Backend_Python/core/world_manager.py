@@ -3,7 +3,7 @@ import sys
 import json
 import shutil
 from datetime import datetime, timezone
-from typing import List, Optional, Dict, Any, Tuple
+from typing import List, Optional, Dict, Any, Tuple, TYPE_CHECKING
 from fastapi import HTTPException, status
 
 # Безпечне кодування консолі для Windows
@@ -14,6 +14,9 @@ if sys.stdout and hasattr(sys.stdout, "reconfigure"):
         pass
 
 from core.slugify import slugify_ascii, ensure_unique_slug, sanitize_icon_key
+
+if TYPE_CHECKING:
+    from core.services.template_validator import TemplateValidator
 from schemas.game_dto import (
     WorldAiPrompts,
     WorldSummary,
@@ -169,11 +172,17 @@ class WorldManager:
         legacy_lore_dir: Optional[str] = None,
         characters_dir: Optional[str] = None,
         saves_dir: Optional[str] = None,
+        template_validator: Optional["TemplateValidator"] = None,
     ):
         self.worlds_dir = worlds_dir or WORLDS_DIR
         self.legacy_lore_dir = legacy_lore_dir or LEGACY_LORE_DIR
         self.characters_dir = characters_dir or CHARACTERS_DIR
         self.saves_dir = saves_dir or SAVES_DIR
+        if template_validator is None:
+            from core.services.template_validator import TemplateValidator
+            self.template_validator = TemplateValidator()
+        else:
+            self.template_validator = template_validator
         os.makedirs(self.worlds_dir, exist_ok=True)
 
     # ------------------------------------------------------------------
@@ -547,6 +556,7 @@ class WorldManager:
 
         now_iso = datetime.now(timezone.utc).isoformat()
         icon_key = sanitize_icon_key(request.icon, default="globe")
+        accent_hex = self.template_validator.validate_hex_color(request.accent_color, fallback="#38BDF8")
 
         passport = {
             "world_id": world_id,
@@ -555,7 +565,7 @@ class WorldManager:
             "description": request.description or "",
             "author": request.author or "User",
             "icon": icon_key,
-            "accent_color": request.accent_color or "#38BDF8",
+            "accent_color": accent_hex,
             "starting_locations": request.starting_locations or [],
             "ai_prompts": request.ai_prompts.model_dump(),
             "created_at": now_iso,
@@ -563,16 +573,23 @@ class WorldManager:
         }
         self._write_json(os.path.join(w_dir, "world.json"), passport)
 
-        # Шаблон персонажа (переданий або базовий)
+        # Шаблон персонажа (валідований через TemplateValidator)
+        default_loc = request.starting_locations[0] if request.starting_locations else "Стартова локація"
         if request.character_template is not None:
-            tpl_data = dict(request.character_template)
+            tpl_data = self.template_validator.validate_and_normalize(
+                request.character_template,
+                world_id=world_id,
+                default_location=default_loc,
+            )
         else:
-            tpl_data = {
-                "meta": {"name": "", "world_id": world_id, "location": (request.starting_locations[0] if request.starting_locations else "Стартова локація")},
-                "_schema_meta": _default_dark_fantasy_schema_meta(),
-            }
-        tpl_meta = tpl_data.setdefault("meta", {})
-        tpl_meta["world_id"] = world_id
+            tpl_data = self.template_validator.validate_and_normalize(
+                {
+                    "meta": {"name": "", "world_id": world_id, "location": default_loc},
+                    "_schema_meta": _default_dark_fantasy_schema_meta(),
+                },
+                world_id=world_id,
+                default_location=default_loc,
+            )
         self._write_json(os.path.join(w_dir, "character_template.json"), tpl_data)
 
         return WorldSummary(
@@ -605,7 +622,10 @@ class WorldManager:
         if request.icon is not None:
             passport["icon"] = sanitize_icon_key(request.icon, default="globe")
         if request.accent_color is not None:
-            passport["accent_color"] = request.accent_color
+            passport["accent_color"] = self.template_validator.validate_hex_color(
+                request.accent_color,
+                fallback=passport.get("accent_color") or "#38BDF8",
+            )
         if request.starting_locations is not None:
             passport["starting_locations"] = request.starting_locations
         if request.ai_prompts is not None:
@@ -615,9 +635,13 @@ class WorldManager:
         self._write_json(world_json_path, passport)
 
         if request.character_template is not None:
-            tpl_data = dict(request.character_template)
-            tpl_meta = tpl_data.setdefault("meta", {})
-            tpl_meta["world_id"] = clean_id
+            locs = passport.get("starting_locations") or []
+            default_loc = locs[0] if locs else "Стартова локація"
+            tpl_data = self.template_validator.validate_and_normalize(
+                request.character_template,
+                world_id=clean_id,
+                default_location=default_loc,
+            )
             self._write_json(os.path.join(w_dir, "character_template.json"), tpl_data)
 
         return self.get_world_detail(clean_id)
@@ -645,9 +669,13 @@ class WorldManager:
         new_passport["icon"] = sanitize_icon_key(new_passport.get("icon"), default="globe")
         self._write_json(os.path.join(dst_dir, "world.json"), new_passport)
 
-        new_tpl = dict(src_tpl)
-        if isinstance(new_tpl.get("meta"), dict):
-            new_tpl["meta"]["world_id"] = new_world_id
+        locs = new_passport.get("starting_locations") or []
+        default_loc = locs[0] if locs else "Стартова локація"
+        new_tpl = self.template_validator.validate_and_normalize(
+            src_tpl,
+            world_id=new_world_id,
+            default_location=default_loc,
+        )
         self._write_json(os.path.join(dst_dir, "character_template.json"), new_tpl)
 
         if request.include_lore:

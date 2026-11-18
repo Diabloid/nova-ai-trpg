@@ -457,6 +457,127 @@ class LoreArticleSaveRequest(BaseModel):
     content: str = Field(..., description="Текст статті лору (Markdown або Plain Text)")
 
 
+# =========================================================================
+# 9. 4-Кроковий AI-Майстер Світів (/api/v1/worlds/wizard/*, v2.0.0)
+# =========================================================================
+
+class WorldPassportDraft(BaseModel):
+    """Чернетка паспорта світу для 4-крокового AI-Майстра (v2.0.0)."""
+    model_config = ConfigDict(extra="allow")
+
+    title: str = Field(default="Новий Світ", description="Назва світу")
+    genre: str = Field(default="Фентезі", description="Жанр")
+    description: str = Field(default="", description="Стислий опис світу")
+    icon: str = Field(default="globe", description="Ключ векторної іконки lucide-react")
+    accent_color: str = Field(default="#38BDF8", description="HEX-колір акценту")
+    starting_locations: List[str] = Field(default_factory=list, description="Стартові локації")
+
+
+class WorldWizardStepRequest(BaseModel):
+    """Запит на Крок 1 (діалог або one-shot генерація паспорта світу)."""
+    model_config = ConfigDict(extra="allow")
+
+    mode: str = Field(default="dialog", description="'dialog' або 'one_shot'")
+    message: str = Field(..., description="Повідомлення або опис світу від гравця")
+    history: Optional[List[Dict[str, str]]] = Field(
+        default_factory=list,
+        description="Історія діалогу [{'role': 'user'|'assistant', 'content': '...'}]"
+    )
+    current_passport: Optional[WorldPassportDraft] = Field(
+        default=None,
+        description="Поточна чернетка паспорта для поступового доповнення"
+    )
+
+
+class WorldPassportDraftResponse(BaseModel):
+    """Відповідь Кроку 1 AI-Майстра Світів."""
+    model_config = ConfigDict(extra="allow")
+
+    reply: str = Field(..., description="Репліка або резюме AI-Майстра")
+    passport_draft: WorldPassportDraft = Field(..., description="Оновлена чернетка паспорта")
+
+
+class WorldPromptsGenRequest(BaseModel):
+    """Запит на Крок 2 (генерація/оновлення 4 сеттингових правил ai_prompts)."""
+    model_config = ConfigDict(extra="allow")
+
+    passport: WorldPassportDraft
+    tone_chips: Optional[List[str]] = Field(default_factory=list, description="Обрані теги тону (напр. 'Похмурий', 'Іронія')")
+    custom_instruction: Optional[str] = Field(default=None, description="Додаткове побажання користувача")
+    current_prompts: Optional[WorldAiPrompts] = Field(default=None, description="Поточні промпти для уточнення")
+
+
+class WorldLoreDraftItem(BaseModel):
+    """Чернетка згенерованої або редагованої статті лору."""
+    model_config = ConfigDict(extra="allow")
+
+    filename: str = Field(..., description="Ім'я файлу статті (.md)")
+    title: str = Field(..., description="Заголовок статті")
+    content: str = Field(..., description="Markdown-вміст статті")
+
+
+class WorldLoreTopicItem(BaseModel):
+    """Елемент планування 5 стартових тем лору."""
+    model_config = ConfigDict(extra="allow")
+
+    filename: str = Field(..., description="ASCII ім'я файлу (напр. 01_svitobudova.md)")
+    title: str = Field(..., description="Назва теми")
+    brief: str = Field(default="", description="Короткий опис змісту статті")
+
+
+class WorldLoreGenRequest(BaseModel):
+    """Запит на Крок 3 (планування тем або генерація/розширення статті лору)."""
+    model_config = ConfigDict(extra="allow")
+
+    mode: str = Field(default="plan_topics", description="'plan_topics' | 'generate_article' | 'expand_article'")
+    passport: WorldPassportDraft
+    ai_prompts: Optional[WorldAiPrompts] = None
+    topic: Optional[str] = Field(default=None, description="Тема для generate_article")
+    filename: Optional[str] = Field(default=None, description="Ім'я файлу статті")
+    existing_content: Optional[str] = Field(default=None, description="Існуючий текст для expand_article")
+    instruction: Optional[str] = Field(default=None, description="Інструкція генерації чи розширення")
+    existing_titles: Optional[List[str]] = Field(default_factory=list, description="Уже створені заголовки для уникнення дублів")
+
+
+class WorldLoreGenResponse(BaseModel):
+    """Відповідь Кроку 3 (план тем або згенерована стаття лору)."""
+    model_config = ConfigDict(extra="allow")
+
+    topics: Optional[List[WorldLoreTopicItem]] = None
+    article: Optional[WorldLoreDraftItem] = None
+
+
+class WorldTemplateGenRequest(BaseModel):
+    """Запит на Крок 4 (генерація чи доопрацювання character_template.json)."""
+    model_config = ConfigDict(extra="allow")
+
+    passport: WorldPassportDraft
+    ai_prompts: Optional[WorldAiPrompts] = None
+    lore_digest: Optional[str] = Field(default=None, description="Стислий дайджест статей лору")
+    custom_instruction: Optional[str] = Field(default=None, description="Побажання до секцій або механік анкети")
+    current_template: Optional[Dict[str, Any]] = Field(default=None, description="Поточний шаблон для редагування")
+
+
+class CharacterTemplateDraftResponse(BaseModel):
+    """Відповідь Кроку 4: провалідований шаблон + реалістичний demo_state для прев'ю."""
+    model_config = ConfigDict(extra="allow")
+
+    character_template: Dict[str, Any]
+    demo_state: Dict[str, Any]
+    summary_note: Optional[str] = None
+
+
+class WorldFinalizeRequest(BaseModel):
+    """Запит на атомарне збереження нового світу з 4-Крокового Майстра."""
+    model_config = ConfigDict(extra="allow")
+
+    world_id: Optional[str] = Field(default=None, description="Бажаний ASCII world_id")
+    passport: WorldPassportDraft
+    ai_prompts: WorldAiPrompts
+    character_template: Dict[str, Any]
+    lore_articles: List[WorldLoreDraftItem] = Field(default_factory=list)
+
+
 # Для сумісності зі старими викликами
 class SessionInfo(BaseModel):
     """Інформація про збережену ігрову сесію (аліас до CampaignSummary)."""
