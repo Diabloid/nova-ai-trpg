@@ -364,7 +364,7 @@ export const WorldStepPassport: React.FC = () => {
           </div>
 
           <textarea
-            rows={2}
+            rows={4}
             value={oneShotDescription}
             disabled={isGeneratingPassport || isLoadingWorld}
             onChange={(e) => setOneShotDescription(e.target.value)}
