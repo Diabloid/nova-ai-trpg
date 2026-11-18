@@ -3,11 +3,15 @@ import { TitleBar } from './TitleBar';
 import { Sidebar } from '../sidebar/Sidebar';
 import { Bell } from 'lucide-react';
 import { useGameStore } from '../../store/useGameStore';
-import type { CharacterSummary, CampaignSummary } from '../../types/api';
+import type { CharacterSummary, CampaignSummary, WorldSummary } from '../../types/api';
 
 interface AppLayoutProps {
   children: React.ReactNode;
   onOpenWizard?: () => void;
+  onCreateWorld?: () => void;
+  onEditWorld?: (world: WorldSummary) => void;
+  onCloneWorld?: (world: WorldSummary) => void;
+  onRequestDeleteWorld?: (world: WorldSummary) => void;
   onEditCharacter?: (char: CharacterSummary) => void;
   onRequestDeleteCharacter?: (char: CharacterSummary) => void;
   onNewCampaign?: () => void;
@@ -44,6 +48,10 @@ const AlertCountdown: React.FC<AlertCountdownProps> = ({ expiresAt }) => {
 export const AppLayout: React.FC<AppLayoutProps> = ({
   children,
   onOpenWizard,
+  onCreateWorld,
+  onEditWorld,
+  onCloneWorld,
+  onRequestDeleteWorld,
   onEditCharacter,
   onRequestDeleteCharacter,
   onNewCampaign,
@@ -77,6 +85,10 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
       <div className="flex-1 flex overflow-hidden relative">
         <Sidebar
           onOpenWizard={onOpenWizard}
+          onCreateWorld={onCreateWorld}
+          onEditWorld={onEditWorld}
+          onCloneWorld={onCloneWorld}
+          onRequestDeleteWorld={onRequestDeleteWorld}
           onEditCharacter={onEditCharacter}
           onRequestDeleteCharacter={onRequestDeleteCharacter}
           onNewCampaign={onNewCampaign}

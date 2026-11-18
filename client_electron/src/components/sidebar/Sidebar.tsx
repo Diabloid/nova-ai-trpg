@@ -1,13 +1,18 @@
 import React from 'react';
 import { Sparkles, ChevronRight } from 'lucide-react';
 import { useGameStore } from '../../store/useGameStore';
+import { ActiveWorldCard } from './ActiveWorldCard';
 import { ActiveHeroCard } from './ActiveHeroCard';
 import { CampaignList } from './CampaignList';
 import { AccountCard } from './AccountCard';
-import type { CharacterSummary, CampaignSummary } from '../../types/api';
+import type { CharacterSummary, CampaignSummary, WorldSummary } from '../../types/api';
 
 interface SidebarProps {
   onOpenWizard?: () => void;
+  onCreateWorld?: () => void;
+  onEditWorld?: (world: WorldSummary) => void;
+  onCloneWorld?: (world: WorldSummary) => void;
+  onRequestDeleteWorld?: (world: WorldSummary) => void;
   onEditCharacter?: (char: CharacterSummary) => void;
   onRequestDeleteCharacter?: (char: CharacterSummary) => void;
   onNewCampaign?: () => void;
@@ -18,6 +23,10 @@ interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({
   onOpenWizard,
+  onCreateWorld,
+  onEditWorld,
+  onCloneWorld,
+  onRequestDeleteWorld,
   onEditCharacter,
   onRequestDeleteCharacter,
   onNewCampaign,
@@ -58,8 +67,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <div className="h-[1px] bg-[#222222] my-1" />
           </div>
 
-          {/* Середня скрол-зона: Герой та Кампанії */}
+          {/* Середня скрол-зона: Світ, Герой та Кампанії */}
           <div className="flex-1 overflow-y-auto py-2 pr-1 flex flex-col gap-5">
+            <ActiveWorldCard
+              onCreateWorld={onCreateWorld}
+              onEditWorld={onEditWorld}
+              onCloneWorld={onCloneWorld}
+              onRequestDeleteWorld={onRequestDeleteWorld}
+            />
             <ActiveHeroCard
               onEditCharacter={onEditCharacter}
               onRequestDeleteCharacter={onRequestDeleteCharacter}

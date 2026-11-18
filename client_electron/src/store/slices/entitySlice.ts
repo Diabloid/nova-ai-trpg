@@ -8,6 +8,11 @@ import { cleanDisplayAction } from '../../utils/intentParser';
 import { buildDisplayTokens } from '../../utils/novaSyntax';
 import { sanitizeStory } from '../../utils/textSanitizer';
 import { formatSystemTime } from '../../utils/formatTime';
+import {
+  DEFAULT_WORLD_ID,
+  readLastCharByWorld,
+  writeLastCharForWorld,
+} from './worldSlice';
 import type { EntitySlice, GameState } from './types';
 
 export const createEntitySlice: StateCreator<GameState, [], [], EntitySlice> = (set, get) => ({
@@ -23,7 +28,8 @@ export const createEntitySlice: StateCreator<GameState, [], [], EntitySlice> = (
   loadCharacters: async () => {
     try {
       set({ isLoading: true });
-      const chars = await charactersApi.getCharacters();
+      const activeWorldId = get().activeWorldId || DEFAULT_WORLD_ID;
+      const chars = await charactersApi.getCharacters(activeWorldId);
       set({ characters: chars, backendOffline: false });
 
       if (chars.length === 0) {
@@ -35,14 +41,17 @@ export const createEntitySlice: StateCreator<GameState, [], [], EntitySlice> = (
           activeCampaign: null,
           playerState: null,
           messages: [],
+          isCharacterDrawerOpen: false,
         });
         return;
       }
 
-      // Якщо є збережений останній ID героя в localStorage або беремо першого
+      // Якщо є збережений останній ID героя для поточного світу в localStorage або беремо першого
       const { activeCharacterId } = get();
-      const lastCharId =
+      const lastCharByWorld = readLastCharByWorld();
+      const legacyLastCharId =
         typeof localStorage !== 'undefined' ? localStorage.getItem('nova_last_char_id') : null;
+      const lastCharId = lastCharByWorld[activeWorldId] || legacyLastCharId;
       const targetChar = (lastCharId && chars.find((c) => c.char_id === lastCharId)) || chars[0];
 
       if (!activeCharacterId || !chars.some((c) => c.char_id === activeCharacterId)) {
@@ -66,6 +75,7 @@ export const createEntitySlice: StateCreator<GameState, [], [], EntitySlice> = (
       if (typeof localStorage !== 'undefined') {
         localStorage.setItem('nova_last_char_id', charId);
       }
+      writeLastCharForWorld(get().activeWorldId || DEFAULT_WORLD_ID, charId);
       set({ isLoading: true, activeCharacterId: charId, isHeroSelectorOpen: false });
       const [charDetails] = await Promise.all([
         charactersApi.getCharacter(charId),
@@ -233,7 +243,7 @@ export const createEntitySlice: StateCreator<GameState, [], [], EntitySlice> = (
         activeCharacter: state.activeCharacterId === charId ? null : state.activeCharacter,
       }));
 
-      await get().loadCharacters();
+      await Promise.all([get().loadCharacters(), get().loadWorlds()]);
     } catch (err: any) {
       get().setSystemAlert(`Не вдалося видалити персонажа: ${err.message}`, 'error');
     } finally {

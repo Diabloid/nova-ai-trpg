@@ -14,6 +14,7 @@ export const CampaignList: React.FC<CampaignListProps> = ({
 }) => {
   const {
     campaigns,
+    activeCharacterId,
     activeCampaignId,
     selectCampaign,
     togglePinCampaign,
@@ -28,9 +29,14 @@ export const CampaignList: React.FC<CampaignListProps> = ({
         </span>
         <button
           type="button"
+          disabled={!activeCharacterId}
           onClick={onNewCampaign}
-          title="Створити нову кампанію за цього героя"
-          className="text-[11px] font-semibold text-[#9CA3AF] hover:text-[#E5E7EB] bg-[#1A1A1A] hover:bg-[#262626] border border-[#2D2D2D] px-2 py-0.5 rounded transition-colors flex items-center gap-1 cursor-pointer"
+          title={
+            activeCharacterId
+              ? 'Створити нову кампанію за цього героя'
+              : 'Спочатку створіть або оберіть героя'
+          }
+          className="text-[11px] font-semibold text-[#9CA3AF] bg-[#1A1A1A] border border-[#2D2D2D] px-2 py-0.5 rounded transition-colors flex items-center gap-1 enabled:hover:text-[#E5E7EB] enabled:hover:bg-[#262626] enabled:cursor-pointer disabled:opacity-40 disabled:cursor-default"
         >
           <Plus size={11} />
           <span>Нова кампанія</span>

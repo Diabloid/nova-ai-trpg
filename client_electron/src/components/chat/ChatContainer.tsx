@@ -1,7 +1,9 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { RefreshCw, Swords, WifiOff, Loader2, ArrowDown } from 'lucide-react';
+import { RefreshCw, Swords, WifiOff, Loader2, ArrowDown, Sparkles, MapPin } from 'lucide-react';
 import { useGameStore } from '../../store/useGameStore';
 import { useWizardStore } from '../../store/useWizardStore';
+import { hexToRgba } from '../../utils/lucideIconMap';
+import { DynamicLucideIcon } from '../dynamic-sheet';
 import { ChatBubble } from './ChatBubble';
 import { RollbackGhost } from './RollbackGhost';
 import { Button } from '../ui/Button';
@@ -18,7 +20,10 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ onNewCampaign }) =
     isRollingBack,
     backendOffline,
     activeCampaignId,
+    activeWorldId,
+    activeWorldDetail,
     characters,
+    loadWorlds,
     loadCharacters,
   } = useGameStore();
   const openWizard = useWizardStore((s) => s.openWizard);
@@ -87,7 +92,7 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ onNewCampaign }) =
 
   const handleStartAdventure = () => {
     if (characters.length === 0) {
-      openWizard();
+      openWizard(activeWorldId);
     } else {
       onNewCampaign?.();
     }
@@ -113,7 +118,10 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ onNewCampaign }) =
               size="sm"
               isLoading={isLoading}
               onClick={() => {
-                loadCharacters().catch(() => {});
+                void (async () => {
+                  await loadWorlds();
+                  await loadCharacters();
+                })().catch(() => {});
               }}
             >
               <RefreshCw size={13} />
@@ -138,7 +146,93 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ onNewCampaign }) =
       );
     }
 
-    // 3. Немає героя або не обрана жодна кампанія
+    // 3A. Світ без героїв: показуємо візитівку обраного світу
+    if (characters.length === 0 && activeWorldDetail) {
+      const worldColor = activeWorldDetail.accent_color || '#7E0018';
+      const worldLocations = Array.isArray(activeWorldDetail.starting_locations)
+        ? activeWorldDetail.starting_locations.filter((loc) => typeof loc === 'string' && loc.trim())
+        : [];
+
+      return (
+        <div className="flex flex-col items-center justify-center py-10 px-4 max-w-xl mx-auto">
+          <div
+            className="w-full rounded-2xl bg-[#161616]/90 border p-6 flex flex-col items-center text-center shadow-2xl"
+            style={{ borderColor: hexToRgba(worldColor, 0.38) }}
+          >
+            <div
+              className="w-14 h-14 rounded-2xl border flex items-center justify-center mb-3.5 shrink-0 shadow-inner"
+              style={{
+                backgroundColor: hexToRgba(worldColor, 0.16),
+                borderColor: hexToRgba(worldColor, 0.48),
+              }}
+            >
+              <DynamicLucideIcon
+                icon={activeWorldDetail.icon || 'globe'}
+                size={26}
+                style={{ color: worldColor }}
+              />
+            </div>
+
+            {activeWorldDetail.genre && (
+              <span
+                className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold border mb-2"
+                style={{
+                  backgroundColor: hexToRgba(worldColor, 0.12),
+                  borderColor: hexToRgba(worldColor, 0.35),
+                  color: '#F3F4F6',
+                }}
+              >
+                {activeWorldDetail.genre}
+              </span>
+            )}
+
+            <h2 className="text-lg font-bold text-[#F9FAFB] break-words">
+              {activeWorldDetail.title}
+            </h2>
+
+            {activeWorldDetail.description && (
+              <p className="text-xs text-[#9CA3AF] mt-2 leading-relaxed break-words max-w-md">
+                {activeWorldDetail.description}
+              </p>
+            )}
+
+            {worldLocations.length > 0 && (
+              <div className="mt-4 w-full pt-3.5 border-t border-[#262626] flex flex-col items-center gap-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#6B7280]">
+                  Стартові локації світу
+                </span>
+                <div className="flex flex-wrap items-center justify-center gap-1.5">
+                  {worldLocations.map((loc, idx) => (
+                    <span
+                      key={`${loc}-${idx}`}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-[#111111] border border-[#2A2A2A] text-[11px] text-[#D1D5DB] break-words"
+                    >
+                      <MapPin size={11} style={{ color: worldColor }} className="shrink-0" />
+                      <span>{loc}</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="mt-5">
+              <Button
+                variant="primary"
+                size="md"
+                onClick={() => {
+                  openWizard(activeWorldId);
+                }}
+              >
+                <Sparkles size={14} />
+                <span>Створити першого героя для цього світу</span>
+              </Button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // 3B. Немає героя або не обрана жодна кампанія
     if (!activeCampaignId || characters.length === 0) {
       return (
         <div className="flex flex-col items-center justify-center text-center py-16 px-6 max-w-md mx-auto">
@@ -150,13 +244,17 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ onNewCampaign }) =
           </span>
           <span className="text-xs text-[#6B7280] mt-1.5 leading-relaxed">
             {characters.length === 0
-              ? 'У вас ще немає жодного персонажа. Створіть героя, щоб розпочати свою історію.'
+              ? 'У цьому світі ще немає жодного персонажа. Створіть героя, щоб розпочати свою історію.'
               : 'Оберіть існуючу кампанію в боковому меню або створіть нову пригоду для цього героя.'}
           </span>
           <div className="mt-4">
             <Button variant="primary" size="sm" onClick={handleStartAdventure}>
               <Swords size={13} />
-              <span>Розпочати нову кампанію</span>
+              <span>
+                {characters.length === 0
+                  ? 'Створити першого героя'
+                  : 'Розпочати нову кампанію'}
+              </span>
             </Button>
           </div>
         </div>

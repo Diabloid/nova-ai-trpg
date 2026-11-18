@@ -225,29 +225,26 @@ export const useWizardStore = create<WizardState>((set, get) => ({
   },
 
   // --- ВІДКРИТТЯ / ЗАКРИТТЯ / ОБРИВ ---
-  openWizard: async (initialWorldId?: string) => {
+  openWizard: async (preferredWorldId?: string) => {
     if (wizardAbortController) {
       wizardAbortController.abort();
       wizardAbortController = null;
     }
 
-    const gameState = useGameStore.getState();
-    const preferredWorldId =
-      typeof initialWorldId === 'string' && initialWorldId.trim()
-        ? initialWorldId.trim()
-        : gameState.activeCampaign?.world_id ||
-          gameState.activeCharacter?.meta?.world_id ||
-          DEFAULT_WORLD_ID;
+    const targetWorldId =
+      (typeof preferredWorldId === 'string' && preferredWorldId.trim()) ||
+      useGameStore.getState().activeWorldId ||
+      DEFAULT_WORLD_ID;
 
     const requestToken = ++worldFetchToken;
-    const initialFallback = buildInitialRawState(DEFAULT_FALLBACK_TEMPLATE, preferredWorldId);
+    const initialFallback = buildInitialRawState(DEFAULT_FALLBACK_TEMPLATE, targetWorldId);
 
     // Закриваємо бічне меню та шторку гри для максимальної концентрації
     useGameStore.setState({ isSidebarOpen: false, isCharacterDrawerOpen: false });
 
     set({
       isWizardOpen: true,
-      selectedWorldId: preferredWorldId,
+      selectedWorldId: targetWorldId,
       selectedPresetId: null,
       templateOverride: null,
       activeWorldDetail: null,
@@ -266,7 +263,7 @@ export const useWizardStore = create<WizardState>((set, get) => ({
       const [worldsRes, presetsRes, worldDetailRes] = await Promise.allSettled([
         worldsApi.getWorlds(),
         worldsApi.getTemplatePresets(),
-        worldsApi.getWorld(preferredWorldId),
+        worldsApi.getWorld(targetWorldId),
       ]);
 
       if (requestToken !== worldFetchToken) return;
@@ -282,7 +279,7 @@ export const useWizardStore = create<WizardState>((set, get) => ({
 
       let resolvedWorldDetail =
         worldDetailRes.status === 'fulfilled' ? worldDetailRes.value : null;
-      let resolvedWorldId = preferredWorldId;
+      let resolvedWorldId = targetWorldId;
 
       if (!resolvedWorldDetail && availableWorlds.length > 0) {
         const fallbackWorld =
@@ -672,7 +669,11 @@ export const useWizardStore = create<WizardState>((set, get) => ({
 
       // Міст (Bridge) з основним сховищем гри useGameStore
       const gameStore = useGameStore.getState();
-      await gameStore.loadCharacters();
+      if (selectedWorldId && selectedWorldId !== gameStore.activeWorldId) {
+        await gameStore.selectWorld(selectedWorldId);
+      } else {
+        await Promise.all([gameStore.loadWorlds(), gameStore.loadCharacters()]);
+      }
 
       const fallbackAnchors = extractHeaderAnchors(wizardRawState);
       const serverAnchors = extractHeaderAnchors(playerState);

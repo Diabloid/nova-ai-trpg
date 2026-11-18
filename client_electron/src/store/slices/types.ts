@@ -2,6 +2,8 @@ import type {
   CharacterSummary,
   CampaignSummary,
   PlayerState,
+  WorldDetailResponse,
+  WorldSummary,
 } from '../../types/api';
 import type { ChatMessage, SystemAlert, DrawerTab } from '../../types/game';
 import type { SyntaxSelectionRange } from '../../utils/novaSyntax';
@@ -82,4 +84,16 @@ export interface GameplaySlice {
   setSuppressedSpans: (spans: SyntaxSelectionRange[]) => void;
 }
 
-export type GameState = UiSlice & EntitySlice & GameplaySlice;
+export interface WorldSlice {
+  worlds: WorldSummary[];
+  activeWorldId: string;
+  activeWorldDetail: WorldDetailResponse | null;
+  isWorldSelectorOpen: boolean;
+
+  toggleWorldSelector: () => void;
+  setWorldSelectorOpen: (open: boolean) => void;
+  loadWorlds: () => Promise<void>;
+  selectWorld: (worldId: string) => Promise<void>;
+}
+
+export type GameState = UiSlice & EntitySlice & GameplaySlice & WorldSlice;

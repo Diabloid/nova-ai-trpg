@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { WifiOff, Heart, ChevronDown } from 'lucide-react';
+import { WifiOff, Heart, ChevronDown, Sparkles } from 'lucide-react';
 import { useGameStore } from '../../store/useGameStore';
 import { extractHeaderAnchors } from '../../utils/dynamicSheetParser';
 import { hexToRgba } from '../../utils/lucideIconMap';
@@ -8,8 +8,12 @@ import { HeroAvatar } from '../ui/HeroAvatar';
 
 export const HeaderStatusBar: React.FC = () => {
   const {
+    characters,
     activeCharacter,
     activeCampaign,
+    activeWorldId,
+    activeWorldDetail,
+    worlds,
     playerState,
     backendOffline,
     isSidebarOpen,
@@ -29,24 +33,32 @@ export const HeaderStatusBar: React.FC = () => {
   const overallState = anchors.overallState;
   const avatar = anchors.avatar;
 
+  const isWorldEmpty = !backendOffline && characters.length === 0;
+  const activeWorld =
+    activeWorldDetail || worlds.find((w) => w.world_id === activeWorldId) || null;
+  const worldColor = activeWorld?.accent_color || '#7E0018';
+  const isBarDisabled = backendOffline || isWorldEmpty;
+
   return (
     <div className="w-full select-none">
       {/* Клікабельна плашка персонажа (відкриває/закриває детальну шторку) */}
       <button
         type="button"
-        disabled={backendOffline}
+        disabled={isBarDisabled}
         onClick={toggleCharacterDrawer}
         title={
           backendOffline
             ? 'Очікування підключення до сервера гри'
-            : isCharacterDrawerOpen
-              ? 'Згорнути детальну шторку'
-              : 'Розгорнути детальну шторку листа персонажа'
+            : isWorldEmpty
+              ? `Світ «${activeWorld?.title || activeWorldId}» очікує на першого героя`
+              : isCharacterDrawerOpen
+                ? 'Згорнути детальну шторку'
+                : 'Розгорнути детальну шторку листа персонажа'
         }
         className={`w-full bg-[#1A1A1A] border border-[#2A2A2A] rounded-[10px] px-5 py-2.5 transition-all duration-180 flex items-center justify-between gap-3 shadow-md group ${
-          backendOffline
-            ? 'opacity-80 cursor-default'
-            : 'hover:bg-[#1E1E1E] active:bg-[#161616] hover:border-[#4A1218] active:border-[#5A0010] active:translate-y-[2px] active:scale-[0.985] cursor-pointer'
+          isBarDisabled
+            ? 'opacity-90 disabled:cursor-default'
+            : 'enabled:hover:bg-[#1E1E1E] enabled:active:bg-[#161616] enabled:hover:border-[#4A1218] enabled:active:border-[#5A0010] enabled:active:translate-y-[2px] enabled:active:scale-[0.985] enabled:cursor-pointer'
         }`}
       >
         {backendOffline ? (
@@ -56,6 +68,40 @@ export const HeaderStatusBar: React.FC = () => {
               Очікування підключення...
             </span>
           </div>
+        ) : isWorldEmpty ? (
+          <>
+            <div className="flex items-center gap-3 min-w-[130px] flex-1">
+              <div
+                className="w-7 h-7 rounded-lg border flex items-center justify-center shrink-0"
+                style={{
+                  backgroundColor: hexToRgba(worldColor, 0.14),
+                  borderColor: hexToRgba(worldColor, 0.42),
+                }}
+              >
+                <DynamicLucideIcon
+                  icon={activeWorld?.icon || 'globe'}
+                  size={15}
+                  style={{ color: worldColor }}
+                />
+              </div>
+
+              <div className="flex flex-col text-left min-w-0">
+                <span className="text-[15px] font-bold text-[#F3F4F6] truncate leading-tight">
+                  {activeWorld?.title || 'Обраний світ'}
+                </span>
+                <span className="text-[12px] text-[#9CA3AF] truncate leading-tight mt-0.5">
+                  {activeWorld?.genre
+                    ? `${activeWorld.genre} • Очікує першого героя`
+                    : 'Світ порожній — створіть першого героя'}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#1F1F1F] border border-[#2E2E2E] text-[12px] font-medium text-[#D1D5DB] shrink-0">
+              <Sparkles size={13} style={{ color: worldColor }} className="shrink-0" />
+              <span>Готовий до пригод</span>
+            </div>
+          </>
         ) : (
           <>
             {/* Ліва частина: Аватар + Ім'я + бейдж активної кампанії + Локація */}

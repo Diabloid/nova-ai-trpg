@@ -233,3 +233,128 @@ export interface TemplatePreset {
   icon: string;
   template: Record<string, any>;
 }
+
+export interface WorldCreateRequest {
+  world_id?: string;
+  title: string;
+  genre?: string;
+  description?: string;
+  author?: string;
+  icon?: string;
+  accent_color?: string;
+  starting_locations?: string[];
+  ai_prompts?: WorldAiPrompts;
+  character_template?: Record<string, any>;
+}
+
+export interface WorldUpdateRequest {
+  title?: string;
+  genre?: string;
+  description?: string;
+  author?: string;
+  icon?: string;
+  accent_color?: string;
+  starting_locations?: string[];
+  ai_prompts?: WorldAiPrompts;
+  character_template?: Record<string, any>;
+}
+
+export interface WorldCloneRequest {
+  new_title: string;
+  new_world_id?: string;
+  include_lore?: boolean;
+}
+
+export interface WorldDeleteConflict {
+  detail: string;
+  world_id: string;
+  dependent_characters: number;
+  dependent_campaigns: number;
+}
+
+export interface LoreArticleResponse {
+  world_id: string;
+  filename: string;
+  title: string;
+  content: string;
+  size_bytes: number;
+  est_tokens: number;
+}
+
+export interface WorldPassportDraft {
+  title: string;
+  genre: string;
+  description: string;
+  icon: string;
+  accent_color: string;
+  starting_locations: string[];
+}
+
+export interface WorldWizardStepRequest {
+  mode: 'dialog' | 'one_shot' | string;
+  message: string;
+  history?: CharacterDialogHistoryItem[];
+  current_passport?: WorldPassportDraft | null;
+}
+
+export interface WorldPassportDraftResponse {
+  reply: string;
+  passport_draft: WorldPassportDraft;
+}
+
+export interface WorldPromptsGenRequest {
+  passport: WorldPassportDraft;
+  tone_chips?: string[];
+  custom_instruction?: string;
+  current_prompts?: WorldAiPrompts | null;
+}
+
+export interface WorldLoreDraftItem {
+  filename: string;
+  title: string;
+  content: string;
+}
+
+export interface WorldLoreGenRequest {
+  mode: 'plan_topics' | 'generate_article' | 'expand_article' | string;
+  passport: WorldPassportDraft;
+  ai_prompts?: WorldAiPrompts | null;
+  topic?: string;
+  filename?: string;
+  existing_content?: string;
+  instruction?: string;
+  existing_titles?: string[];
+}
+
+export interface WorldLoreTopicItem {
+  filename: string;
+  title: string;
+  brief: string;
+}
+
+export interface WorldLoreGenResponse {
+  topics?: WorldLoreTopicItem[];
+  article?: WorldLoreDraftItem | null;
+}
+
+export interface WorldTemplateGenRequest {
+  passport: WorldPassportDraft;
+  ai_prompts?: WorldAiPrompts | null;
+  lore_digest?: string;
+  custom_instruction?: string;
+  current_template?: Record<string, any> | null;
+}
+
+export interface CharacterTemplateDraftResponse {
+  character_template: Record<string, any>;
+  demo_state: Record<string, any>;
+  summary_note?: string;
+}
+
+export interface WorldFinalizeRequest {
+  world_id?: string;
+  passport: WorldPassportDraft;
+  ai_prompts: WorldAiPrompts;
+  character_template: Record<string, any>;
+  lore_articles: WorldLoreDraftItem[];
+}
