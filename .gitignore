@@ -227,3 +227,10 @@ GEMINI.md
 Backend_Python/data/worlds/*
 !Backend_Python/data/worlds/default_dark_fantasy/
 !Backend_Python/data/worlds/default_dark_fantasy/**
+
+# Local characters and campaign saves are ignored (empty folders and system template kept)
+Backend_Python/data/characters/*
+!Backend_Python/data/characters/.gitkeep
+!Backend_Python/data/characters/_template.json
+Backend_Python/data/saves/*
+!Backend_Python/data/saves/.gitkeep
