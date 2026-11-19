@@ -1,8 +1,9 @@
 import copy
 import json
 import os
+import re
 import sys
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Union
 
 # Безпечне кодування консолі для Windows
 if sys.stdout and hasattr(sys.stdout, "reconfigure"):
@@ -23,6 +24,32 @@ from core.world_manager import DEFAULT_WORLD_ID, WorldManager
 from schemas.game_dto import PlayerState
 
 FANTASY_ONLY_KEYS = {"anatomy_and_health", "storage_and_equipment", "abilities", "custom_blocks"}
+
+# Системні плейсхолдери з порожнього шаблону, які не вважаються ручною правкою без explicit lock
+DEFAULT_PLACEHOLDER_STRINGS = {
+    "невідомий мандрівник",
+    "мандрівник",
+    "невідомий ліс",
+    "стартова локація",
+    "повний сил",
+    "невідомо",
+    "не вказано",
+}
+
+_CHANGE_COMMAND_RE = re.compile(
+    r"\b(змін\w*|поміня\w*|переймену\w*|виправ\w*|онов\w*|замін\w*|перепиш\w*|назв\w*|хай\s+зват\w*|нехай\s+зват\w*|нове\s+ім['’]?я|нова\s+локаці\w*)\b",
+    re.IGNORECASE,
+)
+
+_FIELD_COMMAND_MARKERS: Dict[str, Tuple[str, ...]] = {
+    "meta.name": ("ім'я", "ім’я", "імені", "іменем", "звати", "переймену", "назв"),
+    "meta.location": ("локац", "місцезнаходж", "місто", "місц"),
+    "meta.appearance": ("зовнішн", "вигляд"),
+    "meta.biography": ("біограф", "передісторі", "історі"),
+    "meta.background": ("передісторі", "походження"),
+    "meta.age": ("вік", "років"),
+    "meta.titles": ("титул", "прізвиськ"),
+}
 
 
 class CharacterWizardService:
@@ -109,36 +136,201 @@ class CharacterWizardService:
             return copy.deepcopy(state)
         return None
 
+    @staticmethod
+    def _is_meaningful_manual_value(value: Any) -> bool:
+        if value is None:
+            return False
+        if isinstance(value, str):
+            stripped = value.strip()
+            return bool(stripped) and stripped.lower() not in DEFAULT_PLACEHOLDER_STRINGS
+        if isinstance(value, (list, dict)):
+            return len(value) > 0
+        return True
+
+    @staticmethod
+    def _detect_explicit_override_paths(last_user_message: Optional[str]) -> Set[str]:
+        """Визначає поля, які користувач прямо попросив змінити в останній репліці."""
+        if not last_user_message or not isinstance(last_user_message, str):
+            return set()
+        text = last_user_message.strip().lower()
+        if not text or not _CHANGE_COMMAND_RE.search(text):
+            return set()
+        overrides: Set[str] = set()
+        for path, markers in _FIELD_COMMAND_MARKERS.items():
+            if any(marker in text for marker in markers):
+                overrides.add(path.lower())
+        return overrides
+
+    @staticmethod
+    def _merge_lists_preserve_explicit(ai_list: List[Any], exp_list: List[Any]) -> List[Any]:
+        """Зберігає ручні елементи списку та додає лише нові унікальні елементи від LLM."""
+        if not exp_list:
+            return copy.deepcopy(ai_list)
+        if not ai_list:
+            return copy.deepcopy(exp_list)
+
+        result = copy.deepcopy(exp_list)
+        if all(isinstance(x, dict) for x in exp_list):
+            existing_names = {
+                str(x.get("name") or x.get("title") or "").strip().lower()
+                for x in exp_list
+                if isinstance(x, dict) and (x.get("name") or x.get("title"))
+            }
+            for item in ai_list:
+                if isinstance(item, dict):
+                    item_name = str(item.get("name") or item.get("title") or "").strip().lower()
+                    if item_name and item_name not in existing_names:
+                        result.append(copy.deepcopy(item))
+                        existing_names.add(item_name)
+            return result
+
+        if all(isinstance(x, str) for x in exp_list):
+            existing_tags = {x.strip().lower() for x in exp_list}
+            for item in ai_list:
+                if isinstance(item, str) and item.strip() and item.strip().lower() not in existing_tags:
+                    result.append(item)
+                    existing_tags.add(item.strip().lower())
+            return result
+
+        return result
+
+    @classmethod
+    def _collect_explicit_path_map(
+        cls,
+        explicit_draft: Optional[Dict[str, Any]],
+        _prefix: str = "",
+    ) -> Dict[str, str]:
+        """Збирає {lower_dot_path: dot_path} для всіх заповнених полів і секцій чернетки."""
+        if not isinstance(explicit_draft, dict):
+            return {}
+        path_map: Dict[str, str] = {}
+        for key, val in explicit_draft.items():
+            if key in ("_schema_meta", "_unlocked_fields", "created_at", "updated_at"):
+                continue
+            dot_path = f"{_prefix}.{key}" if _prefix else str(key)
+            if isinstance(val, dict):
+                if val:
+                    path_map[dot_path.lower()] = dot_path
+                    path_map.update(cls._collect_explicit_path_map(val, _prefix=dot_path))
+            elif val not in (None, "") and val != []:
+                path_map[dot_path.lower()] = dot_path
+        return path_map
+
+    def _resolve_unlocked_fields(
+        self,
+        raw_ai_unlocks: Any,
+        explicit_draft: Optional[Dict[str, Any]],
+        locked_fields: Optional[Iterable[str]],
+        last_user_message: Optional[str],
+    ) -> List[str]:
+        """
+        Валідує AI-розблоковані шляхи ("_unlocked_fields") і об'єднує з fallback-регуляркою.
+        Приймається ЛИШЕ за наявності непорожнього last_user_message і обмежується
+        шляхами з locked_fields або явних заповнених полів explicit_draft.
+        """
+        if not (last_user_message and isinstance(last_user_message, str) and last_user_message.strip()):
+            return []
+
+        allowed_map = self._collect_explicit_path_map(explicit_draft)
+        for locked in (locked_fields or []):
+            cleaned = str(locked).strip()
+            if cleaned:
+                allowed_map[cleaned.lower()] = cleaned
+
+        if not allowed_map:
+            return []
+
+        candidates: List[str] = []
+        if isinstance(raw_ai_unlocks, list):
+            for item in raw_ai_unlocks:
+                s = str(item).strip()
+                if s:
+                    candidates.append(s.lower())
+
+        for regex_path in sorted(self._detect_explicit_override_paths(last_user_message)):
+            candidates.append(regex_path.lower())
+
+        resolved: List[str] = []
+        seen: Set[str] = set()
+        for cand_lower in candidates:
+            if cand_lower in allowed_map and cand_lower not in seen:
+                resolved.append(allowed_map[cand_lower])
+                seen.add(cand_lower)
+        return resolved
+
     def _deep_merge_preserve_explicit(
         self,
         ai_result: Dict[str, Any],
         explicit_draft: Dict[str, Any],
+        locked_fields: Optional[Iterable[str]] = None,
+        last_user_message: Optional[str] = None,
+        ai_unlocked_fields: Optional[Iterable[str]] = None,
+        _prefix: str = "",
+        _locked_set: Optional[Set[str]] = None,
+        _override_set: Optional[Set[str]] = None,
     ) -> Dict[str, Any]:
         """
-        Глибоко зливає явні непорожні правки гравця з draft_state поверх результату ШІ,
-        щоб жодна ручна правка в Live Preview не була втрачена.
+        Глибоко зливає явні непорожні правки гравця з draft_state поверх результату ШІ:
+        - будь-яке поле зі списку locked_fields (якщо воно непорожнє в explicit_draft)
+          та ручно заповнені скалярні/ключові поля ніколи не перетираються результатом LLM,
+          окрім прямої команди користувача в останньому повідомленні на зміну цього поля.
         """
+        if _locked_set is None:
+            _locked_set = {str(p).strip().lower() for p in (locked_fields or []) if str(p).strip()}
+        if _override_set is None:
+            if last_user_message and isinstance(last_user_message, str) and last_user_message.strip():
+                _override_set = self._detect_explicit_override_paths(last_user_message)
+                for p in (ai_unlocked_fields or []):
+                    cleaned = str(p).strip().lower()
+                    if cleaned:
+                        _override_set.add(cleaned)
+            else:
+                _override_set = set()
+
         merged = copy.deepcopy(ai_result)
         for key, exp_val in explicit_draft.items():
-            if key in ("_schema_meta", "created_at", "updated_at"):
+            if key in ("_schema_meta", "_unlocked_fields", "created_at", "updated_at"):
                 continue
 
+            current_path = f"{_prefix}.{key}".lower() if _prefix else str(key).lower()
+            is_locked = current_path in _locked_set
+            is_overridden = current_path in _override_set
+
             if key not in merged or merged[key] is None or merged[key] == "":
-                if exp_val is not None and exp_val != "":
+                if not is_overridden and exp_val is not None and exp_val != "":
                     merged[key] = copy.deepcopy(exp_val)
                 continue
 
             ai_val = merged[key]
             if isinstance(ai_val, dict) and isinstance(exp_val, dict):
-                merged[key] = self._deep_merge_preserve_explicit(ai_val, exp_val)
+                if is_overridden and not ai_val:
+                    continue
+                child_locked = set(_locked_set)
+                if is_locked and not is_overridden:
+                    for sub_k, sub_v in exp_val.items():
+                        if sub_v not in (None, ""):
+                            child_locked.add(f"{current_path}.{sub_k}".lower())
+                merged[key] = self._deep_merge_preserve_explicit(
+                    ai_val,
+                    exp_val,
+                    _prefix=current_path,
+                    _locked_set=child_locked,
+                    _override_set=_override_set,
+                )
             elif isinstance(ai_val, list) and isinstance(exp_val, list):
-                if len(exp_val) > 0 and len(ai_val) == 0:
+                if len(exp_val) > 0 and not is_overridden:
+                    if is_locked:
+                        merged[key] = copy.deepcopy(exp_val)
+                    elif len(ai_val) == 0:
+                        merged[key] = copy.deepcopy(exp_val)
+                    else:
+                        merged[key] = self._merge_lists_preserve_explicit(ai_val, exp_val)
+            else:
+                if is_overridden:
+                    continue
+                if is_locked and exp_val not in (None, ""):
                     merged[key] = copy.deepcopy(exp_val)
-            elif key in ("name", "first_name", "last_name", "titles", "age", "biography", "avatar", "world_id"):
-                if exp_val not in (None, "") and (
-                    ai_val in (None, "", "Невідомий мандрівник", "Мандрівник")
-                    or key in ("avatar", "world_id", "titles", "age")
-                ):
+                elif self._is_meaningful_manual_value(exp_val):
                     merged[key] = copy.deepcopy(exp_val)
         return merged
 
@@ -181,7 +373,8 @@ class CharacterWizardService:
         if isinstance(schema_meta, dict) and schema_meta:
             result["_schema_meta"] = copy.deepcopy(schema_meta)
 
-        # Прибираємо випадкові None у верхньому рівні
+        # Прибираємо службові чи випадкові None у верхньому рівні
+        result.pop("_unlocked_fields", None)
         for k in list(result.keys()):
             if result[k] is None:
                 result.pop(k, None)
@@ -197,16 +390,33 @@ class CharacterWizardService:
         message: str,
         history: List[Dict[str, str]],
         include_draft: bool = False,
+        draft_state: Optional[Union[Dict[str, Any], PlayerState]] = None,
+        locked_fields: Optional[List[str]] = None,
         world_id: Optional[str] = None,
         template_override: Optional[Dict[str, Any]] = None,
-    ) -> Tuple[str, Optional[Dict[str, Any]]]:
+    ) -> Tuple[str, Optional[Dict[str, Any]], Optional[List[str]]]:
         """
         Крок інтерактивного діалогу з Творцем Долі (v2.0.0).
         Якщо include_draft == False: генерує лише швидку репліку Творця Долі.
-        Якщо include_draft == True: додатково формує актуальну чернетку draft_state за шаблоном світу.
+        Якщо include_draft == True: формує актуальну чернетку draft_state за шаблоном світу,
+        зберігаючи ручні правки гравця та locked_fields і повертаючи unlocked_fields при явній команді.
         """
         target_world = world_id or DEFAULT_WORLD_ID
+        draft_dict = self._to_clean_dict(draft_state)
         full_system = self.prompt_service.build_creator_system_prompt(world_id=target_world)
+
+        if draft_dict:
+            clean_draft_json = self.prompt_service.sanitize_player_state_for_llm(draft_dict)
+            lock_note = (
+                f"\nЗаблоковані гравцем поля (заборонено змінювати без прямої команди): {', '.join(locked_fields)}"
+                if locked_fields
+                else ""
+            )
+            full_system += (
+                "\n\n[АКТУАЛЬНА ЧЕРНЕТКА З ПРЕВ'Ю ГРАВЦЯ — ОБОВ'ЯЗКОВО ВРАХОВУЙ]:\n"
+                f"{clean_draft_json}{lock_note}\n"
+                "Не вигадуй інше ім'я чи деталі всупереч уже вписаним у чернетці без прямої команди гравця."
+            )
 
         messages = [{"role": "system", "content": full_system}]
         for h in history:
@@ -222,23 +432,30 @@ class CharacterWizardService:
         )
         reply = raw_reply.strip()
 
-        draft_state: Optional[Dict[str, Any]] = None
+        next_draft: Optional[Dict[str, Any]] = None
+        unlocked_fields: Optional[List[str]] = None
         if include_draft:
             try:
                 updated_history = list(history) + [
                     {"role": "user", "content": message},
                     {"role": "assistant", "content": reply},
                 ]
-                draft_state = await self.finalize_character_concept(
+                next_draft, unlocked_list = await self.finalize_character_concept(
                     history=updated_history,
+                    draft_state=draft_dict,
+                    locked_fields=locked_fields,
                     world_id=target_world,
                     template_override=template_override,
+                    last_user_message=message,
+                    return_unlocked=True,
                 )
+                unlocked_fields = unlocked_list or None
             except Exception as e:
                 print(f"⚠️ [CharacterWizardService] Не вдалося згенерувати draft_state для Live Preview: {e}")
-                draft_state = None
+                next_draft = draft_dict if draft_dict else None
+                unlocked_fields = None
 
-        return reply, draft_state
+        return reply, next_draft, unlocked_fields
 
     async def finalize_character_concept(
         self,
@@ -247,7 +464,10 @@ class CharacterWizardService:
         draft_state: Optional[Union[Dict[str, Any], PlayerState]] = None,
         world_id: Optional[str] = None,
         template_override: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        locked_fields: Optional[List[str]] = None,
+        last_user_message: Optional[str] = None,
+        return_unlocked: bool = False,
+    ) -> Union[Dict[str, Any], Tuple[Dict[str, Any], List[str]]]:
         """Перетворює узгоджений діалог створення на динамічний лист персонажа строго за шаблоном світу."""
         draft_dict = self._to_clean_dict(draft_state)
         target_world = world_id or (
@@ -277,12 +497,28 @@ class CharacterWizardService:
         if sections_guide:
             context += f"\n\nОПИС СЕКЦІЙ ШАБЛОНУ:\n{sections_guide}"
 
-        if draft_dict:
-            clean_draft_json = self.prompt_service.sanitize_player_state_for_llm(draft_dict)
+        if draft_dict or locked_fields:
+            clean_draft_json = (
+                self.prompt_service.sanitize_player_state_for_llm(draft_dict)
+                if draft_dict
+                else "{}"
+            )
+            lock_info = (
+                f"\nЗаблоковані поля (СТРОГО не змінювати без прямої команди): {', '.join(locked_fields)}"
+                if locked_fields
+                else ""
+            )
+            last_msg_info = (
+                f"\nОСТАННЄ ПОВІДОМЛЕННЯ ГРАВЦЯ: {last_user_message.strip()}"
+                if last_user_message and last_user_message.strip()
+                else ""
+            )
             context += (
                 "\n\nАКТУАЛЬНИЙ ДРАФТ З РУЧНИМИ ПРАВКАМИ ПРЕВ'Ю:\n"
-                f"{clean_draft_json}\n\n"
-                "Збережи ВСІ явні правки гравця з актуального драфту та заповни лише порожні поля."
+                f"{clean_draft_json}{lock_info}{last_msg_info}\n\n"
+                "Збережи ВСІ явні правки гравця з актуального драфту (не перефразовуй і не змінюй їх) та заповни лише порожні поля. "
+                "ТІЛЬКИ якщо в останньому повідомленні гравець прямо попросив змінити/перейменувати/замінити чи прибрати конкретне заповнене/заблоковане поле — "
+                "запиши нове значення й поверни його dot-шлях у тимчасовому масиві \"_unlocked_fields\". Інакше НЕ додавай \"_unlocked_fields\"."
             )
 
         messages = [
@@ -299,22 +535,41 @@ class CharacterWizardService:
         )
 
         parsed = self._extract_json_dict(raw_json)
-        if draft_dict:
-            parsed = self._deep_merge_preserve_explicit(parsed, draft_dict)
+        # Обов'язково вирізаємо службовий ключ "_unlocked_fields" до мерджу та вирівнювання шаблону
+        raw_ai_unlocks = parsed.pop("_unlocked_fields", None)
+        unlocked_list = self._resolve_unlocked_fields(
+            raw_ai_unlocks=raw_ai_unlocks,
+            explicit_draft=draft_dict,
+            locked_fields=locked_fields,
+            last_user_message=last_user_message,
+        )
 
-        return self._align_to_template(
+        if draft_dict:
+            parsed = self._deep_merge_preserve_explicit(
+                parsed,
+                draft_dict,
+                locked_fields=locked_fields,
+                last_user_message=last_user_message,
+                ai_unlocked_fields=unlocked_list,
+            )
+
+        aligned = self._align_to_template(
             parsed,
             skeleton=skeleton,
             schema_meta=schema_meta,
             target_world=target_world,
             explicit_draft=draft_dict,
         )
+        if return_unlocked:
+            return aligned, unlocked_list
+        return aligned
 
     async def sync_character_draft(
         self,
         current_state: Union[Dict[str, Any], PlayerState],
         world_id: Optional[str] = None,
         template_override: Optional[Dict[str, Any]] = None,
+        locked_fields: Optional[List[str]] = None,
     ) -> Dict[str, Any]:
         """
         Аналізує ручні правки гравця та інтелектуально узгоджує взаємопов'язані секції
@@ -342,10 +597,11 @@ class CharacterWizardService:
         system_instruction = (
             "Ти — системний модуль балансування та синхронізації концепту персонажа для текстової RPG (v2.0.0).\n"
             "Гравець вручну відредагував окремі поля картки персонажа.\n"
-            "Твоє завдання — узгодити взаємопов'язані секції СТРОГО В МЕЖАХ КЛЮЧІВ ЦІЛЬОВОГО ШАБЛОНУ:\n"
-            "1. НЕ ВИДАЛЯЙ і не перезаписуй дані, які гравець ввів явно.\n"
-            "2. ЗАБОРОНЕНО додавати сторонні секції, яких немає в шаблоні (напр. не додавай `anatomy_and_health` чи `abilities` у Кіберпанк/Детектив).\n"
-            "3. Поверни ВИКЛЮЧНО валідний JSON-об'єкт анкети."
+            "Твоє завдання — доповнити ПОРОЖНІ або логічно залежні поля СТРОГО В МЕЖАХ КЛЮЧІВ ЦІЛЬОВОГО ШАБЛОНУ:\n"
+            "1. СУВОРА ЗАБОРОНА ПЕРЕФРАЗУВАННЯ: не переписуй, не скорочуй і не змінюй формулювання вже заповнених гравцем текстових або скалярних полів (ім'я, локація, зовнішність, біографія, наявні предмети/здібності) — залишай їх ДОСЛІВНО без змін.\n"
+            "2. ДОПОВНЮЙ ЛИШЕ ПРОГАЛИНИ: заповнюй або гармонізуй тільки порожні поля (\"\", [], null) чи похідні залежні поля без потреби переписувати існуючий текст.\n"
+            "3. ЗАБОРОНЕНО додавати сторонні секції, яких немає в шаблоні (напр. не додавай `anatomy_and_health` чи `abilities` у Кіберпанк/Детектив).\n"
+            "4. Поверни ВИКЛЮЧНО валідний JSON-об'єкт анкети."
         )
 
         clean_state_json = self.prompt_service.sanitize_player_state_for_llm(state_dict)
@@ -371,7 +627,11 @@ class CharacterWizardService:
                 response_format={"type": "json_object"},
             )
             parsed = self._extract_json_dict(raw_json)
-            merged = self._deep_merge_preserve_explicit(parsed, state_dict)
+            merged = self._deep_merge_preserve_explicit(
+                parsed,
+                state_dict,
+                locked_fields=locked_fields,
+            )
             return self._align_to_template(
                 merged,
                 skeleton=skeleton,

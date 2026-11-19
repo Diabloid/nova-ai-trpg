@@ -1,3 +1,4 @@
+import copy
 import os
 import sys
 import json
@@ -23,6 +24,7 @@ from core.slugify import slugify_ascii, ensure_unique_slug, sanitize_strict_asci
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SAVES_DIR = os.path.join(BASE_DIR, "data", "saves")
+MAX_TURN_SNAPSHOTS = 100
 
 
 class CampaignManager:
@@ -190,7 +192,8 @@ class CampaignManager:
                                 current_location=loc,
                                 is_pinned=meta.get("is_pinned", False),
                                 created_at=meta.get("created_at", ""),
-                                last_played=meta.get("last_played", "")
+                                last_played=meta.get("last_played", ""),
+                                rollback_depth=self.get_rollback_depth(meta.get("campaign_id", entry))
                             ))
                     except Exception as e:
                         print(f"⚠️ Помилка зчитування метаданих кампанії {entry}: {e}")
@@ -250,14 +253,12 @@ class CampaignManager:
         c_dir = self.get_campaign_dir(campaign_id)
         os.makedirs(c_dir, exist_ok=True)
 
-        # 3. Копіюємо стан персонажа у savegame.json та savegame.prev.json кампанії
+        # 3. Копіюємо стан персонажа у savegame.json та ініціалізуємо порожній стек turn_snapshots.json
         savegame_path = os.path.join(c_dir, "savegame.json")
-        savegame_prev_path = os.path.join(c_dir, "savegame.prev.json")
         state_dump = dict(char_state)
         with open(savegame_path, "w", encoding="utf-8") as f:
             json.dump(state_dump, f, ensure_ascii=False, indent=4)
-        with open(savegame_prev_path, "w", encoding="utf-8") as f:
-            json.dump(state_dump, f, ensure_ascii=False, indent=4)
+        self._save_turn_snapshots(c_dir, [])
 
         # 4. Авто-генерація вступного художнього посту Оповідача в тоні обраного світу
         raw_loc = char_meta.get("location")
@@ -269,7 +270,7 @@ class CampaignManager:
         char_name = char_meta.get("name") or clean_char_id
         intro_prompt = (
             f"Створи стартовий художній вступ (зав'язку нової пригоди) для початку гри у світі '{world_passport.get('title', world_id)}'. "
-            f"Персонаж: {char_name}. Передісторія: {char_meta.get('background') or 'Мандрівник'}. "
+            f"Персонаж: {char_name}. Біографія та походження: {char_meta.get('biography') or char_meta.get('background') or 'Мандрівник'}. "
             f"Стартова локація: {start_location}. "
             f"Зовнішність: {char_meta.get('appearance') or 'Непримітний вигляд'}. "
             f"Тон світу: {world_tone}. "
@@ -330,7 +331,8 @@ class CampaignManager:
             current_location=start_location,
             is_pinned=False,
             created_at=now_iso,
-            last_played=now_iso
+            last_played=now_iso,
+            rollback_depth=0
         )
 
     def pin_campaign(self, campaign_id: str, is_pinned: bool) -> CampaignSummary:
@@ -352,6 +354,7 @@ class CampaignManager:
         with open(meta_path, "w", encoding="utf-8") as f:
             json.dump(meta, f, ensure_ascii=False, indent=4)
 
+        meta["rollback_depth"] = self.get_rollback_depth(clean_id)
         return CampaignSummary.model_validate(meta)
 
     def delete_campaign(self, campaign_id: str) -> bool:
@@ -404,13 +407,103 @@ class CampaignManager:
         chat_log_service = self.get_chat_log(clean_id)
         return chat_log_service.get_history_messages()
 
-    def rollback_campaign_turn(self, campaign_id: str) -> Tuple[str, Dict[str, Any]]:
+    def _snapshots_path(self, c_dir: str) -> str:
+        return os.path.join(c_dir, "turn_snapshots.json")
+
+    def _load_turn_snapshots(self, c_dir: str) -> Optional[List[Dict[str, Any]]]:
+        """Повертає список знімків або None, якщо файл turn_snapshots.json ще не створений (legacy-сейв)."""
+        path = self._snapshots_path(c_dir)
+        if not os.path.exists(path):
+            return None
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            return data if isinstance(data, list) else []
+        except Exception as e:
+            print(f"[CampaignManager] Помилка читання turn_snapshots.json: {e}")
+            return []
+
+    def _save_turn_snapshots(self, c_dir: str, snapshots: List[Dict[str, Any]]) -> None:
+        """Зберігає стек знімків (обрізаючи до MAX_TURN_SNAPSHOTS) атомарно через тимчасовий файл."""
+        trimmed = snapshots[-MAX_TURN_SNAPSHOTS:] if len(snapshots) > MAX_TURN_SNAPSHOTS else snapshots
+        path = self._snapshots_path(c_dir)
+        tmp_path = path + ".tmp"
+        with open(tmp_path, "w", encoding="utf-8") as f:
+            json.dump(trimmed, f, ensure_ascii=False, indent=2)
+        os.replace(tmp_path, path)
+
+    def _count_player_turns_for_dir(self, c_dir: str, clean_id: str) -> int:
+        if clean_id in self._chat_log_cache:
+            return self._chat_log_cache[clean_id].count_player_turns()
+        chat_path = os.path.join(c_dir, "chat_log.json")
+        if not os.path.exists(chat_path):
+            return 0
+        try:
+            with open(chat_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            if isinstance(data, list):
+                return sum(1 for m in data if isinstance(m, dict) and m.get("role") == "player")
+        except Exception:
+            pass
+        return 0
+
+    def get_rollback_depth(self, campaign_id: str, chat_log_service: Optional[ChatLogService] = None) -> int:
+        """Повертає доступну кількість послідовних кроків відкату для кампанії."""
+        clean_id = self._sanitize_id(campaign_id)
+        c_dir = self.get_campaign_dir(clean_id)
+        if not os.path.exists(c_dir):
+            return 0
+
+        player_turns = (
+            chat_log_service.count_player_turns()
+            if chat_log_service is not None
+            else self._count_player_turns_for_dir(c_dir, clean_id)
+        )
+        if player_turns <= 0:
+            return 0
+
+        snapshots = self._load_turn_snapshots(c_dir)
+        if snapshots is not None:
+            return min(len(snapshots), player_turns)
+
+        # Legacy fallback: старі кампанії без turn_snapshots.json мають 1 крок через savegame.prev.json
+        if os.path.exists(os.path.join(c_dir, "savegame.prev.json")):
+            return 1
+        return 0
+
+    def push_turn_snapshot(
+        self,
+        campaign_id: str,
+        state_snapshot: Dict[str, Any],
+        history_snapshot: Dict[str, Any]
+    ) -> int:
+        """Додає pre-turn знімок (стан + історія) у LIFO-стек turn_snapshots.json після успішного ходу."""
+        clean_id = self._sanitize_id(campaign_id)
+        c_dir = self.get_campaign_dir(clean_id)
+        if not os.path.exists(c_dir):
+            return 0
+
+        snapshots = self._load_turn_snapshots(c_dir)
+        if snapshots is None:
+            snapshots = []
+
+        snapshots.append({
+            "state": copy.deepcopy(state_snapshot),
+            "history": copy.deepcopy(history_snapshot)
+        })
+        if len(snapshots) > MAX_TURN_SNAPSHOTS:
+            snapshots = snapshots[-MAX_TURN_SNAPSHOTS:]
+
+        self._save_turn_snapshots(c_dir, snapshots)
+        return len(snapshots)
+
+    def rollback_campaign_turn(self, campaign_id: str) -> Tuple[str, Dict[str, Any], int]:
         """
-        Виконує відкат останнього ходу кампанії (Undo, v1.4.0):
-        1. Видаляє останній пост Оповідача та дію гравця з chat_log.json;
-        2. Видаляє останній хід з history.json;
-        3. Відновлює стан героя з savegame.prev.json;
-        4. Повертає (previous_user_input, current_state_dict).
+        Виконує багатокроковий атомарний відкат ходу кампанії (LIFO через turn_snapshots.json):
+        1. Забороняє відкат вступного поста або порожнього стеку (HTTP 409 Conflict);
+        2. Відновлює chat_log.json (видаляючи лише останню пару player + narrator);
+        3. Відновлює history.json (включно з summary та recent_messages) і savegame.json зі знімка;
+        4. Повертає (previous_user_input, current_state_dict, remaining_depth).
         """
         clean_id = self._sanitize_id(campaign_id)
         c_dir = self.get_campaign_dir(clean_id)
@@ -422,19 +515,62 @@ class CampaignManager:
 
         state, hist, chat_log = self.get_campaign_session(clean_id)
 
-        # 1. Відкат у chat_log.json
-        prev_user_input = chat_log.rollback_last_turn() or ""
+        if chat_log.count_player_turns() <= 0:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Немає ходів гравця для відкату: вступне повідомлення не можна видалити."
+            )
 
-        # 2. Відкат у history.json
-        hist_input = hist.rollback_last_turn()
-        if not prev_user_input and hist_input:
-            prev_user_input = hist_input
+        snapshots = self._load_turn_snapshots(c_dir)
 
-        # 3. Відкат збереження
-        state.rollback_snapshot()
+        if snapshots is not None:
+            if len(snapshots) == 0:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Стек знімків порожній: попередні кроки для відкату відсутні."
+                )
 
-        # 4. Оновлюємо дату останнього оновлення та локацію
+            snapshot = snapshots.pop()
+            prev_user_input = chat_log.rollback_last_turn() or ""
+
+            hist_snap = snapshot.get("history")
+            if isinstance(hist_snap, dict):
+                hist.restore_snapshot(hist_snap)
+            else:
+                hist_input = hist.rollback_last_turn()
+                if not prev_user_input and hist_input:
+                    prev_user_input = hist_input
+
+            state_snap = snapshot.get("state")
+            if isinstance(state_snap, dict):
+                state.restore_state_dict(state_snap)
+
+            self._save_turn_snapshots(c_dir, snapshots)
+            remaining_depth = self.get_rollback_depth(clean_id, chat_log_service=chat_log)
+        else:
+            # Одноразовий legacy fallback через savegame.prev.json
+            prev_path = os.path.join(c_dir, "savegame.prev.json")
+            if not os.path.exists(prev_path):
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Немає доступних знімків для відкату."
+                )
+
+            prev_user_input = chat_log.rollback_last_turn() or ""
+            hist_input = hist.rollback_last_turn()
+            if not prev_user_input and hist_input:
+                prev_user_input = hist_input
+
+            state.rollback_snapshot()
+            self._save_turn_snapshots(c_dir, [])
+            try:
+                os.remove(prev_path)
+            except OSError:
+                pass
+            remaining_depth = 0
+
+        # Оновлюємо дату останнього оновлення та локацію
         new_loc = state.get_current_state().get("meta", {}).get("location")
         self.touch_campaign_played(clean_id, new_loc)
 
-        return prev_user_input, state.get_current_state()
+        return prev_user_input, state.get_current_state(), remaining_depth

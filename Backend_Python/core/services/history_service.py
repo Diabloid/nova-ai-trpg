@@ -1,3 +1,4 @@
+import copy
 import os
 import sys
 import json
@@ -76,6 +77,21 @@ class HistoryService:
             print("↩️ [HistoryService] Відкат транзакції: підготовлений хід відкинуто.")
             self._staged_turn = None
 
+    def capture_snapshot(self) -> Dict[str, Any]:
+        """Повертає повний знімок історії LLM (summary + recent_messages) до початку ходу."""
+        return {
+            "summary": self.summary,
+            "recent_messages": copy.deepcopy(self.recent_messages),
+        }
+
+    def restore_snapshot(self, snapshot: Dict[str, Any]) -> None:
+        """Відновлює summary та recent_messages зі знімка ходу та зберігає history.json."""
+        self.summary = str(snapshot.get("summary") or "")
+        recent = snapshot.get("recent_messages")
+        self.recent_messages = copy.deepcopy(recent) if isinstance(recent, list) else []
+        self._staged_turn = None
+        self.save()
+
     async def commit_staged_turn(self, llm_provider=None, prompt_service=None, chat_log_service=None):
         """
         Фіксує хід у робочій пам'яті LLM, синхронізує з ChatLogService (якщо передано)
@@ -87,10 +103,6 @@ class HistoryService:
         u_text = self._staged_turn["user"]
         a_text = self._staged_turn["assistant"]
 
-        # Синхронізація з повним нестислим логом чату для клієнта
-        if chat_log_service:
-            chat_log_service.add_turn(player_text=u_text, narrator_text=a_text)
-
         # Робочий ковзний буфер для генерацій LLM
         self.recent_messages.append({"role": "user", "content": u_text})
         self.recent_messages.append({"role": "assistant", "content": a_text})
@@ -101,6 +113,11 @@ class HistoryService:
             await self._compress_history_if_needed(llm_provider, prompt_service)
 
         self.save()
+
+        # Синхронізація з повним нестислим логом чату для клієнта після успішного коміту history.json
+        if chat_log_service:
+            chat_log_service.add_turn(player_text=u_text, narrator_text=a_text)
+
         print("💾 [HistoryService] Хід зафіксовано (Committed) у буфері LLM.")
 
     def rollback_last_turn(self) -> Optional[str]:
@@ -149,17 +166,20 @@ class HistoryService:
                 {"role": "user", "content": user_prompt}
             ]
 
-            new_summary = await llm_provider.execute_with_fallback(
-                "story",
-                messages,
-                temperature=0.3,
-                max_tokens=600
-            )
+            try:
+                new_summary = await llm_provider.execute_with_fallback(
+                    "story",
+                    messages,
+                    temperature=0.3,
+                    max_tokens=600
+                )
 
-            if "error" not in new_summary.lower():
-                self.summary = new_summary.strip()
-                # Зменшуємо recent_messages для оптимізації вікна токенів
-                self.recent_messages = self.recent_messages[COMPRESS_COUNT:]
-                print("✅ [HistoryService] Робочий контекст успішно стиснуто!")
-            else:
-                print("⚠️ [HistoryService] Помилка архіватора, компресію відкладено.")
+                if new_summary and "error" not in new_summary.lower():
+                    self.summary = new_summary.strip()
+                    # Зменшуємо recent_messages для оптимізації вікна токенів
+                    self.recent_messages = self.recent_messages[COMPRESS_COUNT:]
+                    print("✅ [HistoryService] Робочий контекст успішно стиснуто!")
+                else:
+                    print("⚠️ [HistoryService] Помилка архіватора, компресію відкладено.")
+            except Exception as e:
+                print(f"⚠️ [HistoryService] Виняток під час компресії історії, стиснення відкладено: {e}")

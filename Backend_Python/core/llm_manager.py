@@ -28,6 +28,7 @@ from core.services.state_analyzer_service import StateAnalyzerService
 from core.services.character_wizard_service import CharacterWizardService
 from core.services.voice_service import VoiceService
 from core.services.world_wizard_service import WorldWizardService
+from core.services.key_translator import KeyTranslatorService
 from core.character_manager import CharacterManager
 from core.campaign_manager import CampaignManager
 from core.world_manager import WorldManager
@@ -82,11 +83,17 @@ class LLMController:
 
         # 2. Сервіси ядра
         self.provider_service = LLMProviderService(self.config)
+        self.key_translator = KeyTranslatorService(provider_service=self.provider_service)
+        self.world_manager.template_validator.key_translator = self.key_translator
         self.prompt_service = PromptService(
             self.prompts_dir,
             world_manager=self.world_manager,
         )
-        self.analyzer_service = StateAnalyzerService(self.provider_service, self.prompt_service)
+        self.analyzer_service = StateAnalyzerService(
+            self.provider_service,
+            self.prompt_service,
+            key_translator=self.key_translator,
+        )
         self.character_wizard_service = CharacterWizardService(
             self.provider_service,
             self.prompt_service,
@@ -97,6 +104,7 @@ class LLMController:
             world_manager=self.world_manager,
             prompt_service=self.prompt_service,
             template_validator=self.world_manager.template_validator,
+            key_translator=self.key_translator,
         )
         self.voice_service = VoiceService()
 
@@ -226,14 +234,18 @@ class LLMController:
         message: str,
         history: List[Dict[str, str]],
         include_draft: bool = False,
+        draft_state: Optional[Union[Dict[str, Any], PlayerState]] = None,
+        locked_fields: Optional[List[str]] = None,
         world_id: Optional[str] = None,
         template_override: Optional[Dict[str, Any]] = None
-    ) -> Tuple[str, Optional[Union[Dict[str, Any], PlayerState]]]:
+    ) -> Tuple[str, Optional[Union[Dict[str, Any], PlayerState]], Optional[List[str]]]:
         """Крок інтерактивного діалогу зі створення героя через Творця Долі (v2.0.0)."""
         return await self.character_wizard_service.dialog_with_creator(
             message=message,
             history=history,
             include_draft=include_draft,
+            draft_state=draft_state,
+            locked_fields=locked_fields,
             world_id=world_id,
             template_override=template_override
         )
@@ -286,6 +298,10 @@ class LLMController:
 
     async def world_wizard_finalize(self, request: WorldFinalizeRequest) -> WorldDetailResponse:
         return await self.world_wizard_service.finalize_world(request)
+
+    async def translate_template_keys(self, keys: List[str]) -> Dict[str, str]:
+        """Разовий кешований переклад не-кириличних TRPG-ключів українською."""
+        return await self.key_translator.translate_keys(keys)
 
     # 🎙️ Voice-to-Text (Голосове розпізнавання дій)
     async def transcribe_audio(

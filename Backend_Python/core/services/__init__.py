@@ -8,6 +8,7 @@ from core.services.character_wizard_service import CharacterWizardService
 from core.services.voice_service import VoiceService
 from core.services.template_validator import TemplateValidator
 from core.services.world_wizard_service import WorldWizardService
+from core.services.key_translator import KeyTranslatorService
 
 __all__ = [
     "LLMProviderService",
@@ -20,4 +21,5 @@ __all__ = [
     "VoiceService",
     "TemplateValidator",
     "WorldWizardService",
+    "KeyTranslatorService",
 ]

@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional, Any, Literal
 
 
 class ItemChange(BaseModel):
@@ -30,12 +30,32 @@ class DynamicListChange(BaseModel):
     )
 
 
+class NewSectionSpec(BaseModel):
+    """Специфікація нової динамічної секції, що виникає під час гри (v2.0.0+)."""
+    path: str = Field(..., description="ASCII-slug шляху (напр. 'pets', 'companions', 'base_camp')")
+    title: str = Field(..., description="Українська назва секції (напр. 'Пітомці та фамільяри')")
+    icon: str = Field(default="sparkles", description="Ключ іконки lucide-react")
+    color: str = Field(default="#38BDF8", description="HEX-колір (#RRGGBB)")
+    archetype: Literal["card_list", "stat_grid", "tag_list", "container_map", "long_text"] = Field(
+        default="card_list",
+        description="Архетип рендеру нової секції"
+    )
+    placement: Literal["drawer_column", "details"] = Field(
+        default="details",
+        description="Розташування нової секції у UI"
+    )
+
+
 class StateDelta(BaseModel):
     new_overall_state: Optional[str] = Field(default=None, description="Нове загальне самопочуття, якщо воно змінилося")
     location_changed: Optional[str] = Field(default=None, description="Нова локація, якщо гравець перемістився")
     appearance_changed: Optional[str] = Field(default=None, description="Новий опис зовнішності, якщо вона змінилася")
     inventory_changes: List[ItemChange] = Field(default_factory=list)
     injury_changes: List[InjuryChange] = Field(default_factory=list)
+    new_sections: List[NewSectionSpec] = Field(
+        default_factory=list,
+        description="Кероване створення нових постійних секцій під час гри (v2.0.0+)"
+    )
     field_updates: Dict[str, Any] = Field(
         default_factory=dict,
         description="Точкові скалярні оновлення за dot-шляхом (v2.0.0)"

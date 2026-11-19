@@ -22,6 +22,10 @@ router = APIRouter(prefix="/api/v1", tags=["Геймплей"])
 async def process_action(request: ActionRequest) -> ActionResponse:
     session_id = request.session_id or "default"
     game_state = llm_controller.get_game_state(session_id)
+    history_service = llm_controller._get_history(session_id)
+    pre_turn_state = None
+    pre_turn_history = None
+    state_mutated = False
 
     try:
         raw_text = request.raw_text
@@ -61,11 +65,17 @@ async def process_action(request: ActionRequest) -> ActionResponse:
                 error_message="Аналізатор не зміг виділити валідні зміни стану. Відкат історії виконано."
             )
 
+        # Фіксуємо pre-turn знімок перед мутацією стану та історії
+        pre_turn_state = game_state.capture_snapshot_dict()
+        pre_turn_history = history_service.capture_snapshot()
+
         # 3. Послідовний крок 3: Мутація збереженого стану
         new_state = game_state.update_from_llm(state_json_str)
+        state_mutated = True
         
         # ТРАНЗАКЦІЙНІСТЬ (Крок B): Commit в історію та збереження
         await llm_controller.commit_staged_turn(session_id=session_id)
+        llm_controller.campaign_manager.push_turn_snapshot(session_id, pre_turn_state, pre_turn_history)
         
         # Оновлюємо локацію у метаданих кампанії
         new_location = new_state.get("meta", {}).get("location")
@@ -81,6 +91,11 @@ async def process_action(request: ActionRequest) -> ActionResponse:
     except Exception as e:
         logger.error(f"❌ Помилка пайплайну: {e}. Відкат ходу (Rollback)...", exc_info=True)
         llm_controller.rollback_staged_turn(session_id=session_id)
+        if state_mutated:
+            if pre_turn_state is not None:
+                game_state.restore_state_dict(pre_turn_state)
+            if pre_turn_history is not None:
+                history_service.restore_snapshot(pre_turn_history)
         return ActionResponse(
             status="error",
             story="Сталася внутрішня помилка сервера при обробці дії.",
@@ -106,6 +121,10 @@ async def process_action_stream(request: ActionRequest):
         story_accumulator: List[str] = []
         raw_text = request.raw_text
         intents = request.intents
+        history_service = llm_controller._get_history(session_id)
+        pre_turn_state = None
+        pre_turn_history = None
+        state_mutated = False
 
         try:
             current_state_dict = game_state.get_current_state()
@@ -149,9 +168,15 @@ async def process_action_stream(request: ActionRequest):
                 yield f"event: error\ndata: {err_payload}\n\n"
                 return
 
+            # Фіксуємо pre-turn знімок перед мутацією стану та історії
+            pre_turn_state = game_state.capture_snapshot_dict()
+            pre_turn_history = history_service.capture_snapshot()
+
             # 4. Мутація стану та Commit
             new_state = game_state.update_from_llm(state_json_str)
+            state_mutated = True
             await llm_controller.commit_staged_turn(session_id=session_id)
+            llm_controller.campaign_manager.push_turn_snapshot(session_id, pre_turn_state, pre_turn_history)
 
             new_location = new_state.get("meta", {}).get("location")
             llm_controller.campaign_manager.touch_campaign_played(session_id, new_location)
@@ -169,9 +194,15 @@ async def process_action_stream(request: ActionRequest):
         except Exception as e:
             logger.error(f"❌ Помилка під час SSE стрімінгу: {e}", exc_info=True)
             llm_controller.rollback_staged_turn(session_id=session_id)
+            if state_mutated:
+                if pre_turn_state is not None:
+                    game_state.restore_state_dict(pre_turn_state)
+                if pre_turn_history is not None:
+                    history_service.restore_snapshot(pre_turn_history)
             err_payload = json.dumps({
                 "status": "error",
-                "error_message": f"Stream Error: {str(e)}"
+                "error_message": f"Stream Error: {str(e)}",
+                "player_state": game_state.get_current_state()
             }, ensure_ascii=False)
             yield f"event: error\ndata: {err_payload}\n\n"
 

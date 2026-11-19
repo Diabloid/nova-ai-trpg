@@ -15,6 +15,7 @@ if sys.stdout and hasattr(sys.stdout, "reconfigure"):
 from core.services.llm_provider_service import LLMProviderService
 from core.services.prompt_service import PromptService
 from core.services.template_validator import TemplateValidator
+from core.services.key_translator import KeyTranslatorService
 from core.slugify import sanitize_icon_key, slugify_ascii
 from core.template_presets import get_template_presets
 from core.world_manager import WorldManager
@@ -55,11 +56,13 @@ class WorldWizardService:
         world_manager: WorldManager,
         prompt_service: PromptService,
         template_validator: Optional[TemplateValidator] = None,
+        key_translator: Optional[KeyTranslatorService] = None,
     ):
         self.provider_service = provider_service
         self.world_manager = world_manager
         self.prompt_service = prompt_service
         self.template_validator = template_validator or world_manager.template_validator
+        self.key_translator = key_translator or self.template_validator.key_translator
 
     # ------------------------------------------------------------------
     # Допоміжні утиліти парсингу та нормалізації
@@ -237,32 +240,64 @@ class WorldWizardService:
             )
 
     # ------------------------------------------------------------------
-    # Крок 2: Генерація 4 сеттингових правил ai_prompts
+    # Генерація 4 сеттингових правил ai_prompts (з контекстом лору й шаблону)
     # ------------------------------------------------------------------
+
+    @staticmethod
+    def _summarize_template_for_prompts(template: Optional[Dict[str, Any]]) -> str:
+        """Формує стислий опис секцій і реальних dot-шляхів анкети для Кроку генерації промптів."""
+        if not isinstance(template, dict) or not template:
+            return "Не надано (використай загальні рекомендації жанру)."
+
+        lines: List[str] = []
+        schema_meta = template.get("_schema_meta")
+        sections = schema_meta.get("sections") if isinstance(schema_meta, dict) else None
+        if isinstance(sections, dict) and sections:
+            lines.append("Секції _schema_meta:")
+            for sec_path, info in sections.items():
+                if not isinstance(info, dict):
+                    continue
+                arch = info.get("archetype", "?")
+                placement = info.get("placement", "?")
+                title = info.get("title", sec_path)
+                val_hint = ""
+                cur_val = template.get(sec_path) if "." not in sec_path else None
+                if isinstance(cur_val, dict) and cur_val:
+                    sub_keys = ", ".join(f"{sec_path}.{k}" for k in list(cur_val.keys())[:8])
+                    val_hint = f" | ключі: [{sub_keys}]"
+                lines.append(f"- {sec_path} («{title}», archetype={arch}, placement={placement}){val_hint}")
+        else:
+            top_keys = [k for k in template.keys() if k not in ("_schema_meta", "created_at", "updated_at")]
+            lines.append(f"Кореневі блоки анкети: {', '.join(top_keys)}")
+
+        return "\n".join(lines) if lines else "Не надано."
 
     async def generate_prompts(self, request: WorldPromptsGenRequest) -> WorldAiPrompts:
         """
-        Крок 2 AI-Майстра Світів:
         Генерує 4 чіткі українські блоки інструкцій (world_tone, narrator_rules, analyzer_rules, creator_rules)
-        на основі паспорта, tone_chips і побажань користувача.
+        на основі паспорта, tone_chips, дайджесту лору та реальної структури character_template.
         """
         passport = request.passport
         chips_str = ", ".join(request.tone_chips) if request.tone_chips else "Збалансований, атмосферний"
         current_str = request.current_prompts.model_dump_json(indent=2) if request.current_prompts else "Відсутні"
+        lore_ctx = (request.lore_digest or "").strip()[:5000] or "Не надано"
+        template_ctx = self._summarize_template_for_prompts(request.character_template)
 
         system_prompt = (
             "Ти — головний гейм-дизайнер правил рольового ШІ-рушія NOVA TRPG.\n"
             "Сформуй чіткі, практичні інструкції (Шар 2 промптів) українською мовою для конкретного світу:\n"
             "1. 'world_tone': концентрований опис атмосфери, стилю оповіді та емоційного тону світу (2-4 речення).\n"
-            "2. 'narrator_rules': правила для Майстра Гри (Оповідача) — фізика/магія/технології світу, лексика, типові загрози, стиль описів.\n"
-            "3. 'analyzer_rules': правила для Аналізатора Стану — які ресурси/показники змінюються при типових діях у цьому світі (HP, валюта, розсудок, радіація, тепло кібердеки тощо), строгий об'єктивізм.\n"
-            "4. 'creator_rules': правила для Творця Долі при створенні нового героя — доступні фракції, архетипи/професії, стартові ресурси та прикмети.\n\n"
+            "2. 'narrator_rules': правила для Майстра Гри (Оповідача) — фізика/магія/технології світу, лексика, канон із лору, типові загрози та стиль описів.\n"
+            "3. 'analyzer_rules': правила для Аналізатора Стану — які конкретні ресурси/показники й секції з наданої структури анкети (точні dot-шляхи для field_updates та секції для section_changes) змінюються при типових діях у цьому світі, строгий об'єктивізм.\n"
+            "4. 'creator_rules': правила для Творця Долі при створенні нового героя — доступні фракції, архетипи/професії, стартові ресурси та заповнення секцій наданої анкети.\n\n"
             "Поверни ВИКЛЮЧНО валідний JSON з цими 4 ключами: world_tone, narrator_rules, analyzer_rules, creator_rules."
         )
 
         user_prompt = (
             f"ПАСПОРТ СВІТУ:\n{passport.model_dump_json(indent=2)}\n\n"
             f"ОБРАНІ ТЕГИ ТОНУ: {chips_str}\n"
+            f"ДАЙДЖЕСТ ЛОРУ СВІТУ:\n{lore_ctx}\n\n"
+            f"СТРУКТУРА АНКЕТИ ПЕРСОНАЖА (ТОЧНІ ШЛЯХИ ПОЛІВ):\n{template_ctx}\n\n"
             f"ПОБАЖАННЯ АВТОРА: {request.custom_instruction or 'Без додаткових побажань'}\n"
             f"ПОТОЧНІ ПРОМПТИ (якщо потрібно уточнити/оновити):\n{current_str}"
         )
@@ -516,19 +551,27 @@ class WorldWizardService:
 
         system_prompt = (
             "Ти — архітектор динамічних рольових анкет системи NOVA TRPG (Schema v2).\n"
-            "Створи JSON-об'єкт відповіді із ключами: 'character_template' (порожній еталонний шаблон), "
+            "Створи JSON-об'єкт відповіді із ключами: 'character_template' (СТРОГО ПОРОЖНІЙ еталонний скелет), "
             "'demo_state' (реалістично заповнений приклад персонажа цього світу для прев'ю) та 'summary_note' (1–2 речення).\n\n"
             "ОБОВ'ЯЗКОВІ ВИМОГИ ДО 'character_template':\n"
-            "1. Обов'язковий блок 'meta': {'name': '', 'background': '', 'location': '...', 'overall_state': '...', 'appearance': '', 'biography': ''}.\n"
-            "2. Додай 3–6 тематичних секцій саме під цей сеттинг (НЕ копіюй сліпо фентезі-ключі, якщо це інший жанр).\n"
-            "3. Обов'язковий блок '_schema_meta' {'version': 2, 'sections': {...}}, де кожна секція має:\n"
+            "1. Обов'язковий блок 'meta': {'name': '', 'location': '...', 'overall_state': '...', 'appearance': '', 'biography': ''} "
+            "(ЗАБОРОНЕНО додавати 'background' — уся історія персонажа пишеться в 'meta.biography').\n"
+            "2. Додай 3–6 тематичних секцій саме під цей сеттинг (НЕ копіюй сліпо фентезі-ключі, якщо це інший жанр). "
+            "У `placement: 'drawer_column'` повинно бути 2–4 головні колонки.\n"
+            "3. Секцію здібностей/магії/вмінь створюй як `archetype: 'card_list'` (`[{'name': '...', 'desc': '...'}]`), а не сухий `tag_list`.\n"
+            "4. ЗАБОРОНЕНО:\n"
+            "   - додавати технічні ключі `id`, `uid`, `uuid` у картки, предмети чи елементи списків;\n"
+            "   - створювати дублюючі біографічні секції на кшталт `biography_notes` (уже є `meta.biography`);\n"
+            "   - використовувати англомовні технічні ключі у `stat_grid` / `header_badge` чи додаткових полях на кшталт `Style_Rank`, `Demonic_Corruption`, `quantity`, `weight` — усі видимі ключі пиши ОДРАЗУ українською (`Ранг стилю`, `Скверна`, `Кількість`, `Вага`, `Тип`, `Вартість`).\n"
+            "5. Обов'язковий блок '_schema_meta' {'version': 2, 'sections': {...}}, де кожна секція має:\n"
             "   - 'title': коротка українська назва;\n"
             f"   - 'icon': ВИКЛЮЧНО ключ іконки lucide-react зі списку: {CURATED_LUCIDE_ICONS} (Жодних емодзі!);\n"
             "   - 'color': HEX-колір (#RRGGBB);\n"
-            "   - 'archetype': суворо один із 5: 'card_list' | 'container_map' | 'stat_grid' | 'long_text' | 'tag_list';\n"
+            "   - 'archetype': суворо один із 5: 'card_list' (масив об'єктів), 'container_map' (словник контейнерів із масивами), 'stat_grid' (словник скалярних ключ-значень, не масив!), 'long_text' (рядок), 'tag_list' (масив простих рядків List[str], не об'єктів!);\n"
             "   - 'placement': суворо один із 3: 'drawer_column' | 'details' | 'header_badge';\n"
             "   - 'order': число (1, 2, 3...).\n"
-            "4. У 'demo_state' заповни ті ж самі ключі реалістичними прикладами (2–3 картки, 2–3 стати, 2–3 теги, предмети в контейнерах, ім'я та біографія героя).\n\n"
+            "6. У 'character_template' усі списки (`card_list`, `tag_list`, контейнери в `container_map`) та тексти (`long_text`, `meta.name`, `meta.appearance`, `meta.biography`) мають бути ПОРОЖНІМИ (`[]`, `\"\"`); стартові значення допустимі лише для `stat_grid` / `header_badge` і порожніх ключів контейнерів у `container_map`.\n"
+            "7. У 'demo_state' заповни ті ж самі ключі реалістичними прикладами (2–3 картки без `id`, 2–3 стати, 2–3 плоскі рядки-теги, предмети з українськими додатковими ключами за потреби, ім'я та біографія демо-героя).\n\n"
             "Поверни ВИКЛЮЧНО валідний JSON формату:\n"
             '{"character_template": {...}, "demo_state": {...}, "summary_note": "..."}'
         )
@@ -577,7 +620,9 @@ class WorldWizardService:
             validated_tpl,
             demo_state=raw_demo,
             world_passport=passport_dict,
+            fallback_examples=raw_tpl,
         )
+        await self.key_translator.populate_field_labels_async(validated_tpl, validated_demo)
 
         return CharacterTemplateDraftResponse(
             character_template=validated_tpl,

@@ -14,7 +14,13 @@ if sys.stdout and hasattr(sys.stdout, "reconfigure"):
     except Exception:
         pass
 
-from core.slugify import slugify_ascii, ensure_unique_slug, sanitize_icon_key, is_strict_ascii_id
+from core.slugify import (
+    slugify_ascii,
+    ensure_unique_slug,
+    sanitize_icon_key,
+    is_strict_ascii_id,
+    merge_legacy_background_into_biography,
+)
 
 if TYPE_CHECKING:
     from core.services.template_validator import TemplateValidator
@@ -353,6 +359,8 @@ class WorldManager:
                     meta["world_id"] = DEFAULT_WORLD_ID
                     changed = True
                     migrated_worlds += 1
+                if merge_legacy_background_into_biography(meta):
+                    changed = True
 
                 if needs_rename:
                     for key in ("char_id", "character_id"):
@@ -487,6 +495,8 @@ class WorldManager:
                         if not s_meta.get("world_id"):
                             s_meta["world_id"] = resolved_world_id
                             s_changed = True
+                        if merge_legacy_background_into_biography(s_meta):
+                            s_changed = True
                         if resolved_char_id:
                             for key in ("char_id", "character_id"):
                                 if key in s_meta and s_meta[key] != resolved_char_id:
@@ -535,7 +545,6 @@ class WorldManager:
                     "patronymic": "",
                     "titles": "",
                     "age": "",
-                    "background": "",
                     "location": "Невідомий ліс",
                     "appearance": "",
                     "appearance_details": {
@@ -555,6 +564,50 @@ class WorldManager:
             }
             self._write_json(template_json_path, tpl_data)
             print(f"🌍 [WorldManager] Створено character_template.json для '{DEFAULT_WORLD_ID}'")
+
+        # 1.4 Очищаємо й нормалізуємо шаблони локальних світів (прибираємо демо-предмети, id та background)
+        if os.path.exists(self.worlds_dir):
+            for entry in sorted(os.listdir(self.worlds_dir)):
+                w_dir = os.path.join(self.worlds_dir, entry)
+                w_tpl = os.path.join(w_dir, "character_template.json")
+                w_meta_path = os.path.join(w_dir, "world.json")
+                if os.path.isfile(w_tpl):
+                    try:
+                        tpl_json = self._read_json(w_tpl)
+                        if isinstance(tpl_json, dict):
+                            default_loc = "Стартова локація"
+                            if os.path.isfile(w_meta_path):
+                                try:
+                                    w_meta = self._read_json(w_meta_path)
+                                    locs = w_meta.get("starting_locations") or []
+                                    if locs:
+                                        default_loc = locs[0]
+                                except Exception:
+                                    pass
+                            if entry == DEFAULT_WORLD_ID:
+                                # Для еталонного світу прибираємо лише background без зміни авторської схеми
+                                if isinstance(tpl_json.get("meta"), dict) and merge_legacy_background_into_biography(tpl_json["meta"]):
+                                    self._write_json(w_tpl, tpl_json)
+                            else:
+                                normalized_tpl = self.template_validator.validate_and_normalize(
+                                    tpl_json,
+                                    world_id=entry,
+                                    default_location=default_loc,
+                                )
+                                if normalized_tpl != tpl_json:
+                                    self._write_json(w_tpl, normalized_tpl)
+                    except Exception as e:
+                        print(f"⚠️ [WorldManager] Помилка очищення шаблону світу {entry}: {e}")
+
+        legacy_sys_tpl = os.path.join(self.characters_dir, "_template.json")
+        if os.path.isfile(legacy_sys_tpl):
+            try:
+                sys_tpl = self._read_json(legacy_sys_tpl)
+                if isinstance(sys_tpl, dict) and isinstance(sys_tpl.get("meta"), dict):
+                    if merge_legacy_background_into_biography(sys_tpl["meta"]):
+                        self._write_json(legacy_sys_tpl, sys_tpl)
+            except Exception as e:
+                print(f"⚠️ [WorldManager] Помилка очищення _template.json: {e}")
 
         # 2. Міграція персонажів (data/characters/*.json)
         char_worlds, char_id_map = self._migrate_legacy_characters()

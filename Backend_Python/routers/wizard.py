@@ -7,7 +7,9 @@ from schemas.game_dto import (
     CharacterSyncRequest,
     CharacterFinalizeRequest,
     PlayerState,
-    TemplatePreset
+    TemplatePreset,
+    TranslateKeysRequest,
+    TranslateKeysResponse,
 )
 from dependencies import llm_controller, logger
 
@@ -24,6 +26,16 @@ async def list_template_presets():
     return get_template_presets()
 
 
+@templates_router.post(
+    "/translate-keys",
+    response_model=TranslateKeysResponse,
+    summary="Разовий кешований TRPG-переклад не-кириличних ключів анкети"
+)
+async def translate_template_keys(request: TranslateKeysRequest):
+    labels = await llm_controller.translate_template_keys(request.keys)
+    return TranslateKeysResponse(labels=labels)
+
+
 @router.post(
     "/dialog",
     response_model=CharacterDialogResponse,
@@ -31,10 +43,12 @@ async def list_template_presets():
     summary="Інтерактивний крок діалогу з Творцем Долі (з Live Preview)"
 )
 async def character_wizard_dialog(request: CharacterDialogRequest):
-    reply, draft_state = await llm_controller.dialog_with_creator(
+    reply, draft_state, unlocked_fields = await llm_controller.dialog_with_creator(
         message=request.message,
         history=request.history,
         include_draft=request.include_draft,
+        draft_state=request.draft_state,
+        locked_fields=request.locked_fields,
         world_id=request.world_id,
         template_override=request.template_override
     )
@@ -42,7 +56,11 @@ async def character_wizard_dialog(request: CharacterDialogRequest):
         draft_payload: Any = draft_state.model_dump(exclude_none=True)
     else:
         draft_payload = draft_state
-    return CharacterDialogResponse(reply=reply, draft_state=draft_payload)
+    return CharacterDialogResponse(
+        reply=reply,
+        draft_state=draft_payload,
+        unlocked_fields=unlocked_fields or None,
+    )
 
 
 @router.post(

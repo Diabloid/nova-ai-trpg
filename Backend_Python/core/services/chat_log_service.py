@@ -131,12 +131,19 @@ class ChatLogService:
         })
         self.save()
 
+    def count_player_turns(self) -> int:
+        """Рахує кількість завершених кроків гравця після вступного посту."""
+        return sum(1 for m in self.messages if m.get("role") == "player")
+
     def rollback_last_turn(self) -> Optional[str]:
         """
         Видаляє останній завершений хід (останнє повідомлення Оповідача та дію гравця)
-        із повного нестисненого журналу chat_log.json (Undo).
+        із повного нестисненого журналу chat_log.json (Undo), ніколи не видаляючи вступний пост.
         Повертає текст скасованої дії гравця для повернення в поле введення.
         """
+        if self.count_player_turns() <= 0:
+            return None
+
         last_player_text: Optional[str] = None
         # Стандартна послідовність: в кінці пара (player, narrator)
         if (
@@ -149,8 +156,11 @@ class ChatLogService:
             last_player_text = player_msg.get("text", "")
             self.save()
             print("↩️ [ChatLogService] Останній хід успішно видалено з chat_log.json.")
-        elif self.messages:
-            # Нестандартна ситуація (наприклад, одиночний хід без пари)
+        elif self.messages and self.messages[-1].get("role") == "player":
+            player_msg = self.messages.pop()
+            last_player_text = player_msg.get("text", "")
+            self.save()
+        elif len(self.messages) > 1:
             removed = self.messages.pop()
             if self.messages and self.messages[-1].get("role") == "player":
                 player_msg = self.messages.pop()

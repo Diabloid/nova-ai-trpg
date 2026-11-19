@@ -79,12 +79,13 @@ async def update_campaign_state(
     summary="Відкат останнього ходу кампанії на 1 крок назад (Undo)"
 )
 async def rollback_campaign_turn(campaign_id: str = Path(..., description="ID кампанії")):
-    prev_input, state_dict = llm_controller.campaign_manager.rollback_campaign_turn(campaign_id)
-    msg = "Хід успішно відкочено на 1 крок назад" if prev_input else "Немає ходів гравця для відкату"
+    prev_input, state_dict, remaining_depth = llm_controller.campaign_manager.rollback_campaign_turn(campaign_id)
     return RollbackResponse(
         previous_user_input=prev_input,
         current_state=state_dict,
-        message=msg
+        message="Хід успішно відкочено на 1 крок назад",
+        can_rollback=remaining_depth > 0,
+        rollback_depth=remaining_depth
     )
 
 

@@ -1,8 +1,9 @@
 import json
 import sys
-from typing import List, Any, Tuple
+from typing import List, Any, Optional, Tuple
 from core.services.llm_provider_service import LLMProviderService
 from core.services.prompt_service import PromptService
+from core.services.key_translator import KeyTranslatorService
 from core.state_parser import StateDelta
 
 # Безпечне кодування консолі для Windows
@@ -19,9 +20,15 @@ class StateAnalyzerService:
     Працює СТРОГО ПОСЛІДОВНО після завершення генерації Оповідачем.
     Використовує response_format={"type": "json_object"} та валідацію через StateDelta.
     """
-    def __init__(self, provider_service: LLMProviderService, prompt_service: PromptService):
+    def __init__(
+        self,
+        provider_service: LLMProviderService,
+        prompt_service: PromptService,
+        key_translator: Optional[KeyTranslatorService] = None,
+    ):
         self.provider_service = provider_service
         self.prompt_service = prompt_service
+        self.key_translator = key_translator or KeyTranslatorService(provider_service=provider_service)
 
     async def analyze_state_changes(
         self,
@@ -101,7 +108,22 @@ class StateAnalyzerService:
             json_str = cleaned[start:end+1]
             try:
                 # Перевіряємо валідацію через Pydantic StateDelta
-                StateDelta.model_validate_json(json_str)
+                delta = StateDelta.model_validate_json(json_str)
+                keys_to_translate: List[str] = []
+                for spec in delta.new_sections:
+                    if spec.title and not self.key_translator.has_cyrillic(spec.title):
+                        keys_to_translate.append(spec.title)
+                for dot_path in delta.field_updates.keys():
+                    leaf = dot_path.split(".")[-1].strip()
+                    if leaf and not self.key_translator.has_cyrillic(leaf):
+                        keys_to_translate.append(leaf)
+                for sc in delta.section_changes:
+                    if isinstance(sc.item_fields, dict):
+                        for k in sc.item_fields.keys():
+                            if k and not self.key_translator.has_cyrillic(str(k)):
+                                keys_to_translate.append(str(k))
+                if keys_to_translate:
+                    await self.key_translator.translate_keys(keys_to_translate)
                 return json_str, True
             except Exception as e_val:
                 print(f"⚠️ [StateAnalyzerService] Попередження: JSON валідний синтаксично, але схема StateDelta частково не зійшлася: {e_val}")

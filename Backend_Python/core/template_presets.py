@@ -18,7 +18,6 @@ def get_template_presets() -> List[TemplatePreset]:
                     "last_name": "",
                     "titles": "",
                     "age": "",
-                    "background": "",
                     "location": "Трактир на роздоріжжі",
                     "appearance": "",
                     "biography": "",
@@ -102,7 +101,6 @@ def get_template_presets() -> List[TemplatePreset]:
                     "name": "",
                     "alias": "",
                     "age": "",
-                    "background": "",
                     "location": "Нижній рівень мегаполіса",
                     "overall_state": "Системи в нормі",
                     "appearance": "",
@@ -188,7 +186,6 @@ def get_template_presets() -> List[TemplatePreset]:
                 "meta": {
                     "name": "",
                     "age": "",
-                    "background": "",
                     "location": "Дощова вулиця біля порту",
                     "overall_state": "Тверезий і зосереджений",
                     "appearance": "",
@@ -270,7 +267,6 @@ def get_template_presets() -> List[TemplatePreset]:
                 "meta": {
                     "name": "",
                     "age": "",
-                    "background": "",
                     "location": "Околиці зруйнованого шосе",
                     "overall_state": "Боєздатний",
                     "appearance": "",

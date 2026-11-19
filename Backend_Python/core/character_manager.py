@@ -19,6 +19,7 @@ from core.slugify import (
     ensure_unique_slug,
     validate_and_normalize_meta_avatar,
     sanitize_strict_ascii_id,
+    merge_legacy_background_into_biography,
 )
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -49,7 +50,6 @@ class CharacterManager:
                     "patronymic": "",
                     "titles": "",
                     "age": "",
-                    "background": "",
                     "location": "Невідомий ліс",
                     "appearance": "",
                     "appearance_details": {
@@ -97,7 +97,7 @@ class CharacterManager:
                 "meta": {
                     "world_id": DEFAULT_WORLD_ID,
                     "name": "Айвен",
-                    "background": "Найманець, маг вогню та вітру 3-го кола",
+                    "biography": "Найманець, маг вогню та вітру 3-го кола",
                     "location": "Вулиця покинутого селища",
                     "appearance": "22-річний юнак з довгим рудим волоссям. Має пірсинг у брові та проколоту мочку лівого вуха. Погляд зосереджений."
                 },
@@ -191,7 +191,7 @@ class CharacterManager:
                         char_id=char_id,
                         world_id=char_world_id,
                         name=meta.get("name", char_id),
-                        background=meta.get("background", ""),
+                        background=meta.get("biography") or meta.get("background", ""),
                         appearance=meta.get("appearance", ""),
                         avatar=meta.get("avatar"),
                         created_at=data.get("created_at") or iso_time,
@@ -251,6 +251,7 @@ class CharacterManager:
         meta = payload.setdefault("meta", {})
         if not meta.get("world_id"):
             meta["world_id"] = DEFAULT_WORLD_ID
+        merge_legacy_background_into_biography(meta)
         validate_and_normalize_meta_avatar(meta)
 
         payload["created_at"] = created_at
@@ -263,7 +264,7 @@ class CharacterManager:
             char_id=clean_id,
             world_id=meta["world_id"],
             name=meta.get("name") or clean_id,
-            background=meta.get("background") or "",
+            background=meta.get("biography") or meta.get("background") or "",
             appearance=meta.get("appearance") or "",
             avatar=meta.get("avatar"),
             created_at=created_at,

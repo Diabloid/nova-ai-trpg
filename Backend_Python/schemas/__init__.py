@@ -40,6 +40,8 @@ from schemas.game_dto import (
     WorldTemplateGenRequest,
     CharacterTemplateDraftResponse,
     WorldFinalizeRequest,
+    TranslateKeysRequest,
+    TranslateKeysResponse,
     SessionInfo,
 )
 
@@ -85,5 +87,7 @@ __all__ = [
     "WorldTemplateGenRequest",
     "CharacterTemplateDraftResponse",
     "WorldFinalizeRequest",
+    "TranslateKeysRequest",
+    "TranslateKeysResponse",
     "SessionInfo",
 ]

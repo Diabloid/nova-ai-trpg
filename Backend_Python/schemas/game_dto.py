@@ -58,7 +58,6 @@ class PlayerMeta(BaseModel):
     patronymic: Optional[str] = Field(default=None, description="По батькові")
     titles: Optional[Union[str, List[str]]] = Field(default=None, description="Титули, епітети або військові звання")
     age: Optional[Union[str, int]] = Field(default=None, description="Вік персонажа")
-    background: Optional[str] = Field(default=None, description="Передісторія / фах / клас")
     location: Optional[str] = Field(default=None, description="Поточна локація персонажа")
     overall_state: Optional[str] = Field(default=None, description="Загальний стан героя (для кастомних шаблонів)")
     appearance: Optional[str] = Field(default=None, description="Загальний художній опис зовнішності")
@@ -66,7 +65,7 @@ class PlayerMeta(BaseModel):
         default=None,
         description="Деталі зовнішності: статура, зріст, очі, волосся, расові ознаки"
     )
-    biography: Optional[str] = Field(default=None, description="Детальна хронологія / передісторія")
+    biography: Optional[str] = Field(default=None, description="Біографія, походження та хронологія героя")
     avatar: Optional[str] = Field(default=None, description="Data URI аватара або ключ іконки lucide-react")
 
 
@@ -208,6 +207,7 @@ class CampaignSummary(BaseModel):
     is_pinned: bool = Field(default=False, description="Чи закріплена кампанія вгорі списку")
     created_at: str = Field(..., description="ISO 8601 дата створення кампанії")
     last_played: str = Field(..., description="ISO 8601 дата останнього ходу")
+    rollback_depth: Optional[int] = Field(default=0, description="Доступна глибина багатокрокового відкату ходів")
 
 
 class CampaignCreateRequest(BaseModel):
@@ -238,12 +238,14 @@ class HistoryMessage(BaseModel):
 
 
 class RollbackResponse(BaseModel):
-    """Відповідь на запит відкату ходу (Undo, v2.0.0)."""
+    """Відповідь на запит відкату ходу (Undo, v2.0.0+)."""
     model_config = ConfigDict(extra="allow")
 
     previous_user_input: str = Field(..., description="Текст попередньої дії гравця для повернення в інпут клієнта")
     current_state: Union[Dict[str, Any], PlayerState] = Field(..., description="Відновлений стан героя після відкату")
     message: str = Field(default="Хід успішно відкочено на 1 крок назад", description="Статус операції відкату")
+    can_rollback: Optional[bool] = Field(default=None, description="Чи можна відкотити ще хоча б 1 хід")
+    rollback_depth: Optional[int] = Field(default=None, description="Скільки кроків відкату залишилось")
 
 
 # =========================================================================
@@ -263,6 +265,14 @@ class CharacterDialogRequest(BaseModel):
         default=False,
         description="Чи формувати проміжний стан PlayerState (Live Preview) для правої панелі клієнта"
     )
+    draft_state: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Поточна чернетка анкети з правого прев'ю для захисту ручних правок під час діалогу"
+    )
+    locked_fields: Optional[List[str]] = Field(
+        default=None,
+        description="Список dot-шляхів заблокованих ручних полів (напр. ['meta.name', 'meta.location'])"
+    )
     world_id: Optional[str] = Field(default=None, description="ID світу, в якому створюється персонаж")
     template_override: Optional[Dict[str, Any]] = Field(
         default=None,
@@ -278,6 +288,10 @@ class CharacterDialogResponse(BaseModel):
     draft_state: Optional[Union[Dict[str, Any], PlayerState]] = Field(
         default=None,
         description="Актуальний проміжний стан героя для панелі Live Preview клієнта (якщо include_draft=True)"
+    )
+    unlocked_fields: Optional[List[str]] = Field(
+        default=None,
+        description="Список dot-шляхів полів, які гравець явно попросив змінити в останньому повідомленні (для зняття lock у прев'ю)"
     )
 
 
@@ -498,13 +512,18 @@ class WorldPassportDraftResponse(BaseModel):
 
 
 class WorldPromptsGenRequest(BaseModel):
-    """Запит на Крок 2 (генерація/оновлення 4 сеттингових правил ai_prompts)."""
+    """Запит на генерацію/оновлення 4 сеттингових правил ai_prompts."""
     model_config = ConfigDict(extra="allow")
 
     passport: WorldPassportDraft
     tone_chips: Optional[List[str]] = Field(default_factory=list, description="Обрані теги тону (напр. 'Похмурий', 'Іронія')")
     custom_instruction: Optional[str] = Field(default=None, description="Додаткове побажання користувача")
     current_prompts: Optional[WorldAiPrompts] = Field(default=None, description="Поточні промпти для уточнення")
+    lore_digest: Optional[str] = Field(default=None, description="Стислий дайджест статей лору світу")
+    character_template: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Створений шаблон анкети (для точної прив'язки analyzer_rules і creator_rules до полів)"
+    )
 
 
 class WorldLoreDraftItem(BaseModel):
@@ -576,6 +595,16 @@ class WorldFinalizeRequest(BaseModel):
     ai_prompts: WorldAiPrompts
     character_template: Dict[str, Any]
     lore_articles: List[WorldLoreDraftItem] = Field(default_factory=list)
+
+
+class TranslateKeysRequest(BaseModel):
+    """Запит на переклад не-кириличних TRPG-ключів (POST /api/v1/templates/translate-keys)."""
+    keys: List[str] = Field(default_factory=list, description="Список англомовних/технічних ключів для перекладу")
+
+
+class TranslateKeysResponse(BaseModel):
+    """Мапа перекладених українських підписів для ключів анкети."""
+    labels: Dict[str, str] = Field(default_factory=dict, description="Словник {оригінальний_ключ: український_підпис}")
 
 
 # Для сумісності зі старими викликами

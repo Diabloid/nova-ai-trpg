@@ -4,8 +4,9 @@ import os
 import sys
 from datetime import datetime, timezone
 from typing import Dict, Any, Optional, List, Tuple, Set
-from core.slugify import validate_and_normalize_meta_avatar
-from core.state_parser import StateDelta, DynamicListChange
+from core.slugify import validate_and_normalize_meta_avatar, slugify_ascii, sanitize_icon_key, validate_hex_color
+from core.services.key_translator import KeyTranslatorService
+from core.state_parser import StateDelta, DynamicListChange, NewSectionSpec
 
 # Безпечне кодування консолі для Windows
 if sys.stdout and hasattr(sys.stdout, "reconfigure"):
@@ -23,6 +24,14 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULT_SAVE_PATH = os.path.join(BASE_DIR, "data", "saves", "savegame.json")
 
 PROTECTED_PATHS = {"_schema_meta", "meta.world_id", "meta.avatar", "created_at", "updated_at"}
+MAX_NEW_SECTIONS_PER_TURN = 2
+ARCHETYPE_DEFAULTS: Dict[str, Any] = {
+    "card_list": [],
+    "tag_list": [],
+    "stat_grid": {},
+    "container_map": {},
+    "long_text": "",
+}
 
 
 class GameState:
@@ -32,10 +41,16 @@ class GameState:
     так і довільні динамічні шаблони світів (field_updates, section_changes).
     """
 
-    def __init__(self, save_path: Optional[str] = None, initial_state: Optional[Dict[str, Any]] = None):
+    def __init__(
+        self,
+        save_path: Optional[str] = None,
+        initial_state: Optional[Dict[str, Any]] = None,
+        key_translator: Optional[KeyTranslatorService] = None,
+    ):
         self.save_path = save_path or DEFAULT_SAVE_PATH
         self.data: Dict[str, Any] = {}
         self._initial_state = initial_state
+        self.key_translator = key_translator or KeyTranslatorService()
         self.load()
 
     def _init_default_state(self):
@@ -99,10 +114,29 @@ class GameState:
         """Повертає повний стан персонажа без спотворень чи примусового сплощення."""
         return self.data
 
+    def capture_snapshot_dict(self) -> Dict[str, Any]:
+        """Повертає глибоку копію поточного стану для стеку знімків чи атомарної транзакції."""
+        return copy.deepcopy(self.data)
+
+    def restore_state_dict(self, state_dict: Dict[str, Any]) -> Dict[str, Any]:
+        """Атомарно відновлює стан персонажа з переданого словника-знімка."""
+        self.data = copy.deepcopy(state_dict)
+        self.save()
+        return self.get_current_state()
+
+    def create_manual_backup(self):
+        """Зберігає бекап поточного стану у savegame.manual_prev.json для ручного редагування."""
+        manual_path = self.save_path.replace("savegame.json", "savegame.manual_prev.json")
+        try:
+            with open(manual_path, "w", encoding="utf-8") as f:
+                json.dump(self.data, f, ensure_ascii=False, indent=4)
+        except Exception as e:
+            print(f"⚠️ [GameState] Не вдалося створити manual backup: {e}")
+
     def replace_state(self, new_state: Dict[str, Any]) -> Dict[str, Any]:
         """
         Повністю замінює живий стан кампанії (Режим B — «Редагувати лист», v2.0.0):
-        1. Обов'язково створює snapshot у savegame.prev.json перед перезаписом;
+        1. Створює резерв у savegame.manual_prev.json (не чіпаючи стек відкату ходів turn_snapshots.json);
         2. Очищає верхньорівневі None-ключі та гарантує meta як словник;
         3. Страхує meta.world_id і created_at, оновлює updated_at;
         4. Дозволяє оновлювати/видаляти meta.avatar, будь-які секції та _schema_meta.
@@ -123,8 +157,8 @@ class GameState:
             payload["created_at"] = self.data.get("created_at") or now_iso
         payload["updated_at"] = now_iso
 
-        # Створюємо snapshot лише після успішної валідації вхідного стану
-        self.create_snapshot()
+        # Створюємо окремий manual backup, не зсуваючи ігровий стек відкату ходів
+        self.create_manual_backup()
         self.data = payload
         self.save()
         return self.get_current_state()
@@ -208,6 +242,74 @@ class GameState:
                 ) != name
             ]
         return target_list
+
+    def _apply_new_section(self, spec: NewSectionSpec) -> Optional[str]:
+        """
+        Безпечно створює нову секцію у self.data та реєструє її в _schema_meta.sections.
+        Повертає нормалізований шлях або None, якщо шлях захищено чи невалідно.
+        """
+        raw_path = (spec.path or "").strip()
+        raw_top = raw_path.split(".")[0].strip().lower() if raw_path else ""
+        if raw_top in ("_schema_meta", "schema_meta", "meta", "created_at", "updated_at") or raw_top.startswith("_"):
+            return None
+
+        parts = [slugify_ascii(p, default="") for p in raw_path.split(".") if p.strip()]
+        parts = [p for p in parts if p]
+        if not parts:
+            fallback_slug = slugify_ascii(spec.title or "", default="")
+            if fallback_slug:
+                parts = [fallback_slug]
+            else:
+                return None
+
+        clean_path = ".".join(parts)
+        if self._is_protected_path(clean_path) or parts[0] in ("_schema_meta", "schema_meta", "meta", "created_at", "updated_at"):
+            return None
+
+        node: Any = self.data
+        for part in parts[:-1]:
+            if part not in node or not isinstance(node[part], dict):
+                node[part] = {}
+            node = node[part]
+        leaf = parts[-1]
+        if leaf not in node or node[leaf] is None:
+            node[leaf] = copy.deepcopy(ARCHETYPE_DEFAULTS.get(spec.archetype, []))
+
+        schema_meta = self.data.get("_schema_meta")
+        if not isinstance(schema_meta, dict):
+            schema_meta = {"version": 2, "sections": {}}
+            self.data["_schema_meta"] = schema_meta
+        schema_meta.setdefault("version", 2)
+        sections = schema_meta.setdefault("sections", {})
+        if not isinstance(sections, dict):
+            sections = {}
+            schema_meta["sections"] = sections
+
+        if clean_path not in sections:
+            next_order = max(
+                (
+                    s.get("order", 0)
+                    for s in sections.values()
+                    if isinstance(s, dict) and isinstance(s.get("order"), int)
+                ),
+                default=0,
+            ) + 1
+            raw_title = (spec.title or clean_path).strip()
+            resolved_title = (
+                raw_title
+                if self.key_translator.has_cyrillic(raw_title)
+                else self.key_translator.translate_key_sync(raw_title)
+            )
+            sections[clean_path] = {
+                "title": resolved_title,
+                "icon": sanitize_icon_key(spec.icon, default="sparkles"),
+                "color": validate_hex_color(spec.color, fallback="#38BDF8"),
+                "archetype": spec.archetype,
+                "placement": spec.placement,
+                "order": next_order,
+            }
+
+        return clean_path
 
     def _apply_section_change(self, change: DynamicListChange) -> None:
         if self._is_protected_path(change.section_path):
@@ -379,11 +481,32 @@ class GameState:
         # 3. Класичний інвентар або перенаправлення у container_map
         self._apply_legacy_inventory(delta)
 
+        # 3.5. Керована поява нових секцій (new_sections, макс. 2 за хід) до field_updates/section_changes
+        new_section_aliases: Dict[str, str] = {}
+        created_sections_count = 0
+        for spec in delta.new_sections:
+            if created_sections_count >= MAX_NEW_SECTIONS_PER_TURN:
+                break
+            created_path = self._apply_new_section(spec)
+            if created_path:
+                created_sections_count += 1
+                if spec.path:
+                    new_section_aliases[spec.path.strip().lower()] = created_path
+                if spec.title:
+                    new_section_aliases[spec.title.strip().lower()] = created_path
+
         # 4. Точкові скалярні оновлення (field_updates)
         for dot_path, value in delta.field_updates.items():
-            if self._is_protected_path(dot_path):
+            resolved_dot_path = dot_path
+            if dot_path and new_section_aliases:
+                raw_parts = dot_path.split(".")
+                alias_hit = new_section_aliases.get(raw_parts[0].strip().lower())
+                if alias_hit:
+                    resolved_dot_path = ".".join([alias_hit] + raw_parts[1:])
+
+            if self._is_protected_path(resolved_dot_path):
                 continue
-            parts = dot_path.split(".")
+            parts = resolved_dot_path.split(".")
             top_key = parts[0]
             if top_key not in self.data and top_key != "meta":
                 continue
@@ -401,7 +524,17 @@ class GameState:
 
         # 5. Універсальні зміни секцій/списків/контейнерів (section_changes)
         for sec_change in delta.section_changes:
+            if sec_change.section_path and new_section_aliases:
+                raw_parts = sec_change.section_path.split(".")
+                alias_hit = new_section_aliases.get(raw_parts[0].strip().lower())
+                if alias_hit and alias_hit != raw_parts[0]:
+                    sec_change = sec_change.model_copy(
+                        update={"section_path": ".".join([alias_hit] + raw_parts[1:])}
+                    )
             self._apply_section_change(sec_change)
+
+        # 6. Оновлюємо _schema_meta.field_labels для будь-яких нових англомовних ключів
+        self.key_translator.populate_field_labels_sync(self.data)
 
         self.save()
         return self.get_current_state()

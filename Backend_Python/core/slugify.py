@@ -4,6 +4,16 @@ from fastapi import HTTPException, status
 
 MAX_AVATAR_DATA_URI_CHARS = 512 * 1024  # ~512 КБ ліміт для Data URI аватара
 STRICT_ASCII_ID_RE = re.compile(r"^[a-z0-9_-]+$")
+HEX_COLOR_RE = re.compile(r"^#[0-9A-Fa-f]{6}$")
+
+
+def validate_hex_color(color: Optional[str], fallback: str = "#38BDF8") -> str:
+    """Перевіряє та нормалізує HEX-колір (#RRGGBB)."""
+    if isinstance(color, str):
+        trimmed = color.strip()
+        if HEX_COLOR_RE.fullmatch(trimmed):
+            return trimmed.upper()
+    return fallback
 
 # Таблиця транслітерації української та російської кирилиці в ASCII
 CYRILLIC_TO_ASCII = {
@@ -155,3 +165,29 @@ def sanitize_strict_ascii_id(raw_id: Optional[str], default: str = "item", max_l
     if STRICT_ASCII_ID_RE.fullmatch(normalized):
         return normalized
     return slugify_ascii(normalized, default=default, max_length=max_length)
+
+
+def merge_legacy_background_into_biography(meta: Dict[str, Any]) -> bool:
+    """
+    Переносить застаріле поле meta.background у meta.biography і видаляє ключ background.
+    Повертає True, якщо словник meta було змінено.
+    """
+    if not isinstance(meta, dict) or "background" not in meta:
+        return False
+
+    raw_bg = meta.pop("background", None)
+    bg_clean = str(raw_bg).strip() if raw_bg is not None else ""
+    if not bg_clean:
+        return True
+
+    raw_bio = meta.get("biography")
+    bio_clean = str(raw_bio).strip() if raw_bio is not None else ""
+    if not bio_clean:
+        meta["biography"] = bg_clean
+    elif bg_clean.lower() in bio_clean.lower():
+        meta["biography"] = bio_clean
+    elif bio_clean.lower() in bg_clean.lower():
+        meta["biography"] = bg_clean
+    else:
+        meta["biography"] = f"{bg_clean}\n\n{bio_clean}"
+    return True
