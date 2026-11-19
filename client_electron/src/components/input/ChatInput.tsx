@@ -11,8 +11,7 @@ import {
 } from 'lucide-react';
 import { useGameStore } from '../../store/useGameStore';
 import { useVoiceRecorder } from '../../hooks/useVoiceRecorder';
-import { SendOrMicButton } from './SendOrMicButton';
-import { VoiceBanner } from './VoiceBanner';
+import { ChatInputDock } from './ChatInputDock';
 import { SyntaxHelpTooltip } from './SyntaxHelpTooltip';
 import { ContextMenu } from '../ui/ContextMenu';
 import {
@@ -51,6 +50,7 @@ export const ChatInput: React.FC = () => {
     setSuppressedSpans,
     sendPlayerAction,
     activeCampaignId,
+    backendOffline,
     isLoading,
     isStreaming,
     isRollingBack,
@@ -167,12 +167,19 @@ export const ChatInput: React.FC = () => {
 
   const hasText = userInput.trim().length > 0;
   // Розділяємо блокування редактора і блокування відправки, щоб гравець міг вільно набирати чернетку під час стрімінгу
-  const isEditorLocked = isLoading || isTranscribing || !activeCampaignId;
+  const isEditorLocked = isLoading || isTranscribing || backendOffline || !activeCampaignId;
   const isSendBlocked =
-    isLoading || isStreaming || isRollingBack || isTranscribing || !activeCampaignId;
-  const placeholderText = !activeCampaignId
-    ? 'Створіть або оберіть кампанію, щоб розпочати гру...'
-    : 'Введіть дію, думку або фразу...';
+    isLoading ||
+    isStreaming ||
+    isRollingBack ||
+    isTranscribing ||
+    backendOffline ||
+    !activeCampaignId;
+  const placeholderText = backendOffline
+    ? 'Сервер офлайн • Очікування підключення...'
+    : !activeCampaignId
+      ? 'Створіть або оберіть кампанію, щоб розпочати гру...'
+      : 'Введіть дію, думку або фразу...';
 
   const recalculateLayout = useCallback(() => {
     const el = editorRef.current;
@@ -413,7 +420,7 @@ export const ChatInput: React.FC = () => {
 
   const handleSend = () => {
     if (!activeCampaignId) {
-      setSystemAlert('Спочатку оберіть або створіть кампанію', 'info');
+      setSystemAlert('Спочатку оберіть або створіть кампанію', 'warning');
       return;
     }
     const cleanText = stripZeroWidth(userInput);
@@ -562,81 +569,64 @@ export const ChatInput: React.FC = () => {
       tokenizeNovaSyntax(userInput, suppressedSpans).some((token) => token.type !== 'normal'));
 
   return (
-    <div className="w-full flex flex-col select-none">
-      {/* Баннери запису та транскрипції голосу */}
-      <VoiceBanner isRecording={isRecording} isTranscribing={isTranscribing} />
+    <>
+      <ChatInputDock
+        hasText={hasText}
+        isRecording={isRecording}
+        isTranscribing={isTranscribing}
+        isSendDisabled={isSendBlocked && !isRecording}
+        onSendOrRecord={handleSendOrRecordClick}
+        isHighlighted={isRollbackHighlighted}
+        isDimmed={isEditorLocked}
+        inputBoxMarker
+        rightExtras={<SyntaxHelpTooltip />}
+      >
+        <div className="relative w-full min-w-0">
+          {userInput.length === 0 && (
+            <span
+              aria-hidden="true"
+              className="pointer-events-none select-none absolute inset-0 text-[15px] leading-[24px] font-sans text-[#555555] italic truncate"
+            >
+              {placeholderText}
+            </span>
+          )}
 
-      {/* Головна зона вводу: Border.inputBox + Кнопки праворуч */}
-      <div className="flex items-end gap-3">
-        {/* Поле вводу з фірмовою рамкою #333333 -> focus #5A0010 та contenteditable-підсвіткою */}
-        <div
-          data-chat-input-box="true"
-          className={`flex-1 bg-[#161616] border rounded-[10px] p-[14px_16px] flex items-center transition-all duration-300 shadow-inner ${
-            isRollbackHighlighted
-              ? 'border-[#EAB308] shadow-[0_0_12px_rgba(234,179,8,0.25)]'
-              : 'border-[#333333] hover:border-[#444444] focus-within:border-[#5A0010] focus-within:hover:border-[#5A0010]'
-          }`}
-        >
-          <div className="relative w-full min-w-0">
-            {userInput.length === 0 && (
-              <span
-                aria-hidden="true"
-                className="pointer-events-none select-none absolute inset-0 text-[15px] leading-[24px] font-sans text-[#555555] italic truncate"
-              >
-                {placeholderText}
-              </span>
-            )}
-
-            <div
-              ref={editorRef}
-              role="textbox"
-              aria-multiline="true"
-              aria-label={placeholderText}
-              contentEditable={!isEditorLocked}
-              suppressContentEditableWarning
-              spellCheck={false}
-              onBeforeInput={() => {
-                const el = editorRef.current;
-                if (!el || isComposingRef.current) return;
+          <div
+            ref={editorRef}
+            role="textbox"
+            aria-multiline="true"
+            aria-label={placeholderText}
+            contentEditable={!isEditorLocked}
+            suppressContentEditableWarning
+            spellCheck={false}
+            onBeforeInput={() => {
+              const el = editorRef.current;
+              if (!el || isComposingRef.current) return;
+              beforeSelectionRef.current = getEditorSelectionOffsets(el);
+            }}
+            onInput={handleInput}
+            onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
+            onCopy={(e) => handleCopyOrCut(false, e)}
+            onCut={(e) => handleCopyOrCut(true, e)}
+            onCompositionStart={() => {
+              const el = editorRef.current;
+              if (el) {
                 beforeSelectionRef.current = getEditorSelectionOffsets(el);
-              }}
-              onInput={handleInput}
-              onKeyDown={handleKeyDown}
-              onPaste={handlePaste}
-              onCopy={(e) => handleCopyOrCut(false, e)}
-              onCut={(e) => handleCopyOrCut(true, e)}
-              onCompositionStart={() => {
-                const el = editorRef.current;
-                if (el) {
-                  beforeSelectionRef.current = getEditorSelectionOffsets(el);
-                }
-                isComposingRef.current = true;
-              }}
-              onCompositionEnd={() => {
-                isComposingRef.current = false;
-                handleInput();
-              }}
-              onContextMenu={handleContextMenu}
-              className={`w-full bg-transparent text-[15px] leading-[24px] font-sans text-[#E5E7EB] selection:bg-[#7E0018]/40 whitespace-pre-wrap break-words outline-none min-h-[24px] max-h-[120px] m-0 p-0 border-0 block ${
-                isInputOverflowing ? 'overflow-y-auto' : 'overflow-hidden'
-              } ${isEditorLocked ? 'opacity-60 cursor-not-allowed select-none' : 'select-text cursor-text'}`}
-            />
-          </div>
-        </div>
-
-        {/* Права група: Send/Mic Button (48x48) + Help Icon (?) */}
-        <div className="flex items-end gap-3 pb-0.5 shrink-0">
-          <SendOrMicButton
-            hasText={hasText}
-            isRecording={isRecording}
-            disabled={isSendBlocked && !isRecording}
-            onClick={handleSendOrRecordClick}
+              }
+              isComposingRef.current = true;
+            }}
+            onCompositionEnd={() => {
+              isComposingRef.current = false;
+              handleInput();
+            }}
+            onContextMenu={handleContextMenu}
+            className={`w-full bg-transparent text-[15px] leading-[24px] font-sans text-[#E5E7EB] selection:bg-[#7E0018]/40 whitespace-pre-wrap break-words outline-none min-h-[24px] max-h-[120px] m-0 p-0 border-0 block ${
+              isInputOverflowing ? 'overflow-y-auto' : 'overflow-hidden'
+            } ${isEditorLocked ? 'cursor-not-allowed select-none' : 'select-text cursor-text'}`}
           />
-          <div className="pb-2.5">
-            <SyntaxHelpTooltip />
-          </div>
         </div>
-      </div>
+      </ChatInputDock>
 
       <ContextMenu
         isOpen={!!contextMenu}
@@ -766,6 +756,6 @@ export const ChatInput: React.FC = () => {
           },
         ]}
       />
-    </div>
+    </>
   );
 };

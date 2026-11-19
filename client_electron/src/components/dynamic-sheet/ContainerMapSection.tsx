@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { ChevronDown, Plus, Trash2, X } from 'lucide-react';
+import { isTechnicalFieldKey, localizeFieldKey } from '../../utils/characterBlockStyles';
 import { hexToRgba } from '../../utils/lucideIconMap';
+import { COMPACT_FIELD_CLASS } from '../ui/Input';
 import { DynamicLucideIcon } from './DynamicLucideIcon';
 import type { DynamicSectionProps } from './types';
 
@@ -32,7 +34,7 @@ function getItemParts(item: unknown) {
 
   const nameKey =
     (['name', 'title', 'label'] as const).find((k) => k in item) ??
-    Object.keys(item)[0] ??
+    Object.keys(item).find((k) => !isTechnicalFieldKey(k)) ??
     'name';
   const descKey =
     (['desc', 'description', 'notes'] as const).find((k) => k !== nameKey && k in item) ?? null;
@@ -41,6 +43,7 @@ function getItemParts(item: unknown) {
     ([k, v]) =>
       k !== nameKey &&
       k !== descKey &&
+      !isTechnicalFieldKey(k) &&
       v !== undefined &&
       v !== null &&
       String(v).trim() !== ''
@@ -66,6 +69,7 @@ export const ContainerMapSection: React.FC<
   mode,
   variant = 'column',
   emptyText = 'Контейнери порожні',
+  fieldLabels,
   onChange,
 }) => {
   const containers = isPlainRecord(value) ? value : {};
@@ -150,7 +154,7 @@ export const ContainerMapSection: React.FC<
         style={{ color }}
       >
         <DynamicLucideIcon icon={icon} size={13} className="shrink-0" />
-        <span className="truncate">{title}</span>
+        <span className="truncate uppercase">{title}</span>
       </div>
 
       <div
@@ -210,7 +214,7 @@ export const ContainerMapSection: React.FC<
                     <button
                       type="button"
                       onClick={() => handleRemoveContainer(cName)}
-                      title={`Видалити контейнер «${cName}»`}
+                      data-tooltip={`Видалити контейнер «${cName}»`}
                       className="w-6 h-6 rounded flex items-center justify-center text-[#6B7280] hover:text-[#EF4444] hover:bg-[#2A1418] transition-colors cursor-pointer shrink-0"
                     >
                       <Trash2 size={12} />
@@ -235,7 +239,7 @@ export const ContainerMapSection: React.FC<
                         return (
                           <div
                             key={idx}
-                            title={parts.desc || parts.name}
+                            data-tooltip={parts.desc || parts.name}
                             className="rounded p-1.5 flex flex-col gap-0.5 border"
                             style={{
                               backgroundColor: itemBg,
@@ -254,7 +258,8 @@ export const ContainerMapSection: React.FC<
                               <div className="flex flex-wrap gap-1 pl-2 pt-0.5">
                                 {parts.extraEntries.map(([eKey, eVal]) => (
                                   <span key={eKey} className="text-[10px] text-[#9CA3AF]">
-                                    {eKey}: <strong className="text-[#E5E7EB]">{String(eVal)}</strong>
+                                    {localizeFieldKey(eKey, fieldLabels)}:{' '}
+                                    <strong className="text-[#E5E7EB]">{String(eVal)}</strong>
                                   </span>
                                 ))}
                               </div>
@@ -279,8 +284,8 @@ export const ContainerMapSection: React.FC<
                               <button
                                 type="button"
                                 onClick={() => handleRemoveItem(cName, idx)}
-                                title="Видалити предмет"
-                                className="w-5 h-5 rounded flex items-center justify-center text-[#6B7280] hover:text-[#EF4444] hover:bg-[#2A1418] transition-colors cursor-pointer"
+                                aria-label="Видалити предмет"
+                                className="w-5 h-5 rounded flex items-center justify-center text-[#6B7280] enabled:hover:text-[#EF4444] enabled:hover:bg-[#2A1418] transition-colors enabled:cursor-pointer"
                               >
                                 <X size={11} />
                               </button>
@@ -294,7 +299,7 @@ export const ContainerMapSection: React.FC<
                                   handleUpdateItem(cName, idx, isRecord ? fKey : null, e.target.value)
                                 }
                                 placeholder={fKey === 'desc' ? 'Опис предмета...' : 'Назва предмета...'}
-                                className="w-full bg-[#181818] border border-[#2E2E2E] focus:border-[#7E0018] rounded px-2 py-1 text-[11px] text-[#E5E7EB] outline-none transition-colors"
+                                className={`w-full px-2 py-1 text-[11px] ${COMPACT_FIELD_CLASS}`}
                               />
                             ))}
                           </div>
@@ -332,7 +337,7 @@ export const ContainerMapSection: React.FC<
                 }
               }}
               placeholder="Назва нового контейнера..."
-              className="flex-1 min-w-0 bg-[#121212] border border-[#2D2D2D] focus:border-[#7E0018] rounded px-2 py-1 text-xs text-[#E5E7EB] outline-none transition-colors"
+              className={`flex-1 min-w-0 px-2 py-1 text-xs ${COMPACT_FIELD_CLASS}`}
             />
             <button
               type="button"

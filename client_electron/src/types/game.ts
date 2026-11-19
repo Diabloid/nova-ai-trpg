@@ -21,10 +21,12 @@ export interface ChatMessage {
   createdAt?: string;
 }
 
+export type SystemAlertType = 'error' | 'warning' | 'success' | 'info';
+
 export interface SystemAlert {
   id: string;
   message: string;
-  type?: 'info' | 'error' | 'success';
+  type?: SystemAlertType;
   expiresAt: number;
 }
 
@@ -72,6 +74,7 @@ export interface ParsedSheetSection {
   placement: TemplatePlacement;
   order: number;
   value: any;
+  fieldLabels?: Record<string, string>;
   isAutoInferred?: boolean;
 }
 
@@ -99,4 +102,5 @@ export interface ParsedDynamicSheet {
   headerBadges: HeaderBadgeItem[];
   allSections: ParsedSheetSection[];
   allEditableSections: ParsedSheetSection[];
+  fieldLabels: Record<string, string>;
 }

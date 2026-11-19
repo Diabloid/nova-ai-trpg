@@ -3,6 +3,7 @@ import type {
   CharacterTemplateDraftResponse,
   LoreArticleResponse,
   TemplatePreset,
+  TranslateKeysResponse,
   WorldAiPrompts,
   WorldCloneRequest,
   WorldCreateRequest,
@@ -192,7 +193,7 @@ export const worldsApi = {
     return apiClient.post<WorldPassportDraftResponse>('/worlds/wizard/step-passport', req, options);
   },
 
-  /** Крок 2: генерація або оновлення 4 AI-правил світу (ai_prompts) */
+  /** Крок 4: генерація або оновлення 4 AI-правил світу (ai_prompts) з урахуванням лору та шаблону */
   wizardGeneratePrompts: (
     req: WorldPromptsGenRequest,
     options?: RequestInit
@@ -200,7 +201,7 @@ export const worldsApi = {
     return apiClient.post<WorldAiPrompts>('/worlds/wizard/generate-prompts', req, options);
   },
 
-  /** Крок 3: планування 5 стартових тем, генерація або розширення статті лору */
+  /** Крок 2: планування 5 стартових тем, генерація або розширення статті лору */
   wizardGenerateLore: (
     req: WorldLoreGenRequest,
     options?: RequestInit
@@ -208,7 +209,7 @@ export const worldsApi = {
     return apiClient.post<WorldLoreGenResponse>('/worlds/wizard/generate-lore', req, options);
   },
 
-  /** Крок 4: AI-генерація/коригування character_template.json + демо-дані прев'ю */
+  /** Крок 3: AI-генерація/коригування character_template.json + демо-дані прев'ю */
   wizardGenerateTemplate: (
     req: WorldTemplateGenRequest,
     options?: RequestInit
@@ -226,5 +227,17 @@ export const worldsApi = {
     options?: RequestInit
   ): Promise<WorldDetailResponse> => {
     return apiClient.post<WorldDetailResponse>('/worlds/wizard/finalize', req, options);
+  },
+
+  /** Разовий кешований TRPG-переклад невідомих не-кириличних ключів анкети */
+  translateTemplateKeys: (
+    keys: string[],
+    options?: RequestInit
+  ): Promise<TranslateKeysResponse> => {
+    return apiClient.post<TranslateKeysResponse>(
+      '/templates/translate-keys',
+      { keys },
+      options
+    );
   },
 };

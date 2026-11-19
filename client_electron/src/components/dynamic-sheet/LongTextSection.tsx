@@ -1,4 +1,5 @@
 import React, { useLayoutEffect, useRef } from 'react';
+import { COMPACT_FIELD_CLASS } from '../ui/Input';
 import { DynamicLucideIcon } from './DynamicLucideIcon';
 import type { DynamicSectionProps } from './types';
 
@@ -41,7 +42,7 @@ export const LongTextSection: React.FC<DynamicSectionProps<string | number | str
         style={{ color }}
       >
         <DynamicLucideIcon icon={icon} size={13} className="shrink-0" />
-        <span className="truncate">{title}</span>
+        <span className="truncate uppercase">{title}</span>
       </div>
 
       {mode === 'read' ? (
@@ -59,7 +60,7 @@ export const LongTextSection: React.FC<DynamicSectionProps<string | number | str
           value={textValue}
           onChange={(e) => onChange?.(e.target.value)}
           placeholder="Введіть текст..."
-          className="w-full bg-[#121212] border border-[#2D2D2D] focus:border-[#7E0018] rounded-md p-2.5 text-xs text-[#E5E7EB] leading-relaxed outline-none resize-none overflow-hidden transition-colors"
+          className={`w-full p-2.5 text-xs leading-relaxed resize-none overflow-hidden ${COMPACT_FIELD_CLASS}`}
         />
       )}
     </div>

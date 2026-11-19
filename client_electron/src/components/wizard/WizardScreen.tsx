@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { Globe, LayoutTemplate, Upload, X } from 'lucide-react';
+import { Globe, LayoutTemplate, Upload, WifiOff, X } from 'lucide-react';
 import { useGameStore } from '../../store/useGameStore';
 import { useWizardStore } from '../../store/useWizardStore';
 import { DynamicLucideIcon } from '../dynamic-sheet';
@@ -36,6 +36,7 @@ export const WizardScreen: React.FC = () => {
     importCustomTemplate,
   } = useWizardStore();
   const setSystemAlert = useGameStore((s) => s.setSystemAlert);
+  const backendOffline = useGameStore((s) => s.backendOffline);
 
   const [pendingAction, setPendingAction] = useState<PendingWizardAction | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -187,7 +188,8 @@ export const WizardScreen: React.FC = () => {
           cancelText: 'Ні, залишити',
         };
 
-  const isSwitchingDisabled = isWizardTyping || isSyncingDraft || isLoadingWorldSchema;
+  const isSwitchingDisabled =
+    isWizardTyping || isSyncingDraft || isLoadingWorldSchema || backendOffline;
 
   return (
     <div className="absolute inset-0 z-30 bg-[#121212] flex flex-col pl-[46px] pr-8 py-6 select-none animate-in fade-in duration-200">
@@ -255,7 +257,7 @@ export const WizardScreen: React.FC = () => {
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={isSwitchingDisabled}
-            title="Імпортувати власний JSON-шаблон анкети з файлу"
+            data-tooltip="Імпортувати власний JSON-шаблон анкети з файлу"
             className="h-[34px] shrink-0 inline-flex items-center gap-1.5 px-3 rounded-[8px] bg-[#161616] border border-[#2A2A2A] text-xs font-medium text-[#E5E7EB] transition-all duration-150 enabled:hover:bg-[#1E1E1E] enabled:hover:border-[#3E3E3E] enabled:active:bg-[#141414] enabled:active:scale-[0.985] enabled:cursor-pointer disabled:opacity-50 disabled:cursor-default"
           >
             <Upload size={13} className="text-[#9CA3AF] shrink-0" />
@@ -271,6 +273,16 @@ export const WizardScreen: React.FC = () => {
           />
         </div>
       </div>
+
+      {/* 1.5. Попередження при втраті з'єднання з сервером */}
+      {backendOffline && (
+        <div className="mb-3 shrink-0 flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-[#2A1215]/90 border border-[#7E0018] text-xs text-[#FCA5A5] shadow-md">
+          <WifiOff size={15} className="text-[#EF4444] shrink-0" />
+          <span className="font-medium leading-snug">
+            Немає підключення до сервера гри. Дії з ШІ, перемикання світу й створення персонажа тимчасово заблоковані до відновлення зв&apos;язку.
+          </span>
+        </div>
+      )}
 
       {/* 2. Центральна частина: Спліт Прев'ю ліворуч (360px) + Чат праворуч (flex-1) */}
       <div className="flex-1 flex gap-4 min-h-0 overflow-hidden">

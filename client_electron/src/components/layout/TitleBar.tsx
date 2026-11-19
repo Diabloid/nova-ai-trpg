@@ -48,7 +48,7 @@ export const TitleBar: React.FC = () => {
           type="button"
           onClick={handleMinimize}
           className="w-[46px] h-[34px] inline-flex items-center justify-center text-[#888888] hover:text-[#FFFFFF] hover:bg-[#222222] transition-colors cursor-pointer no-drag"
-          title="Згорнути"
+          data-tooltip="Згорнути"
         >
           <Minus size={13} strokeWidth={2} />
         </button>
@@ -57,7 +57,7 @@ export const TitleBar: React.FC = () => {
           type="button"
           onClick={handleMaximize}
           className="w-[46px] h-[34px] inline-flex items-center justify-center text-[#888888] hover:text-[#FFFFFF] hover:bg-[#222222] transition-colors cursor-pointer no-drag"
-          title={isMaximized ? 'Відновити' : 'Розгорнути'}
+          data-tooltip={isMaximized ? 'Відновити' : 'Розгорнути'}
         >
           {isMaximized ? (
             <Copy size={11} strokeWidth={2} className="rotate-90" />
@@ -70,7 +70,7 @@ export const TitleBar: React.FC = () => {
           type="button"
           onClick={handleClose}
           className="w-[46px] h-[34px] inline-flex items-center justify-center text-[#888888] hover:text-white hover:bg-[#7E0018] transition-colors cursor-pointer no-drag"
-          title="Закрити"
+          data-tooltip="Закрити"
         >
           <X size={14} strokeWidth={2} />
         </button>

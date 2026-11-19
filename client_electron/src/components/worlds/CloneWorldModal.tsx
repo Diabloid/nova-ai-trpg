@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Check, Copy } from 'lucide-react';
+import { Check, Copy, WifiOff } from 'lucide-react';
 import { worldsApi } from '../../api/worldsApi';
 import { useGameStore } from '../../store/useGameStore';
 import type { WorldSummary } from '../../types/api';
 import { Button } from '../ui/Button';
+import { STANDARD_FIELD_CLASS } from '../ui/Input';
 import { Modal } from '../ui/Modal';
 
 export interface CloneWorldModalProps {
@@ -28,7 +29,7 @@ const CloneWorldForm: React.FC<CloneWorldFormProps> = ({
   onClose,
   onCloned,
 }) => {
-  const { selectWorld, loadWorlds, setSystemAlert } = useGameStore();
+  const { selectWorld, loadWorlds, setSystemAlert, backendOffline } = useGameStore();
   const [newTitle, setNewTitle] = useState(`${sourceWorld.title} (Копія)`);
   const [includeLore, setIncludeLore] = useState(true);
 
@@ -37,6 +38,10 @@ const CloneWorldForm: React.FC<CloneWorldFormProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!trimmedTitle || isCloning) return;
+    if (backendOffline) {
+      setSystemAlert('Сервер офлайн — клонування світу тимчасово недоступне.', 'warning');
+      return;
+    }
 
     try {
       setIsCloning(true);
@@ -71,7 +76,7 @@ const CloneWorldForm: React.FC<CloneWorldFormProps> = ({
           disabled={isCloning}
           onChange={(e) => setNewTitle(e.target.value)}
           placeholder="Наприклад: Хроніки Уессексу"
-          className="w-full bg-[#161616] text-[#E5E7EB] text-sm rounded-lg px-3 py-2 border border-[#333333] placeholder-[#555555] focus:outline-none focus:border-[#7E0018] focus:ring-1 focus:ring-[#7E0018] transition-all disabled:opacity-60"
+          className={`w-full text-sm px-3 py-2 ${STANDARD_FIELD_CLASS}`}
         />
       </div>
 
@@ -102,6 +107,13 @@ const CloneWorldForm: React.FC<CloneWorldFormProps> = ({
         </div>
       </button>
 
+      {backendOffline && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[#2A1D08]/80 border border-[#B45309]/60 text-[11px] text-[#FDE68A]">
+          <WifiOff size={13} className="text-[#F59E0B] shrink-0" />
+          <span>Сервер офлайн — клонування стане доступним після відновлення з’єднання.</span>
+        </div>
+      )}
+
       <div className="grid grid-cols-2 gap-3 pt-2">
         <Button
           type="button"
@@ -115,7 +127,7 @@ const CloneWorldForm: React.FC<CloneWorldFormProps> = ({
         <Button
           type="submit"
           variant="primary"
-          disabled={!trimmedTitle || isCloning}
+          disabled={!trimmedTitle || isCloning || backendOffline}
           isLoading={isCloning}
           className="w-full justify-center text-xs py-2 font-semibold"
         >

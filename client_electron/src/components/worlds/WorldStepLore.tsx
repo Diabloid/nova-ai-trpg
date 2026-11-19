@@ -11,9 +11,11 @@ import {
   Wand2,
   X,
 } from 'lucide-react';
+import { useGameStore } from '../../store/useGameStore';
 import { useWorldStudioStore } from '../../store/useWorldStudioStore';
 import { estimateLoreStats } from '../../utils/loreFileUtils';
 import { Button } from '../ui/Button';
+import { COMPACT_FIELD_CLASS, STANDARD_FIELD_CLASS } from '../ui/Input';
 
 export const WorldStepLore: React.FC = () => {
   const {
@@ -50,7 +52,9 @@ export const WorldStepLore: React.FC = () => {
     [loreArticles, selectedLoreFilename]
   );
 
+  const backendOffline = useGameStore((s) => s.backendOffline);
   const isBusy = Boolean(loreGenProgress?.active) || isMutatingLore || isLoadingWorld;
+  const isRemoteLocked = mode === 'edit' && backendOffline;
   const isSelectedDirty =
     Boolean(selectedArticle) &&
     dirtyLoreFilenames.includes(selectedArticle?.filename || '');
@@ -133,7 +137,7 @@ export const WorldStepLore: React.FC = () => {
             type="button"
             variant="primary"
             size="sm"
-            disabled={isBusy}
+            disabled={isBusy || backendOffline}
             isLoading={Boolean(loreGenProgress?.active)}
             onClick={() => {
               void generateStarterLore();
@@ -191,7 +195,7 @@ export const WorldStepLore: React.FC = () => {
               type="button"
               variant="secondary"
               size="sm"
-              disabled={isBusy}
+              disabled={isBusy || isRemoteLocked}
               onClick={() => fileInputRef.current?.click()}
               className="justify-center text-[11px] py-1.5"
             >
@@ -211,58 +215,68 @@ export const WorldStepLore: React.FC = () => {
             />
           </div>
 
-          {/* Інлайн-форма створення нової статті (вручну або з ШІ) */}
-          {isNewFormOpen && (
-            <div className="bg-[#161616] border border-[#2E2E2E] rounded-lg p-2.5 flex flex-col gap-2 shrink-0">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-semibold text-[#D1D5DB]">
-                  Тема або назва статті
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setIsNewFormOpen(false)}
-                  className="text-[#9CA3AF] enabled:hover:text-white enabled:cursor-pointer"
-                >
-                  <X size={12} />
-                </button>
-              </div>
-              <input
-                type="text"
-                value={newArticleTopic}
-                disabled={isBusy}
-                onChange={(e) => setNewArticleTopic(e.target.value)}
-                placeholder="Напр.: Підпільні кібер-клініки та валюта"
-                className="w-full bg-[#111111] text-[#E5E7EB] text-xs rounded-md px-2.5 py-1.5 border border-[#333333] placeholder-[#555555] focus:outline-none focus:border-[#7E0018]"
-              />
-              <div className="grid grid-cols-2 gap-1.5">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  disabled={isBusy || !newArticleTopic.trim()}
-                  onClick={() => {
-                    void handleCreateManual();
-                  }}
-                  className="justify-center text-[11px]"
-                >
-                  Вручну
-                </Button>
-                <Button
-                  type="button"
-                  variant="primary"
-                  size="sm"
-                  disabled={isBusy || !newArticleTopic.trim()}
-                  onClick={() => {
-                    void handleCreateAi();
-                  }}
-                  className="justify-center text-[11px]"
-                >
-                  <Wand2 size={11} />
-                  <span>З ШІ</span>
-                </Button>
+          {/* Інлайн-форма створення нової статті (двосторонній плавний CSS-перехід) */}
+          <div
+            aria-hidden={!isNewFormOpen}
+            className={`grid transition-all duration-200 ease-out shrink-0 ${
+              isNewFormOpen
+                ? 'grid-rows-[1fr] opacity-100 visible'
+                : 'grid-rows-[0fr] opacity-0 -mt-2.5 invisible pointer-events-none'
+            }`}
+          >
+            <div className="min-h-0 overflow-hidden">
+              <div className="bg-[#161616] border border-[#2E2E2E] rounded-lg p-2.5 flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-semibold text-[#D1D5DB]">
+                    Тема або назва статті
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setIsNewFormOpen(false)}
+                    aria-label="Закрити форму нової статті"
+                    className="w-5 h-5 rounded flex items-center justify-center text-[#9CA3AF] enabled:hover:text-[#EF4444] enabled:hover:bg-[#2A1418] transition-colors enabled:cursor-pointer"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  value={newArticleTopic}
+                  disabled={isBusy}
+                  onChange={(e) => setNewArticleTopic(e.target.value)}
+                  placeholder="Напр.: Підпільні кібер-клініки та валюта"
+                  className={`w-full text-xs px-2.5 py-1.5 ${COMPACT_FIELD_CLASS}`}
+                />
+                <div className="grid grid-cols-2 gap-1.5">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    disabled={isBusy || isRemoteLocked || !newArticleTopic.trim()}
+                    onClick={() => {
+                      void handleCreateManual();
+                    }}
+                    className="justify-center text-[11px]"
+                  >
+                    Вручну
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="primary"
+                    size="sm"
+                    disabled={isBusy || backendOffline || !newArticleTopic.trim()}
+                    onClick={() => {
+                      void handleCreateAi();
+                    }}
+                    className="justify-center text-[11px]"
+                  >
+                    <Wand2 size={11} />
+                    <span>З ШІ</span>
+                  </Button>
+                </div>
               </div>
             </div>
-          )}
+          </div>
 
           {/* Список статей */}
           <div className="flex-1 overflow-y-auto space-y-1.5 pr-1 min-h-0">
@@ -297,12 +311,14 @@ export const WorldStepLore: React.FC = () => {
                       <div className="flex flex-col min-w-0 flex-1">
                         <span className="text-xs font-semibold truncate flex items-center gap-1.5">
                           <span className="truncate">{art.title || art.filename}</span>
-                          {isArtDirty && (
-                            <span
-                              title="Незбережені зміни статті"
-                              className="w-1.5 h-1.5 rounded-full bg-[#F59E0B] shrink-0"
-                            />
-                          )}
+                          <span
+                            data-tooltip={isArtDirty ? 'Незбережені зміни статті' : undefined}
+                            className={`h-1.5 rounded-full bg-[#F59E0B] shrink-0 transition-all duration-200 ${
+                              isArtDirty
+                                ? 'w-1.5 opacity-100 scale-100'
+                                : 'w-0 opacity-0 scale-0 pointer-events-none'
+                            }`}
+                          />
                         </span>
                         <span className="text-[10px] text-[#9CA3AF] truncate">
                           {art.filename} • {sizeKb} КБ
@@ -312,11 +328,11 @@ export const WorldStepLore: React.FC = () => {
 
                     <button
                       type="button"
-                      disabled={isBusy}
+                      disabled={isBusy || isRemoteLocked}
                       onClick={() => {
                         void deleteLoreArticleItem(art.filename);
                       }}
-                      title={`Видалити статтю «${art.title}»`}
+                      aria-label={`Видалити статтю «${art.title}»`}
                       className="w-6 h-6 rounded flex items-center justify-center text-[#9CA3AF] shrink-0 enabled:hover:text-[#EF4444] enabled:hover:bg-[#2A1418] transition-colors enabled:cursor-pointer disabled:opacity-35 disabled:cursor-default"
                     >
                       <Trash2 size={12} />
@@ -355,7 +371,7 @@ export const WorldStepLore: React.FC = () => {
                       })
                     }
                     placeholder="Заголовок статті"
-                    className="flex-1 min-w-[180px] bg-[#161616] text-[#F3F4F6] text-sm font-bold rounded-lg px-3 py-1.5 border border-[#303030] focus:outline-none focus:border-[#7E0018] disabled:opacity-60"
+                    className={`flex-1 min-w-[180px] text-sm font-bold text-[#F3F4F6] px-3 py-1.5 ${STANDARD_FIELD_CLASS}`}
                   />
                   <span className="px-2 py-1 rounded bg-[#181818] border border-[#2A2A2A] text-[11px] font-mono text-[#9CA3AF] shrink-0">
                     {selectedArticle.filename}
@@ -367,7 +383,7 @@ export const WorldStepLore: React.FC = () => {
                     type="button"
                     variant={isSelectedDirty ? 'primary' : 'secondary'}
                     size="sm"
-                    disabled={isBusy || !isSelectedDirty}
+                    disabled={isBusy || backendOffline || !isSelectedDirty}
                     onClick={() => {
                       void saveLoreArticleRemote(selectedArticle.filename);
                     }}
@@ -384,7 +400,7 @@ export const WorldStepLore: React.FC = () => {
                 <input
                   type="text"
                   value={expandInstruction}
-                  disabled={isBusy}
+                  disabled={isBusy || backendOffline}
                   onChange={(e) => setExpandInstruction(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
@@ -392,14 +408,18 @@ export const WorldStepLore: React.FC = () => {
                       void handleExpand();
                     }
                   }}
-                  placeholder="Інструкція для ШІ: напр. «Допиши розділ про місцеві фракції, валюту й заборонені технології»..."
-                  className="flex-1 bg-[#161616] text-[#E5E7EB] text-xs rounded-lg px-3 py-2 border border-[#2D2D2D] placeholder-[#555555] focus:outline-none focus:border-[#7E0018] disabled:opacity-60"
+                  placeholder={
+                    backendOffline
+                      ? 'Сервер офлайн — ШІ-редагування недоступне...'
+                      : 'Інструкція для ШІ: напр. «Допиши розділ про місцеві фракції, валюту й заборонені технології»...'
+                  }
+                  className={`flex-1 text-xs px-3 py-2 ${STANDARD_FIELD_CLASS}`}
                 />
                 <Button
                   type="button"
                   variant="secondary"
                   size="sm"
-                  disabled={isBusy || !expandInstruction.trim()}
+                  disabled={isBusy || backendOffline || !expandInstruction.trim()}
                   isLoading={isMutatingLore}
                   onClick={() => {
                     void handleExpand();
@@ -421,7 +441,7 @@ export const WorldStepLore: React.FC = () => {
                   })
                 }
                 placeholder="Вміст статті у форматі Markdown або звичайного тексту..."
-                className="flex-1 min-h-[200px] w-full bg-[#161616] text-[#E5E7EB] text-xs leading-relaxed font-mono rounded-lg p-3.5 border border-[#2D2D2D] placeholder-[#555555] focus:outline-none focus:border-[#7E0018] focus:ring-1 focus:ring-[#7E0018] resize-none overflow-y-auto disabled:opacity-60"
+                className={`flex-1 min-h-[200px] w-full text-xs leading-relaxed font-mono p-3.5 resize-none overflow-y-auto ${STANDARD_FIELD_CLASS}`}
               />
             </>
           )}

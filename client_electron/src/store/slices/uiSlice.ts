@@ -1,8 +1,9 @@
 import type { StateCreator } from 'zustand';
-import type { DrawerTab, SystemAlert } from '../../types/game';
+import type { DrawerTab, SystemAlert, SystemAlertType } from '../../types/game';
 import type { GameState, UiSlice } from './types';
 
 let alertTimer: ReturnType<typeof setTimeout> | null = null;
+let alertHideTimer: ReturnType<typeof setTimeout> | null = null;
 
 function loadInitialExpandedContainers(): Record<string, boolean> {
   try {
@@ -29,13 +30,18 @@ export const createUiSlice: StateCreator<GameState, [], [], UiSlice> = (set) => 
   expandedContainers: loadInitialExpandedContainers(),
 
   systemAlert: null,
+  isSystemAlertVisible: false,
 
-  // --- ЕФЕМЕРНІ СИСТЕМНІ ПОВІДОМЛЕННЯ (5 СЕКУНД) ---
-  setSystemAlert: (message: string, type: 'info' | 'error' | 'success' = 'info') => {
+  // --- ЕФЕМЕРНІ СИСТЕМНІ ПОВІДОМЛЕННЯ (5 СЕКУНД + ПЛАВНЕ ЗНИКНЕННЯ) ---
+  setSystemAlert: (message: string, type: SystemAlertType = 'info') => {
     const durationMs = 5000;
     if (alertTimer) {
       clearTimeout(alertTimer);
       alertTimer = null;
+    }
+    if (alertHideTimer) {
+      clearTimeout(alertHideTimer);
+      alertHideTimer = null;
     }
 
     const alert: SystemAlert = {
@@ -45,11 +51,15 @@ export const createUiSlice: StateCreator<GameState, [], [], UiSlice> = (set) => 
       expiresAt: Date.now() + durationMs,
     };
 
-    set({ systemAlert: alert });
+    set({ systemAlert: alert, isSystemAlertVisible: true });
 
     alertTimer = setTimeout(() => {
-      set({ systemAlert: null });
       alertTimer = null;
+      set({ isSystemAlertVisible: false });
+      alertHideTimer = setTimeout(() => {
+        alertHideTimer = null;
+        set({ systemAlert: null });
+      }, 300);
     }, durationMs);
   },
 
@@ -58,7 +68,15 @@ export const createUiSlice: StateCreator<GameState, [], [], UiSlice> = (set) => 
       clearTimeout(alertTimer);
       alertTimer = null;
     }
-    set({ systemAlert: null });
+    if (alertHideTimer) {
+      clearTimeout(alertHideTimer);
+      alertHideTimer = null;
+    }
+    set({ isSystemAlertVisible: false });
+    alertHideTimer = setTimeout(() => {
+      alertHideTimer = null;
+      set({ systemAlert: null });
+    }, 300);
   },
 
   setBackendOffline: (offline: boolean) => set({ backendOffline: offline }),

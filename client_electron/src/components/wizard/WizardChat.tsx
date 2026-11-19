@@ -2,8 +2,7 @@ import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { useGameStore } from '../../store/useGameStore';
 import { useWizardStore } from '../../store/useWizardStore';
 import { useVoiceRecorder } from '../../hooks/useVoiceRecorder';
-import { SendOrMicButton } from '../input/SendOrMicButton';
-import { VoiceBanner } from '../input/VoiceBanner';
+import { ChatInputDock } from '../input/ChatInputDock';
 
 export const WizardChat: React.FC = () => {
   const {
@@ -16,6 +15,7 @@ export const WizardChat: React.FC = () => {
     wizardStatusText,
   } = useWizardStore();
   const setSystemAlert = useGameStore((s) => s.setSystemAlert);
+  const backendOffline = useGameStore((s) => s.backendOffline);
 
   const [isInputOverflowing, setIsInputOverflowing] = useState(false);
   const [animatedDots, setAnimatedDots] = useState('.');
@@ -94,10 +94,11 @@ export const WizardChat: React.FC = () => {
   };
 
   const hasText = wizardInput.trim().length > 0;
-  const isInputDisabled = isWizardTyping || isTranscribing || isLoadingWorldSchema;
+  const isInputDisabled =
+    isWizardTyping || isTranscribing || isLoadingWorldSchema || backendOffline;
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-[#111111] border border-[#262626] rounded-xl p-4.5 pb-3 min-w-0 shadow-lg">
+    <div className="flex-1 flex flex-col h-full bg-[#111111] border border-[#262626] rounded-xl p-4 pb-3 min-w-0 shadow-lg">
       {/* 1. Стрічка повідомлень діалогу */}
       <div
         ref={scrollRef}
@@ -151,34 +152,32 @@ export const WizardChat: React.FC = () => {
         )}
       </div>
 
-      {/* 2. Нижня панель вводу */}
-      <div className="w-full flex flex-col select-none pt-2 border-t border-[#1F1F1F]">
-        {/* Баннери голосу */}
-        <VoiceBanner isRecording={isRecording} isTranscribing={isTranscribing} />
-
-        {/* Контейнер інпута з динамічною кнопкою */}
-        <div className="relative flex items-center gap-2.5">
-          <textarea
-            ref={textareaRef}
-            rows={1}
-            disabled={isInputDisabled}
-            value={wizardInput}
-            onChange={(e) => setWizardInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Відповідайте Творцю Долі (ім'я, клас, особливості, спорядження)..."
-            className={`flex-1 bg-[#161616] text-[#E5E7EB] text-sm rounded-lg px-3.5 py-2.5 border border-[#333333] hover:border-[#444444] placeholder-[#555555] focus:outline-none focus:border-[#7E0018] focus:hover:border-[#7E0018] focus:ring-1 focus:ring-[#7E0018] disabled:opacity-50 disabled:cursor-not-allowed resize-none transition-all duration-150 leading-relaxed max-h-20 ${
-              isInputOverflowing ? 'overflow-y-auto' : 'overflow-hidden'
-            }`}
-          />
-
-          <SendOrMicButton
-            hasText={hasText}
-            isRecording={isRecording}
-            disabled={isInputDisabled}
-            onClick={handleSendOrRecordClick}
-          />
-        </div>
-      </div>
+      {/* 2. Нижня звужена глибока панель вводу */}
+      <ChatInputDock
+        hasText={hasText}
+        isRecording={isRecording}
+        isTranscribing={isTranscribing}
+        isSendDisabled={isInputDisabled}
+        onSendOrRecord={handleSendOrRecordClick}
+        isDimmed={isInputDisabled}
+      >
+        <textarea
+          ref={textareaRef}
+          rows={1}
+          disabled={isInputDisabled}
+          value={wizardInput}
+          onChange={(e) => setWizardInput(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder={
+            backendOffline
+              ? 'Сервер офлайн • Діалог із Творцем Долі заблоковано'
+              : "Відповідайте Творцю Долі (ім'я, клас, особливості, спорядження)..."
+          }
+          className={`w-full bg-transparent text-[#E5E7EB] text-sm placeholder-[#555555] focus:outline-none disabled:cursor-not-allowed resize-none leading-6 max-h-20 m-0 p-0 border-0 ${
+            isInputOverflowing ? 'overflow-y-auto' : 'overflow-hidden'
+          }`}
+        />
+      </ChatInputDock>
     </div>
   );
 };

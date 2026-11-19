@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles, ChevronRight } from 'lucide-react';
+import { Sparkles, ChevronRight, WifiOff, Globe } from 'lucide-react';
 import { useGameStore } from '../../store/useGameStore';
 import { ActiveWorldCard } from './ActiveWorldCard';
 import { ActiveHeroCard } from './ActiveHeroCard';
@@ -34,7 +34,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenSettings,
   onLogout,
 }) => {
-  const { isSidebarOpen, toggleSidebar } = useGameStore();
+  const { isSidebarOpen, toggleSidebar, backendOffline } = useGameStore();
 
   return (
     <aside className="relative flex h-full z-40 select-none shrink-0">
@@ -49,16 +49,44 @@ export const Sidebar: React.FC<SidebarProps> = ({
             isSidebarOpen ? 'translate-x-0 opacity-100' : '-translate-x-4 opacity-0'
           }`}
         >
-          {/* Верхня частина: Напис МЕНЮ + Кнопка створення героя */}
-          <div className="flex flex-col gap-3">
-            <div className="text-center text-[#9CA3AF] font-bold text-[13px] tracking-[1.5px]">
+          {/* Верхня частина: Напис МЕНЮ + Кнопки створення світу й героя */}
+          <div className="flex flex-col gap-2.5">
+            <div className="text-center text-[#9CA3AF] font-bold text-[13px] tracking-[1.5px] mb-0.5">
               МЕНЮ
             </div>
 
+            {backendOffline && (
+              <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-[#211216] border border-[#7F1D1D] text-[11px] font-medium text-[#FCA5A5]">
+                <WifiOff size={12} className="text-[#EF4444] shrink-0" />
+                <span>Сервер офлайн</span>
+              </div>
+            )}
+
             <button
               type="button"
+              disabled={backendOffline}
+              onClick={onCreateWorld}
+              data-tooltip={
+                backendOffline
+                  ? 'Недоступно в офлайн-режимі'
+                  : 'Відкрити 4-кроковий майстер створення нового світу'
+              }
+              className="w-full bg-[#7E0018] enabled:hover:bg-[#9E0020] enabled:active:bg-[#5C0012] text-white text-xs font-semibold py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-colors enabled:cursor-pointer disabled:opacity-45 disabled:cursor-default shadow-md"
+            >
+              <Globe size={13} className="text-[#FCA5A5]" />
+              <span>Створити новий світ</span>
+            </button>
+
+            <button
+              type="button"
+              disabled={backendOffline}
               onClick={onOpenWizard}
-              className="w-full bg-[#7E0018] hover:bg-[#9E0020] active:bg-[#5C0012] text-white text-xs font-semibold py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-md"
+              data-tooltip={
+                backendOffline
+                  ? 'Недоступно в офлайн-режимі'
+                  : 'Відкрити майстер створення нового персонажа'
+              }
+              className="w-full bg-[#7E0018] enabled:hover:bg-[#9E0020] enabled:active:bg-[#5C0012] text-white text-xs font-semibold py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-colors enabled:cursor-pointer disabled:opacity-45 disabled:cursor-default shadow-md"
             >
               <Sparkles size={13} className="text-[#FCA5A5]" />
               <span>Створити нового персонажа</span>
@@ -70,7 +98,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {/* Середня скрол-зона: Світ, Герой та Кампанії */}
           <div className="flex-1 overflow-y-auto py-2 pr-1 flex flex-col gap-5">
             <ActiveWorldCard
-              onCreateWorld={onCreateWorld}
               onEditWorld={onEditWorld}
               onCloneWorld={onCloneWorld}
               onRequestDeleteWorld={onRequestDeleteWorld}
@@ -99,7 +126,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <button
         type="button"
         onClick={toggleSidebar}
-        title={isSidebarOpen ? 'Згорнути бічне меню' : 'Розгорнути бічне меню'}
+        data-tooltip={isSidebarOpen ? 'Згорнути бічне меню' : 'Розгорнути бічне меню'}
         className="absolute top-[17px] -right-7 z-50 group flex items-center justify-center cursor-pointer outline-none"
         style={{ width: '28px', height: '56px' }}
       >

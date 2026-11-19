@@ -4,6 +4,22 @@
 
 export const BASE_URL = (import.meta.env.VITE_API_BASE_URL as string) || 'http://127.0.0.1:8000/api/v1';
 
+type NetworkStatusListener = (isOffline: boolean) => void;
+const networkListeners = new Set<NetworkStatusListener>();
+
+export function subscribeNetworkStatus(listener: NetworkStatusListener): () => void {
+  networkListeners.add(listener);
+  return () => {
+    networkListeners.delete(listener);
+  };
+}
+
+export function notifyNetworkStatus(isOffline: boolean): void {
+  for (const listener of networkListeners) {
+    listener(isOffline);
+  }
+}
+
 export class ApiError extends Error {
   status: number;
   data?: any;
@@ -35,6 +51,9 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
   try {
     const response = await fetch(url, config);
 
+    // Будь-яка HTTP-відповідь від сервера підтверджує, що бекенд доступний
+    notifyNetworkStatus(false);
+
     if (!response.ok) {
       let errorMessage = `HTTP ${response.status} ${response.statusText}`;
       let errorData: any = null;
@@ -57,10 +76,17 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     return (await response.json()) as T;
   } catch (error) {
     if (error instanceof ApiError) {
+      if (error.status === 0) {
+        notifyNetworkStatus(true);
+      }
       throw error;
     }
     const err = error as Error;
-    throw new ApiError(err.message || 'Мережева помилка з\'єднання з бекендом', 0);
+    if (err.name === 'AbortError') {
+      throw err;
+    }
+    notifyNetworkStatus(true);
+    throw new ApiError(err.message || "Мережева помилка з'єднання з бекендом", 0);
   }
 }
 

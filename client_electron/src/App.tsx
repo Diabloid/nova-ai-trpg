@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { AppLayout } from './components/layout/AppLayout';
 import { HeaderStatusBar } from './components/character-drawer/HeaderStatusBar';
 import { DrawerSheet } from './components/character-drawer/DrawerSheet';
 import { ChatContainer } from './components/chat/ChatContainer';
-import { ChatInput } from './components/input/ChatInput';
 import { WizardScreen } from './components/wizard/WizardScreen';
 import { WorldStudioScreen } from './components/worlds/WorldStudioScreen';
 import {
@@ -14,7 +13,10 @@ import { NewCampaignModal } from './components/modals/NewCampaignModal';
 import { ConfirmModal } from './components/modals/ConfirmModal';
 import { CloneWorldModal } from './components/worlds/CloneWorldModal';
 import { GlobalContextMenu } from './components/ui/GlobalContextMenu';
+import { GlobalTooltip } from './components/ui/GlobalTooltip';
 import { charactersApi } from './api/charactersApi';
+import { subscribeNetworkStatus } from './api/client';
+import { gameApi } from './api/gameApi';
 import { extractWorldDeleteConflict, worldsApi } from './api/worldsApi';
 import { DEFAULT_WORLD_ID } from './store/slices/worldSlice';
 import { useGameStore } from './store/useGameStore';
@@ -24,7 +26,6 @@ import type {
   CharacterSummary,
   CampaignSummary,
   PlayerState,
-  WorldDeleteConflict,
   WorldSummary,
 } from './types/api';
 
@@ -37,6 +38,7 @@ export const App: React.FC = () => {
     updateCampaignState,
     deleteCampaign,
     deleteCharacter,
+    setBackendOffline,
     setSystemAlert,
   } = useGameStore();
   const openWizard = useWizardStore((s) => s.openWizard);
@@ -55,23 +57,106 @@ export const App: React.FC = () => {
   const [campaignToDelete, setCampaignToDelete] = useState<CampaignSummary | null>(null);
   const [characterToDelete, setCharacterToDelete] = useState<CharacterSummary | null>(null);
   const [worldToClone, setWorldToClone] = useState<WorldSummary | null>(null);
-  const [worldDeleteConflict, setWorldDeleteConflict] = useState<{
+  const [worldDeletePrompt, setWorldDeletePrompt] = useState<{
     world: WorldSummary;
-    conflict: WorldDeleteConflict;
+    mode: 'empty' | 'cascade';
+    dependentCharacters?: number;
+    dependentCampaigns?: number;
   } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDeletingWorld, setIsDeletingWorld] = useState(false);
 
-  // Завантаження світів та персонажів на старті (з урахуванням activeWorldId)
-  useEffect(() => {
-    const initWorkspace = async () => {
+  const hasHydratedWorkspaceRef = useRef(false);
+  const isHydratingRef = useRef(false);
+  const isCheckingHealthRef = useRef(false);
+
+  const hydrateWorkspace = useCallback(async () => {
+    if (isHydratingRef.current) return;
+    isHydratingRef.current = true;
+    try {
       await loadWorlds();
       await loadCharacters();
-    };
-    initWorkspace().catch((err) => {
+      const { backendOffline, worlds } = useGameStore.getState();
+      if (!backendOffline && worlds.length > 0) {
+        hasHydratedWorkspaceRef.current = true;
+      }
+    } catch (err) {
       console.warn('Не вдалося ініціалізувати світи й героїв під час старту:', err);
-    });
+    } finally {
+      isHydratingRef.current = false;
+    }
   }, [loadWorlds, loadCharacters]);
+
+  // Завантаження світів та персонажів на старті + живий heartbeat моніторинг GET /api/v1/health
+  useEffect(() => {
+    void hydrateWorkspace();
+
+    const handleOnlineTransition = () => {
+      if (!hasHydratedWorkspaceRef.current) {
+        void hydrateWorkspace();
+      }
+    };
+
+    const unsubscribe = subscribeNetworkStatus((isOffline) => {
+      const prevOffline = useGameStore.getState().backendOffline;
+      if (isOffline !== prevOffline) {
+        setBackendOffline(isOffline);
+        if (!isOffline) {
+          setSystemAlert("Зв'язок із сервером гри відновлено", 'success');
+          handleOnlineTransition();
+        }
+      } else if (!isOffline && !hasHydratedWorkspaceRef.current) {
+        handleOnlineTransition();
+      }
+    });
+
+    const checkHealthOnce = async () => {
+      if (isCheckingHealthRef.current) return;
+      isCheckingHealthRef.current = true;
+      const controller = new AbortController();
+      let timedOut = false;
+      const timeoutId = setTimeout(() => {
+        timedOut = true;
+        controller.abort();
+      }, 3000);
+
+      try {
+        await gameApi.checkHealth(controller.signal);
+        const prevOffline = useGameStore.getState().backendOffline;
+        if (prevOffline) {
+          setBackendOffline(false);
+          setSystemAlert("Зв'язок із сервером гри відновлено", 'success');
+        }
+        if (!hasHydratedWorkspaceRef.current) {
+          void hydrateWorkspace();
+        }
+      } catch (err: unknown) {
+        if (timedOut || (err instanceof Error && err.name !== 'AbortError')) {
+          if (!useGameStore.getState().backendOffline) {
+            setBackendOffline(true);
+          }
+        }
+      } finally {
+        clearTimeout(timeoutId);
+        isCheckingHealthRef.current = false;
+      }
+    };
+
+    const intervalId = setInterval(() => {
+      void checkHealthOnce();
+    }, 5000);
+
+    const handleWindowFocus = () => {
+      void checkHealthOnce();
+    };
+    window.addEventListener('focus', handleWindowFocus);
+
+    return () => {
+      unsubscribe();
+      clearInterval(intervalId);
+      window.removeEventListener('focus', handleWindowFocus);
+    };
+  }, [hydrateWorkspace, setBackendOffline, setSystemAlert]);
 
   // Режим A — Редагування заготовки персонажа (завжди підвантажуємо актуальний стан заготовки)
   const handleEditCharacter = async (char: CharacterSummary) => {
@@ -153,42 +238,57 @@ export const App: React.FC = () => {
     setSystemAlert(`Світ «${deletedWorld.title}» видалено`, 'info');
   };
 
-  // Безпечне видалення світу: спочатку cascade=false, при 409 Conflict відкриває ConfirmModal
-  const handleRequestDeleteWorld = async (world: WorldSummary) => {
+  // Обов'язкове підтвердження видалення будь-якого не-дефолтного світу
+  const handleRequestDeleteWorld = (world: WorldSummary) => {
     if (world.is_default) {
-      setSystemAlert('Базовий світ неможливо видалити', 'info');
+      setSystemAlert('Базовий світ неможливо видалити', 'warning');
+      return;
+    }
+    if (useGameStore.getState().backendOffline) {
+      setSystemAlert('Сервер офлайн — видалення світу тимчасово недоступне', 'warning');
       return;
     }
     if (isDeletingWorld) return;
+
+    if (world.character_count > 0) {
+      setWorldDeletePrompt({
+        world,
+        mode: 'cascade',
+        dependentCharacters: world.character_count,
+      });
+      return;
+    }
+
+    setWorldDeletePrompt({
+      world,
+      mode: 'empty',
+    });
+  };
+
+  // Підтверджене видалення світу (cascade=false з fallback на 409 або cascade=true)
+  const handleConfirmDeleteWorld = async () => {
+    if (!worldDeletePrompt || isDeletingWorld) return;
+    const { world: targetWorld, mode } = worldDeletePrompt;
+    const useCascade = mode === 'cascade';
+
     try {
       setIsDeletingWorld(true);
-      await worldsApi.deleteWorld(world.world_id, false);
-      await finishWorldDeletion(world);
+      await worldsApi.deleteWorld(targetWorld.world_id, useCascade);
+      setWorldDeletePrompt(null);
+      await finishWorldDeletion(targetWorld);
     } catch (err: unknown) {
-      const conflict = extractWorldDeleteConflict(err);
+      const conflict = !useCascade ? extractWorldDeleteConflict(err) : null;
       if (conflict) {
-        setWorldDeleteConflict({ world, conflict });
+        setWorldDeletePrompt({
+          world: targetWorld,
+          mode: 'cascade',
+          dependentCharacters: conflict.dependent_characters,
+          dependentCampaigns: conflict.dependent_campaigns,
+        });
       } else {
         const message = err instanceof Error ? err.message : 'Невідома помилка';
         setSystemAlert(`Помилка видалення світу: ${message}`, 'error');
       }
-    } finally {
-      setIsDeletingWorld(false);
-    }
-  };
-
-  // Каскадне видалення світу після підтвердження користувачем
-  const handleConfirmCascadeDeleteWorld = async () => {
-    if (!worldDeleteConflict || isDeletingWorld) return;
-    const targetWorld = worldDeleteConflict.world;
-    try {
-      setIsDeletingWorld(true);
-      await worldsApi.deleteWorld(targetWorld.world_id, true);
-      setWorldDeleteConflict(null);
-      await finishWorldDeletion(targetWorld);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Невідома помилка';
-      setSystemAlert(`Помилка видалення світу: ${message}`, 'error');
     } finally {
       setIsDeletingWorld(false);
     }
@@ -206,9 +306,7 @@ export const App: React.FC = () => {
         void openEditStudio(world.world_id);
       }}
       onCloneWorld={(world) => setWorldToClone(world)}
-      onRequestDeleteWorld={(world) => {
-        void handleRequestDeleteWorld(world);
-      }}
+      onRequestDeleteWorld={handleRequestDeleteWorld}
       onEditCharacter={handleEditCharacter}
       onRequestDeleteCharacter={(char) => setCharacterToDelete(char)}
       onNewCampaign={() => setIsNewCampaignModalOpen(true)}
@@ -228,14 +326,9 @@ export const App: React.FC = () => {
           <DrawerSheet onEditLiveSheet={handleEditLiveSheet} />
         </div>
 
-        {/* ЛОГ ПОВІДОМЛЕНЬ + ІНДИКАТОР: Border.chatContainer (Row="1") */}
+        {/* ЄДИНИЙ ЧАТ КАМПАНІЇ (ЛОГ ПОВІДОМЛЕНЬ + ВКЛАДЕНИЙ ДОК ІНПУТУ) */}
         <div className="flex-1 overflow-hidden flex flex-col min-h-0">
           <ChatContainer onNewCampaign={() => setIsNewCampaignModalOpen(true)} />
-        </div>
-
-        {/* ПОЛЕ ВВОДУ ТА ЕЛЕМЕНТИ (Row="2" Margin="0,16,0,0") */}
-        <div className="mt-4 shrink-0">
-          <ChatInput />
         </div>
       </div>
 
@@ -298,20 +391,33 @@ export const App: React.FC = () => {
         onClose={() => setWorldToClone(null)}
       />
 
-      {/* 8. ПІДТВЕРДЖЕННЯ КАСКАДНОГО ВИДАЛЕННЯ СВІТУ (409 Conflict) */}
+      {/* 8. ОБОВ'ЯЗКОВЕ ПІДТВЕРДЖЕННЯ ВИДАЛЕННЯ СВІТУ (порожній або каскадне з 409 Conflict) */}
       <ConfirmModal
-        isOpen={!!worldDeleteConflict}
-        onClose={() => setWorldDeleteConflict(null)}
-        onConfirm={handleConfirmCascadeDeleteWorld}
-        title="Видалити світ разом із героями?"
-        message={`У світі «${worldDeleteConflict?.world.title || ''}» є ${worldDeleteConflict?.conflict.dependent_characters ?? 0} героїв та ${worldDeleteConflict?.conflict.dependent_campaigns ?? 0} кампаній. Видалити світ разом з усіма його героями та кампаніями?`}
-        confirmText="Так, видалити все"
+        isOpen={!!worldDeletePrompt}
+        onClose={() => setWorldDeletePrompt(null)}
+        onConfirm={handleConfirmDeleteWorld}
+        title={
+          worldDeletePrompt?.mode === 'cascade'
+            ? 'Видалити світ разом із героями?'
+            : `Видалити світ «${worldDeletePrompt?.world.title || ''}»?`
+        }
+        message={
+          worldDeletePrompt?.mode === 'cascade'
+            ? worldDeletePrompt.dependentCampaigns !== undefined
+              ? `У світі «${worldDeletePrompt.world.title}» є ${worldDeletePrompt.dependentCharacters ?? 0} героїв та ${worldDeletePrompt.dependentCampaigns} кампаній. Видалити світ разом з усіма його героями, кампаніями, промптами та базою лору?`
+              : `У світі «${worldDeletePrompt.world.title}» є ${worldDeletePrompt.dependentCharacters ?? 0} героїв. Видалити світ разом з усіма його героями, кампаніями, налаштуваннями, промптами та базою лору?`
+            : `Ви впевнені, що бажаєте безповоротно видалити світ «${worldDeletePrompt?.world.title || ''}»? Усі його налаштування, промпти ШІ, шаблон анкети та база лору будуть втрачені.`
+        }
+        confirmText={worldDeletePrompt?.mode === 'cascade' ? 'Так, видалити все' : 'Так, видалити'}
         cancelText="Ні, залишити"
         isLoading={isDeletingWorld}
       />
 
       {/* 9. ГЛОБАЛЬНЕ КОНТЕКСТНЕ МЕНЮ ПКМ ДЛЯ ВСІХ ІНПУТІВ, TEXTAREA ТА ЧАТІВ */}
       <GlobalContextMenu />
+
+      {/* 10. ГЛОБАЛЬНІ ТЕМНІ ПОРТАЛЬНІ ТУЛТІПИ ЗАМІСТЬ СИСТЕМНИХ БІЛИХ ПІДКАЗОК */}
+      <GlobalTooltip />
     </AppLayout>
   );
 };

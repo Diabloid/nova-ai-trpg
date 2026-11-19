@@ -11,7 +11,32 @@ import type {
   ParsedDynamicSheet,
   ParsedSheetSection,
 } from '../types/game';
-import { formatBlockTitle, getCharacterBlockStyle } from './characterBlockStyles';
+import {
+  formatBlockTitle,
+  getCharacterBlockStyle,
+  isTechnicalFieldKey,
+  localizeFieldKey,
+} from './characterBlockStyles';
+
+function extractMergedFieldLabels(
+  state: Record<string, any> | null | undefined,
+  fallbackSchema?: TemplateSchemaMeta | null
+): Record<string, string> {
+  const fromFallback = isPlainObject(fallbackSchema?.field_labels)
+    ? fallbackSchema.field_labels
+    : {};
+  const fromState = isPlainObject(state?._schema_meta?.field_labels)
+    ? state._schema_meta.field_labels
+    : {};
+
+  const merged: Record<string, string> = {};
+  for (const [k, v] of Object.entries({ ...fromFallback, ...fromState })) {
+    if (typeof v === 'string' && v.trim()) {
+      merged[k] = v.trim();
+    }
+  }
+  return merged;
+}
 import { normalizeLucideIconKey } from './lucideIconMap';
 
 const IGNORED_TOP_KEYS = new Set([
@@ -29,6 +54,7 @@ const IGNORED_META_KEYS = new Set([
   'location',
   'avatar',
   'overall_state',
+  'background',
 ]);
 
 export const CLASSIC_SECTION_FALLBACKS: Record<string, SchemaSectionMeta & { order: number }> = {
@@ -72,7 +98,6 @@ const META_DETAIL_LABELS: Record<string, { title: string; icon: string; color: s
   patronymic: { title: 'ПО БАТЬКОВІ', icon: 'user', color: '#E5E7EB' },
   titles: { title: 'ТИТУЛИ ТА ЗВАННЯ', icon: 'crown', color: '#FBBF24' },
   age: { title: 'ВІК', icon: 'user', color: '#E5E7EB' },
-  background: { title: 'ПЕРЕДІСТОРІЯ', icon: 'scroll-text', color: '#9CA3AF' },
   appearance: { title: 'ЗОВНІШНІСТЬ', icon: 'eye', color: '#9CA3AF' },
   appearance_details: { title: 'РИСИ ЗОВНІШНОСТІ', icon: 'user', color: '#9CA3AF' },
   biography: { title: 'ХРОНІКА ТА БІОГРАФІЯ', icon: 'scroll-text', color: '#F59E0B' },
@@ -212,7 +237,8 @@ function findOverallStateFallback(state: Record<string, any>): string | undefine
 
 function buildHeaderBadges(
   state: Record<string, any>,
-  schemaSections: Record<string, SchemaSectionMeta>
+  schemaSections: Record<string, SchemaSectionMeta>,
+  fieldLabels: Record<string, string>
 ): HeaderBadgeItem[] {
   const badges: HeaderBadgeItem[] = [];
   const entries = Object.entries(schemaSections)
@@ -228,13 +254,14 @@ function buildHeaderBadges(
 
     if (isPlainObject(rawVal)) {
       for (const [subKey, subVal] of Object.entries(rawVal)) {
+        if (isTechnicalFieldKey(subKey)) continue;
         if (subVal === null || subVal === undefined || typeof subVal === 'object') continue;
         const textVal = String(subVal).trim();
         if (!textVal) continue;
         badges.push({
           key: `${path}.${subKey}`,
           path: `${path}.${subKey}`,
-          label: subKey,
+          label: localizeFieldKey(subKey, fieldLabels),
           value: textVal,
           color,
           icon,
@@ -322,13 +349,14 @@ export function extractHeaderAnchors(
     state._schema_meta?.sections ||
     fallbackSchema?.sections ||
     {};
+  const fieldLabels = extractMergedFieldLabels(state, fallbackSchema);
 
   return {
     name: rawName,
     location,
     overallState,
     avatar,
-    headerBadges: buildHeaderBadges(state, schemaSections),
+    headerBadges: buildHeaderBadges(state, schemaSections, fieldLabels),
   };
 }
 
@@ -351,6 +379,7 @@ export function parseDynamicSheet(
   activeCampaign?: CampaignSummary | null
 ): ParsedDynamicSheet {
   const headers = extractHeaderAnchors(state, activeCampaign, fallbackSchema);
+  const fieldLabels = extractMergedFieldLabels(state, fallbackSchema);
 
   if (!state || typeof state !== 'object') {
     return {
@@ -360,6 +389,7 @@ export function parseDynamicSheet(
       headerBadges: headers.headerBadges,
       allSections: [],
       allEditableSections: [],
+      fieldLabels,
     };
   }
 
@@ -374,11 +404,15 @@ export function parseDynamicSheet(
   const coveredPaths = new Set<string>();
 
   const pushSection = (section: ParsedSheetSection) => {
-    allSections.push(section);
-    if (section.placement === 'drawer_column') {
-      drawerColumns.push(section);
-    } else if (section.placement === 'details') {
-      detailSections.push(section);
+    const withLabels: ParsedSheetSection = {
+      ...section,
+      fieldLabels,
+    };
+    allSections.push(withLabels);
+    if (withLabels.placement === 'drawer_column') {
+      drawerColumns.push(withLabels);
+    } else if (withLabels.placement === 'details') {
+      detailSections.push(withLabels);
     }
   };
 
@@ -388,7 +422,17 @@ export function parseDynamicSheet(
   );
 
   sortedSchemaEntries.forEach(([path, meta], index) => {
-    const rawValue = getByPath(state, path);
+    let rawValue = getByPath(state, path);
+    if (
+      path === 'meta.biography' &&
+      (rawValue === undefined ||
+        rawValue === null ||
+        (typeof rawValue === 'string' && !rawValue.trim())) &&
+      typeof state.meta?.background === 'string' &&
+      state.meta.background.trim()
+    ) {
+      rawValue = state.meta.background;
+    }
     const shortKey = path.split('.').pop() || path;
     const archetype = meta.archetype || inferArchetype(rawValue, shortKey);
     const value =
@@ -477,6 +521,31 @@ export function parseDynamicSheet(
         isAutoInferred: true,
       });
     }
+
+    // Тихий fallback для старих/імпортованих JSON, де є лише meta.background без meta.biography
+    if (
+      !isPathCovered('meta.biography', coveredPaths) &&
+      (state.meta.biography === undefined ||
+        state.meta.biography === null ||
+        (typeof state.meta.biography === 'string' && !state.meta.biography.trim())) &&
+      typeof state.meta.background === 'string' &&
+      state.meta.background.trim()
+    ) {
+      coveredPaths.add('meta.biography');
+      const bioInfo = META_DETAIL_LABELS.biography;
+      pushSection({
+        key: 'biography',
+        path: 'meta.biography',
+        title: bioInfo.title,
+        icon: bioInfo.icon,
+        color: bioInfo.color,
+        archetype: 'long_text',
+        placement: 'details',
+        order: autoOrder++,
+        value: state.meta.background,
+        isAutoInferred: true,
+      });
+    }
   }
 
   // 4. Авто-інференс custom_blocks.*
@@ -549,6 +618,7 @@ export function parseDynamicSheet(
     headerBadges: headers.headerBadges,
     allSections,
     allEditableSections: allSections,
+    fieldLabels,
   };
 }
 

@@ -25,7 +25,10 @@ export const ActiveHeroCard: React.FC<ActiveHeroCardProps> = ({
   const currentSummary = characters.find((c) => c.char_id === activeCharacterId);
   const heroName = activeCharacter?.meta?.name || currentSummary?.name || 'Не обрано';
   const heroBackground =
-    activeCharacter?.meta?.background || currentSummary?.background || 'Оберіть героя зі списку';
+    activeCharacter?.meta?.biography ||
+    activeCharacter?.meta?.background ||
+    currentSummary?.background ||
+    'Оберіть героя зі списку';
   const heroAvatar = activeCharacter?.meta?.avatar || currentSummary?.avatar;
 
   return (
@@ -35,9 +38,18 @@ export const ActiveHeroCard: React.FC<ActiveHeroCardProps> = ({
       </div>
 
       {/* Головна картка героя */}
-      <div className="bg-[#161616] border border-[#262626] rounded-lg p-2.5 flex items-center justify-between transition-colors duration-150 hover:border-[#333333]">
-        {/* Аватар + Інфо */}
-        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+      <div className="bg-[#161616] border border-[#262626] rounded-lg p-2 flex items-center justify-between transition-colors duration-150 hover:border-[#333333]">
+        {/* Клікабельна ліва частина (Аватар + Інфо) — розгортає/згортає список героїв як у картці світу */}
+        <button
+          type="button"
+          onClick={toggleHeroSelector}
+          data-tooltip={
+            isHeroSelectorOpen
+              ? 'Згорнути список героїв'
+              : 'Розгорнути список героїв для перемикання'
+          }
+          className="flex items-center gap-2.5 min-w-0 flex-1 text-left rounded-md px-0.5 py-0.5 transition-colors enabled:cursor-pointer"
+        >
           <HeroAvatar
             avatar={heroAvatar}
             name={heroName}
@@ -53,17 +65,17 @@ export const ActiveHeroCard: React.FC<ActiveHeroCardProps> = ({
               {heroBackground}
             </span>
           </div>
-        </div>
+        </button>
 
         {/* Кнопки дій */}
-        <div className="flex items-center gap-1 shrink-0 ml-2">
+        <div className="flex items-center gap-1 shrink-0 ml-1.5">
           {/* Кнопка відкриття інлайн-шторки вибору героя */}
           <button
             type="button"
             onClick={toggleHeroSelector}
-            title="Змінити активного героя"
+            data-tooltip={isHeroSelectorOpen ? 'Згорнути список героїв' : 'Змінити активного героя'}
             className={`w-7 h-7 rounded flex items-center justify-center text-[#9CA3AF] enabled:hover:text-[#E5E7EB] enabled:hover:bg-[#222222] transition-colors enabled:cursor-pointer ${
-              isHeroSelectorOpen ? 'bg-[#222222] text-[#60A5FA]' : ''
+              isHeroSelectorOpen ? 'bg-[#222222] text-[#F3F4F6]' : ''
             }`}
           >
             <RefreshCw size={13} className={`transition-transform duration-200 ${isHeroSelectorOpen ? 'rotate-180' : ''}`} />
@@ -74,7 +86,7 @@ export const ActiveHeroCard: React.FC<ActiveHeroCardProps> = ({
             <button
               type="button"
               onClick={() => onEditCharacter(currentSummary)}
-              title="Редагувати заготовку"
+              data-tooltip="Редагувати заготовку"
               className="w-7 h-7 rounded flex items-center justify-center text-[#9CA3AF] enabled:hover:text-[#E5E7EB] enabled:hover:bg-[#222222] transition-colors enabled:cursor-pointer"
             >
               <Edit3 size={12} />
@@ -86,7 +98,7 @@ export const ActiveHeroCard: React.FC<ActiveHeroCardProps> = ({
             <button
               type="button"
               onClick={() => onRequestDeleteCharacter(currentSummary)}
-              title="Видалити героя"
+              data-tooltip="Видалити героя"
               className="w-7 h-7 rounded flex items-center justify-center text-[#9CA3AF] enabled:hover:text-[#EF4444] enabled:hover:bg-[#2A1418] transition-colors enabled:cursor-pointer"
             >
               <Trash2 size={12} />

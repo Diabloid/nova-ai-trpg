@@ -152,7 +152,7 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({
           <button
             type="button"
             onClick={handleCopy}
-            title="Копіювати"
+            data-tooltip="Копіювати"
             className="absolute top-2 right-2 opacity-0 group-hover:opacity-80 hover:opacity-100 transition-opacity p-1 rounded bg-[#222222]/80 hover:bg-[#2A2A2A] text-[#9CA3AF] hover:text-white cursor-pointer"
           >
             {copied ? <Check size={12} className="text-[#10B981]" /> : <Copy size={12} />}

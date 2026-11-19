@@ -23,24 +23,6 @@ function hasSectionContent(section: ParsedSheetSection): boolean {
   return String(val).trim().length > 0;
 }
 
-function formatSectionForDetailsRead(
-  section: ParsedSheetSection,
-  allSections: ParsedSheetSection[]
-): ParsedSheetSection | null {
-  if (section.path === 'meta.background') {
-    const bioSection = allSections.find((s) => s.path === 'meta.biography');
-    if (
-      bioSection &&
-      String(bioSection.value ?? '').trim() !== '' &&
-      String(bioSection.value ?? '').trim() === String(section.value ?? '').trim()
-    ) {
-      return null;
-    }
-  }
-
-  return section;
-}
-
 export const DrawerDetails: React.FC<DrawerDetailsProps> = ({ sections }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -53,10 +35,7 @@ export const DrawerDetails: React.FC<DrawerDetailsProps> = ({ sections }) => {
     return () => cancelAnimationFrame(rafId);
   }, [isExpanded]);
 
-  const visibleSections = sections
-    .filter(hasSectionContent)
-    .map((sec) => formatSectionForDetailsRead(sec, sections))
-    .filter((sec): sec is ParsedSheetSection => sec !== null);
+  const visibleSections = sections.filter(hasSectionContent);
   if (visibleSections.length === 0) return null;
 
   return (
@@ -81,30 +60,39 @@ export const DrawerDetails: React.FC<DrawerDetailsProps> = ({ sections }) => {
         />
       </button>
 
-      {/* Вміст спойлера */}
-      {isExpanded && (
-        <div
-          ref={contentRef}
-          className="p-3 border-t border-[#222222] grid grid-cols-1 md:grid-cols-2 gap-2.5 animate-fade-in"
-        >
-          {visibleSections.map((section) => (
-            <div
-              key={section.path}
-              className={
-                section.archetype === 'long_text' && String(section.value ?? '').length > 80
-                  ? 'md:col-span-2'
-                  : ''
-              }
-            >
-              <DynamicSectionRenderer
-                section={section}
-                mode="read"
-                variant="compact"
-              />
-            </div>
-          ))}
+      {/* Вміст спойлера (двосторонній плавний CSS-перехід) */}
+      <div
+        aria-hidden={!isExpanded}
+        className={`grid transition-all duration-300 ease-out ${
+          isExpanded
+            ? 'grid-rows-[1fr] opacity-100 visible'
+            : 'grid-rows-[0fr] opacity-0 invisible pointer-events-none'
+        }`}
+      >
+        <div className="min-h-0 overflow-hidden">
+          <div
+            ref={contentRef}
+            className="p-3 border-t border-[#222222] grid grid-cols-1 md:grid-cols-2 gap-2.5"
+          >
+            {visibleSections.map((section) => (
+              <div
+                key={section.path}
+                className={
+                  section.archetype === 'long_text' && String(section.value ?? '').length > 80
+                    ? 'md:col-span-2'
+                    : ''
+                }
+              >
+                <DynamicSectionRenderer
+                  section={section}
+                  mode="read"
+                  variant="compact"
+                />
+              </div>
+            ))}
+          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 };

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { ChevronDown, Search } from 'lucide-react';
 import { CANONICAL_LUCIDE_ICON_KEYS, normalizeLucideIconKey } from '../../utils/lucideIconMap';
 import { DynamicLucideIcon } from '../dynamic-sheet';
+import { COMPACT_FIELD_CLASS } from '../ui/Input';
 
 interface IconPickerProps {
   value?: string;
@@ -168,7 +169,7 @@ export const IconPicker: React.FC<IconPickerProps> = ({
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Пошук іконки..."
-                className="w-full bg-[#111111] border border-[#2A2A2A] focus:border-[#7E0018] rounded-[6px] pl-7 pr-2.5 py-1 text-xs text-[#E5E7EB] placeholder-[#555555] outline-none transition-colors"
+                className={`w-full pl-7 pr-2.5 py-1 text-xs ${COMPACT_FIELD_CLASS}`}
               />
             </div>
 
@@ -184,7 +185,7 @@ export const IconPicker: React.FC<IconPickerProps> = ({
                     <button
                       key={iconKey}
                       type="button"
-                      title={iconKey}
+                      data-tooltip={iconKey}
                       onClick={() => {
                         onChange(iconKey);
                         setIsOpen(false);

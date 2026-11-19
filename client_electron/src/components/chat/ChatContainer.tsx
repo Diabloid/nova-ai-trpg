@@ -6,6 +6,7 @@ import { hexToRgba } from '../../utils/lucideIconMap';
 import { DynamicLucideIcon } from '../dynamic-sheet';
 import { ChatBubble } from './ChatBubble';
 import { RollbackGhost } from './RollbackGhost';
+import { ChatInput } from '../input/ChatInput';
 import { Button } from '../ui/Button';
 
 interface ChatContainerProps {
@@ -18,6 +19,7 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ onNewCampaign }) =
     isLoading,
     isStreaming,
     isRollingBack,
+    activeCampaignRollbackDepth,
     backendOffline,
     activeCampaignId,
     activeWorldId,
@@ -273,64 +275,75 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ onNewCampaign }) =
   };
 
   return (
-    <div className="relative flex-1 bg-[#111111] border border-[#2A2A2A] rounded-[10px] p-[20px_10px_4px_10px] overflow-hidden flex flex-col shadow-inner">
-      {/* Нейтральний індикатор завантаження при перемиканні кампаній поверх існуючого логу */}
-      {isLoading && !isStreaming && messages.length > 0 && (
-        <div className="absolute top-3 right-5 z-20 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#181818]/90 border border-[#2A2A2A] text-[11px] text-[#9CA3AF] shadow-md select-none">
-          <Loader2 size={12} className="animate-spin text-[#9CA3AF]" />
-          <span>Завантаження історії...</span>
-        </div>
-      )}
+    <div className="relative flex-1 bg-[#111111] border border-[#262626] rounded-xl p-4 pb-3 overflow-hidden flex flex-col shadow-lg">
+      <div className="relative flex-1 min-h-0 flex flex-col">
+        {/* Нейтральний індикатор завантаження при перемиканні кампаній поверх існуючого логу */}
+        {isLoading && !isStreaming && messages.length > 0 && (
+          <div className="absolute top-1 right-3 z-20 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#181818]/90 border border-[#2A2A2A] text-[11px] text-[#9CA3AF] shadow-md select-none">
+            <Loader2 size={12} className="animate-spin text-[#9CA3AF]" />
+            <span>Завантаження історії...</span>
+          </div>
+        )}
 
-      {/* Скрол-контейнер із симетричним вертикальним фейдом (0.00..0.02 та 0.98..1.00) */}
-      <div
-        ref={scrollRef}
-        onScroll={handleScroll}
-        className="flex-1 overflow-y-auto pr-4 mask-fade-vertical"
-      >
-        <div className="flex flex-col min-h-full justify-end pt-[18px]">
-          {messages.length === 0
-            ? renderEmptyOrOfflineState()
-            : messages.map((msg, idx) => {
-                const canRollback =
-                  idx === lastNarratorIndex && !isLoading && !isStreaming && !isRollingBack;
-                return (
-                  <ChatBubble
-                    key={msg.id || idx}
-                    message={msg}
-                    canRollback={canRollback}
-                  />
-                );
-              })}
+        {/* Скрол-контейнер із симетричним вертикальним фейдом (0.00..0.02 та 0.98..1.00) */}
+        <div
+          ref={scrollRef}
+          onScroll={handleScroll}
+          className="flex-1 overflow-y-auto pr-2 mask-fade-vertical"
+        >
+          <div className="flex flex-col min-h-full justify-end pt-[18px]">
+            {messages.length === 0
+              ? renderEmptyOrOfflineState()
+              : messages.map((msg, idx) => {
+                  const canRollback =
+                    idx === lastNarratorIndex &&
+                    lastNarratorIndex > 0 &&
+                    activeCampaignRollbackDepth > 0 &&
+                    msg.canRollback !== false &&
+                    !isLoading &&
+                    !isStreaming &&
+                    !isRollingBack;
+                  return (
+                    <ChatBubble
+                      key={msg.id || idx}
+                      message={msg}
+                      canRollback={canRollback}
+                    />
+                  );
+                })}
 
-          <div className="mb-2" />
+            <div className="mb-2" />
+          </div>
         </div>
+
+        {/* Плаваюча кнопка повернення до останніх повідомлень при прокрутці вгору */}
+        {messages.length > 0 && (
+          <button
+            type="button"
+            onClick={() => scrollToBottom('smooth')}
+            tabIndex={!isNearBottom ? 0 : -1}
+            aria-hidden={isNearBottom}
+            className={`absolute bottom-3 right-4 z-20 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border shadow-lg transition-[opacity,translate,background-color,border-color,color] duration-200 ease-in-out enabled:cursor-pointer select-none ${
+              !isNearBottom
+                ? 'opacity-100 translate-y-0 pointer-events-auto'
+                : 'opacity-0 translate-y-2 pointer-events-none'
+            } ${
+              isStreaming
+                ? 'bg-[#2A1418] border-[#EAB308]/60 text-[#FDE047] enabled:hover:bg-[#3A181F]'
+                : 'bg-[#181818] border-[#333333] text-[#E5E7EB] enabled:hover:bg-[#222222] enabled:hover:border-[#5A0010]'
+            }`}
+          >
+            <ArrowDown
+              size={13}
+              className={isStreaming ? 'text-[#EAB308] animate-pulse' : 'text-[#9CA3AF]'}
+            />
+            <span>Останні повідомлення</span>
+          </button>
+        )}
       </div>
 
-      {/* Плаваюча кнопка повернення до останніх повідомлень при прокрутці вгору */}
-      {messages.length > 0 && (
-        <button
-          type="button"
-          onClick={() => scrollToBottom('smooth')}
-          tabIndex={!isNearBottom ? 0 : -1}
-          aria-hidden={isNearBottom}
-          className={`absolute bottom-4 right-6 z-20 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border shadow-lg transition-[opacity,translate,background-color,border-color,color] duration-200 ease-in-out cursor-pointer select-none ${
-            !isNearBottom
-              ? 'opacity-100 translate-y-0 pointer-events-auto'
-              : 'opacity-0 translate-y-2 pointer-events-none'
-          } ${
-            isStreaming
-              ? 'bg-[#2A1418] border-[#EAB308]/60 text-[#FDE047] hover:bg-[#3A181F]'
-              : 'bg-[#181818] border-[#333333] text-[#E5E7EB] hover:bg-[#222222] hover:border-[#5A0010]'
-          }`}
-        >
-          <ArrowDown
-            size={13}
-            className={isStreaming ? 'text-[#EAB308] animate-pulse' : 'text-[#9CA3AF]'}
-          />
-          <span>Останні повідомлення</span>
-        </button>
-      )}
+      {/* Вкладений звужений глибокий док вводу всередині єдиної рамки чату */}
+      <ChatInput />
 
       <RollbackGhost />
     </div>

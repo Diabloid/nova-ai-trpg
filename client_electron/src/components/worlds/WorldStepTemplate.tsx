@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Check,
   Code2,
@@ -11,13 +11,16 @@ import {
   Trash2,
   User,
   Wand2,
+  X,
 } from 'lucide-react';
+import { useGameStore } from '../../store/useGameStore';
 import { useWorldStudioStore } from '../../store/useWorldStudioStore';
 import { parseDynamicSheet } from '../../utils/dynamicSheetParser';
 import { hexToRgba } from '../../utils/lucideIconMap';
 import { AddSectionDialog } from '../character-editor/AddSectionDialog';
 import { DynamicLucideIcon, DynamicSectionRenderer } from '../dynamic-sheet';
 import { Button } from '../ui/Button';
+import { STANDARD_FIELD_CLASS } from '../ui/Input';
 
 const PLACEMENT_LABELS: Record<string, string> = {
   drawer_column: 'Колонка шторки',
@@ -42,12 +45,56 @@ export const WorldStepTemplate: React.FC = () => {
     addTemplateSection,
     removeTemplateSection,
     applyTemplateJson,
+    clearTemplateSummaryNote,
   } = useWorldStudioStore();
 
   const [isAddSectionOpen, setIsAddSectionOpen] = useState(false);
   const [rawJsonText, setRawJsonText] = useState('');
   const [jsonError, setJsonError] = useState<string | null>(null);
+  const [closingSummaryText, setClosingSummaryText] = useState<string | null>(null);
+  const manualCloseTimerRef = useRef<number | null>(null);
 
+  const handleCloseSummaryNote = useCallback(() => {
+    if (!templateSummaryNote) return;
+    if (manualCloseTimerRef.current !== null) {
+      window.clearTimeout(manualCloseTimerRef.current);
+    }
+    setClosingSummaryText(templateSummaryNote);
+    manualCloseTimerRef.current = window.setTimeout(() => {
+      clearTemplateSummaryNote();
+      setClosingSummaryText(null);
+      manualCloseTimerRef.current = null;
+    }, 300);
+  }, [templateSummaryNote, clearTemplateSummaryNote]);
+
+  useEffect(() => {
+    if (!templateSummaryNote) return;
+    const noteSnapshot = templateSummaryNote;
+    const fadeTimer = window.setTimeout(() => {
+      setClosingSummaryText(noteSnapshot);
+    }, 4700);
+    const clearTimer = window.setTimeout(() => {
+      clearTemplateSummaryNote();
+      setClosingSummaryText(null);
+    }, 5000);
+
+    return () => {
+      window.clearTimeout(fadeTimer);
+      window.clearTimeout(clearTimer);
+    };
+  }, [templateSummaryNote, clearTemplateSummaryNote]);
+
+  useEffect(() => {
+    return () => {
+      if (manualCloseTimerRef.current !== null) {
+        window.clearTimeout(manualCloseTimerRef.current);
+      }
+    };
+  }, []);
+
+  const isSummaryOpen = Boolean(templateSummaryNote) && closingSummaryText !== templateSummaryNote;
+
+  const backendOffline = useGameStore((s) => s.backendOffline);
   const isBusy = isGeneratingTemplate || isLoadingWorld || isSavingWorld;
   const hasTemplate = Object.keys(templateDraft || {}).length > 0;
 
@@ -114,7 +161,7 @@ export const WorldStepTemplate: React.FC = () => {
             type="button"
             variant="primary"
             size="sm"
-            disabled={isBusy}
+            disabled={isBusy || backendOffline}
             isLoading={isGeneratingTemplate}
             onClick={() => {
               void generateWorldTemplate();
@@ -138,13 +185,13 @@ export const WorldStepTemplate: React.FC = () => {
               }
             }}
             placeholder="AI-коригування шаблону: напр. «Додай шкалу Радіації й прибери Ману»..."
-            className="flex-1 bg-[#161616] text-[#E5E7EB] text-xs rounded-lg px-3 py-2 border border-[#2D2D2D] placeholder-[#555555] focus:outline-none focus:border-[#7E0018] disabled:opacity-60"
+            className={`flex-1 text-xs px-3 py-2 ${STANDARD_FIELD_CLASS}`}
           />
           <Button
             type="button"
             variant="secondary"
             size="sm"
-            disabled={isBusy || !templateCustomInstruction.trim()}
+            disabled={isBusy || backendOffline || !templateCustomInstruction.trim()}
             isLoading={isGeneratingTemplate}
             onClick={() => {
               void generateWorldTemplate(templateCustomInstruction);
@@ -156,11 +203,29 @@ export const WorldStepTemplate: React.FC = () => {
           </Button>
         </div>
 
-        {templateSummaryNote && (
-          <div className="text-[11px] text-[#9CA3AF] bg-[#161616] border border-[#262626] rounded-lg px-3 py-1.5 break-words">
-            {templateSummaryNote}
+        <div
+          className={`grid transition-all duration-300 ease-out ${
+            isSummaryOpen
+              ? 'grid-rows-[1fr] opacity-100 mt-0'
+              : 'grid-rows-[0fr] opacity-0 -mt-2.5 pointer-events-none'
+          }`}
+        >
+          <div className="min-h-0 overflow-hidden">
+            {templateSummaryNote && (
+              <div className="flex items-start justify-between gap-2 text-[11px] text-[#9CA3AF] bg-[#161616] border border-[#262626] rounded-lg px-3 py-1.5">
+                <span className="break-words min-w-0 leading-relaxed">{templateSummaryNote}</span>
+                <button
+                  type="button"
+                  onClick={handleCloseSummaryNote}
+                  aria-label="Закрити підказку"
+                  className="w-5 h-5 rounded inline-flex items-center justify-center text-[#9CA3AF] shrink-0 enabled:hover:text-[#EF4444] enabled:hover:bg-[#2A1418] transition-colors enabled:cursor-pointer"
+                >
+                  <X size={12} />
+                </button>
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
 
       {/* 2. Спліт: Ліворуч живе прев'ю анкети з демо-даними, Праворуч конструктор / JSON */}
@@ -315,20 +380,40 @@ export const WorldStepTemplate: React.FC = () => {
                   setJsonError(null);
                 }}
                 spellCheck={false}
-                className="flex-1 w-full bg-[#161616] text-[#E5E7EB] text-xs font-mono leading-relaxed rounded-lg p-3 border border-[#303030] focus:outline-none focus:border-[#7E0018] resize-none overflow-y-auto disabled:opacity-60"
+                className={`flex-1 w-full text-xs font-mono leading-relaxed p-3 resize-none overflow-y-auto ${STANDARD_FIELD_CLASS}`}
               />
 
-              {jsonError && (
-                <div className="text-xs text-[#FCA5A5] bg-[#2A1215] border border-[#7F1D1D] rounded-lg px-3 py-2 break-words shrink-0">
-                  Помилка JSON: {jsonError}
+              <div
+                className={`grid transition-all duration-200 ease-out shrink-0 ${
+                  jsonError
+                    ? 'grid-rows-[1fr] opacity-100'
+                    : 'grid-rows-[0fr] opacity-0 -mt-2.5 pointer-events-none'
+                }`}
+              >
+                <div className="min-h-0 overflow-hidden">
+                  {jsonError && (
+                    <div className="text-xs text-[#FCA5A5] bg-[#2A1215] border border-[#7F1D1D] rounded-lg px-3 py-2 break-words">
+                      Помилка JSON: {jsonError}
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
 
-              {!jsonError && isJsonDirty && (
-                <div className="text-[11px] text-[#FCD34D] bg-[#291D0B] border border-[#78350F] rounded-lg px-3 py-1.5 shrink-0">
-                  Є незастосовані зміни JSON — натисніть «Застосувати JSON».
+              <div
+                className={`grid transition-all duration-200 ease-out shrink-0 ${
+                  !jsonError && isJsonDirty
+                    ? 'grid-rows-[1fr] opacity-100'
+                    : 'grid-rows-[0fr] opacity-0 -mt-2.5 pointer-events-none'
+                }`}
+              >
+                <div className="min-h-0 overflow-hidden">
+                  {!jsonError && isJsonDirty && (
+                    <div className="text-[11px] text-[#FCD34D] bg-[#291D0B] border border-[#78350F] rounded-lg px-3 py-1.5">
+                      Є незастосовані зміни JSON — натисніть «Застосувати JSON».
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
 
               <Button
                 type="button"
@@ -404,7 +489,7 @@ export const WorldStepTemplate: React.FC = () => {
                         type="button"
                         disabled={isBusy}
                         onClick={() => removeTemplateSection(sec.path)}
-                        title={`Видалити секцію «${sec.title}»`}
+                        data-tooltip={`Видалити секцію «${sec.title}»`}
                         className="w-7 h-7 rounded flex items-center justify-center text-[#9CA3AF] shrink-0 enabled:hover:text-[#EF4444] enabled:hover:bg-[#2A1418] transition-colors enabled:cursor-pointer disabled:opacity-35 disabled:cursor-default"
                       >
                         <Trash2 size={13} />

@@ -244,6 +244,7 @@ interface WorldStudioStoreState {
   // Крок 4 і збереження
   setTemplateCustomInstruction: (text: string) => void;
   setIsJsonMode: (isJsonMode: boolean) => void;
+  clearTemplateSummaryNote: () => void;
   generateWorldTemplate: (customInstruction?: string) => Promise<void>;
   addTemplateSection: (input: AddSectionInput) => void;
   removeTemplateSection: (sectionPath: string) => void;
@@ -265,6 +266,14 @@ function persistDraftIfCreate(state: WorldStudioStoreState): void {
     templateDraft: state.templateDraft,
     demoState: state.demoState,
   });
+}
+
+function isWorldActionBlockedOffline(actionLabel: string): boolean {
+  if (!useGameStore.getState().backendOffline) return false;
+  useGameStore
+    .getState()
+    .setSystemAlert(`Сервер офлайн — ${actionLabel} тимчасово недоступна.`, 'warning');
+  return true;
 }
 
 export const useWorldStudioStore = create<WorldStudioStoreState>((set, get) => ({
@@ -464,7 +473,7 @@ export const useWorldStudioStore = create<WorldStudioStoreState>((set, get) => (
         isLoadingWorld: false,
         passport,
         aiPrompts: prompts,
-        aiGeneratedPromptsSnapshot: { ...prompts },
+        aiGeneratedPromptsSnapshot: null,
         loreArticles: loadedArticles,
         selectedLoreFilename: loadedArticles[0]?.filename || null,
         dirtyLoreFilenames: [],
@@ -576,6 +585,7 @@ export const useWorldStudioStore = create<WorldStudioStoreState>((set, get) => (
   sendPassportDialog: async (rawMessage: string) => {
     const text = rawMessage.trim();
     if (!text || get().isGeneratingPassport) return;
+    if (isWorldActionBlockedOffline('взаємодія з Архітектором Світів')) return;
 
     const userMsg: ChatMessage = {
       id: `ws-user-${Date.now()}`,
@@ -639,6 +649,7 @@ export const useWorldStudioStore = create<WorldStudioStoreState>((set, get) => (
   generatePassportOneShot: async (rawDescription?: string) => {
     const sourceText = (rawDescription ?? get().oneShotDescription).trim();
     if (!sourceText || get().isGeneratingPassport) return;
+    if (isWorldActionBlockedOffline('ШІ-генерація паспорта')) return;
 
     set({ isGeneratingPassport: true });
 
@@ -716,17 +727,20 @@ export const useWorldStudioStore = create<WorldStudioStoreState>((set, get) => (
   generateAiPrompts: async () => {
     const {
       passport,
+      loreArticles,
+      templateDraft,
       selectedToneChips,
       promptsCustomInstruction,
       aiPrompts,
       isGeneratingPrompts,
     } = get();
     if (isGeneratingPrompts) return;
+    if (isWorldActionBlockedOffline('ШІ-генерація промптів')) return;
 
     if (!passport.title.trim()) {
       useGameStore
         .getState()
-        .setSystemAlert('Спочатку вкажіть хоча б назву світу на Кроці 1.', 'info');
+        .setSystemAlert('Спочатку вкажіть хоча б назву світу на Кроці 1.', 'warning');
       return;
     }
 
@@ -734,11 +748,14 @@ export const useWorldStudioStore = create<WorldStudioStoreState>((set, get) => (
 
     try {
       const hasExistingPrompts = Object.values(aiPrompts).some((v) => v.trim().length > 0);
+      const hasTemplate = Object.keys(templateDraft || {}).length > 0;
       const generated = await worldsApi.wizardGeneratePrompts({
         passport,
         tone_chips: selectedToneChips.length > 0 ? selectedToneChips : undefined,
         custom_instruction: promptsCustomInstruction.trim() || undefined,
         current_prompts: hasExistingPrompts ? aiPrompts : undefined,
+        lore_digest: buildLoreDigest(loreArticles),
+        character_template: hasTemplate ? templateDraft : undefined,
       });
 
       const normalized: WorldAiPrompts = {
@@ -812,6 +829,7 @@ export const useWorldStudioStore = create<WorldStudioStoreState>((set, get) => (
   saveLoreArticleRemote: async (filename) => {
     const { mode, editingWorldId, loreArticles } = get();
     if (mode !== 'edit' || !editingWorldId) return true;
+    if (isWorldActionBlockedOffline('операція збереження статті на сервері')) return false;
     const article = loreArticles.find((a) => a.filename === filename);
     if (!article) return false;
 
@@ -851,6 +869,7 @@ export const useWorldStudioStore = create<WorldStudioStoreState>((set, get) => (
     };
 
     if (mode === 'edit' && editingWorldId) {
+      if (isWorldActionBlockedOffline('операція створення статті на сервері')) return;
       set({ isMutatingLore: true });
       try {
         await worldsApi.saveLoreArticle(editingWorldId, filename, newItem.content);
@@ -874,6 +893,7 @@ export const useWorldStudioStore = create<WorldStudioStoreState>((set, get) => (
   createAiLoreArticle: async (topicText) => {
     const cleanTopic = topicText.trim();
     if (!cleanTopic || get().isMutatingLore || get().loreGenProgress?.active) return;
+    if (isWorldActionBlockedOffline('ШІ-генерація статті лору')) return;
 
     const { mode, editingWorldId, passport, aiPrompts, loreArticles } = get();
     const hasPrompts = Object.values(aiPrompts).some((v) => v.trim().length > 0);
@@ -932,11 +952,12 @@ export const useWorldStudioStore = create<WorldStudioStoreState>((set, get) => (
   generateStarterLore: async () => {
     const { passport, aiPrompts, mode, editingWorldId, loreGenProgress, isMutatingLore } = get();
     if (loreGenProgress?.active || isMutatingLore) return;
+    if (isWorldActionBlockedOffline('ШІ-генерація стартового лору')) return;
 
     if (!passport.title.trim()) {
       useGameStore
         .getState()
-        .setSystemAlert('Спочатку вкажіть назву світу на Кроці 1.', 'info');
+        .setSystemAlert('Спочатку вкажіть назву світу на Кроці 1.', 'warning');
       return;
     }
 
@@ -1031,6 +1052,7 @@ export const useWorldStudioStore = create<WorldStudioStoreState>((set, get) => (
   expandLoreArticle: async (filename, instruction) => {
     const cleanInstruction = instruction.trim();
     if (!cleanInstruction || get().isMutatingLore || get().loreGenProgress?.active) return;
+    if (isWorldActionBlockedOffline('ШІ-редагування статті лору')) return;
 
     const { mode, editingWorldId, passport, aiPrompts, loreArticles } = get();
     const target = loreArticles.find((a) => a.filename === filename);
@@ -1087,6 +1109,9 @@ export const useWorldStudioStore = create<WorldStudioStoreState>((set, get) => (
 
   importLoreFile: async (file) => {
     const { mode, editingWorldId } = get();
+    if (mode === 'edit' && editingWorldId && isWorldActionBlockedOffline('операція імпорту у світ')) {
+      return;
+    }
     set({ isMutatingLore: true });
 
     try {
@@ -1131,6 +1156,7 @@ export const useWorldStudioStore = create<WorldStudioStoreState>((set, get) => (
     const { mode, editingWorldId, loreArticles, selectedLoreFilename } = get();
 
     if (mode === 'edit' && editingWorldId) {
+      if (isWorldActionBlockedOffline('операція видалення статті на сервері')) return;
       set({ isMutatingLore: true });
       try {
         await worldsApi.deleteLoreArticle(editingWorldId, filename);
@@ -1162,6 +1188,7 @@ export const useWorldStudioStore = create<WorldStudioStoreState>((set, get) => (
 
   setTemplateCustomInstruction: (text) => set({ templateCustomInstruction: text }),
   setIsJsonMode: (isJsonMode) => set({ isJsonMode }),
+  clearTemplateSummaryNote: () => set({ templateSummaryNote: null }),
 
   generateWorldTemplate: async (customInstruction?: string) => {
     const {
@@ -1173,11 +1200,12 @@ export const useWorldStudioStore = create<WorldStudioStoreState>((set, get) => (
       isGeneratingTemplate,
     } = get();
     if (isGeneratingTemplate) return;
+    if (isWorldActionBlockedOffline('ШІ-генерація шаблону анкети')) return;
 
     if (!passport.title.trim()) {
       useGameStore
         .getState()
-        .setSystemAlert('Спочатку вкажіть назву світу на Кроці 1.', 'info');
+        .setSystemAlert('Спочатку вкажіть назву світу на Кроці 1.', 'warning');
       return;
     }
 
@@ -1199,15 +1227,12 @@ export const useWorldStudioStore = create<WorldStudioStoreState>((set, get) => (
       set({
         templateDraft: response.character_template || {},
         demoState: response.demo_state || {},
-        templateSummaryNote: response.summary_note || null,
+        templateSummaryNote: response.summary_note || 'Шаблон анкети та демо-дані згенеровано',
         isJsonMode: false,
         isGeneratingTemplate: false,
         isDirty: true,
       });
       persistDraftIfCreate(get());
-      useGameStore
-        .getState()
-        .setSystemAlert('Шаблон анкети та демо-дані згенеровано', 'success');
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Помилка генерації шаблону';
       useGameStore
@@ -1310,6 +1335,7 @@ export const useWorldStudioStore = create<WorldStudioStoreState>((set, get) => (
   finalizeCreateWorld: async () => {
     const { mode, passport, aiPrompts, templateDraft, loreArticles, isSavingWorld } = get();
     if (mode !== 'create' || isSavingWorld) return false;
+    if (isWorldActionBlockedOffline('фіналізація створення світу')) return false;
 
     if (!passport.title.trim()) {
       useGameStore.getState().setSystemAlert('Вкажіть назву світу на Кроці 1.', 'error');
@@ -1320,8 +1346,8 @@ export const useWorldStudioStore = create<WorldStudioStoreState>((set, get) => (
       useGameStore
         .getState()
         .setSystemAlert(
-          'Спочатку згенеруйте або задайте шаблон анкети персонажа на Кроці 4.',
-          'info'
+          'Спочатку згенеруйте або задайте шаблон анкети персонажа на Кроці 3.',
+          'warning'
         );
       return false;
     }
@@ -1374,6 +1400,7 @@ export const useWorldStudioStore = create<WorldStudioStoreState>((set, get) => (
       isSavingWorld,
     } = get();
     if (mode !== 'edit' || !editingWorldId || isSavingWorld) return false;
+    if (isWorldActionBlockedOffline('операція збереження змін світу')) return false;
 
     if (!passport.title.trim()) {
       useGameStore.getState().setSystemAlert('Назва світу не може бути порожньою.', 'error');

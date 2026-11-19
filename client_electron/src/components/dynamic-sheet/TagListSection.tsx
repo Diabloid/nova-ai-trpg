@@ -1,10 +1,41 @@
 import React, { useState } from 'react';
 import { Plus, X } from 'lucide-react';
+import { isTechnicalFieldKey } from '../../utils/characterBlockStyles';
 import { hexToRgba } from '../../utils/lucideIconMap';
+import { COMPACT_FIELD_CLASS } from '../ui/Input';
 import { DynamicLucideIcon } from './DynamicLucideIcon';
 import type { DynamicSectionProps } from './types';
 
-export const TagListSection: React.FC<DynamicSectionProps<string[]>> = ({
+function formatTagEntry(raw: unknown): string {
+  if (raw === null || raw === undefined) return '';
+  if (typeof raw === 'string' || typeof raw === 'number' || typeof raw === 'boolean') {
+    return String(raw).trim();
+  }
+  if (Array.isArray(raw)) {
+    return raw.map(formatTagEntry).filter(Boolean).join(', ');
+  }
+  if (typeof raw === 'object') {
+    const obj = raw as Record<string, unknown>;
+    const primary = String(obj.name ?? obj.title ?? obj.label ?? obj.text ?? '').trim();
+    const extra = String(obj.desc ?? obj.description ?? obj.value ?? obj.note ?? '').trim();
+
+    if (primary && extra && primary !== extra) {
+      return `${primary} — ${extra}`;
+    }
+    if (primary || extra) {
+      return primary || extra;
+    }
+
+    const fallbackValues = Object.entries(obj)
+      .filter(([k, v]) => !isTechnicalFieldKey(k) && v !== null && v !== undefined && typeof v !== 'object')
+      .map(([, v]) => String(v).trim())
+      .filter(Boolean);
+    return fallbackValues.join(' — ');
+  }
+  return '';
+}
+
+export const TagListSection: React.FC<DynamicSectionProps<any[]>> = ({
   title,
   icon = 'sparkles',
   color = '#A78BFA',
@@ -14,7 +45,8 @@ export const TagListSection: React.FC<DynamicSectionProps<string[]>> = ({
   emptyText = 'Теги відсутні',
   onChange,
 }) => {
-  const tags = Array.isArray(value) ? value.map((v) => String(v)) : [];
+  const rawItems = Array.isArray(value) ? value : [];
+  const tags = rawItems.map(formatTagEntry).filter(Boolean);
   const [newTag, setNewTag] = useState('');
 
   const isColumnRead = mode === 'read' && variant === 'column';
@@ -31,14 +63,14 @@ export const TagListSection: React.FC<DynamicSectionProps<string[]>> = ({
     const trimmed = newTag.trim();
     if (!trimmed) return;
     if (!tags.includes(trimmed)) {
-      onChange([...tags, trimmed]);
+      onChange([...rawItems, trimmed]);
     }
     setNewTag('');
   };
 
   const handleRemoveTag = (index: number) => {
     if (!onChange) return;
-    onChange(tags.filter((_, i) => i !== index));
+    onChange(rawItems.filter((_, i) => i !== index));
   };
 
   return (
@@ -48,7 +80,7 @@ export const TagListSection: React.FC<DynamicSectionProps<string[]>> = ({
         style={{ color }}
       >
         <DynamicLucideIcon icon={icon} size={13} className="shrink-0" />
-        <span className="truncate">{title}</span>
+        <span className="truncate uppercase">{title}</span>
       </div>
 
       <div className="flex flex-col gap-2">
@@ -70,8 +102,8 @@ export const TagListSection: React.FC<DynamicSectionProps<string[]>> = ({
                   <button
                     type="button"
                     onClick={() => handleRemoveTag(idx)}
-                    title={`Видалити «${tag}»`}
-                    className="ml-0.5 text-[#D1D5DB] hover:text-[#EF4444] transition-colors cursor-pointer"
+                    aria-label={`Видалити «${tag}»`}
+                    className="w-3.5 h-3.5 rounded-sm inline-flex items-center justify-center ml-0.5 text-[#D1D5DB] enabled:hover:text-[#EF4444] enabled:hover:bg-[#2A1418] transition-colors enabled:cursor-pointer"
                   >
                     <X size={11} />
                   </button>
@@ -94,7 +126,7 @@ export const TagListSection: React.FC<DynamicSectionProps<string[]>> = ({
                 }
               }}
               placeholder="Новий тег..."
-              className="flex-1 min-w-0 bg-[#121212] border border-[#2D2D2D] focus:border-[#7E0018] rounded px-2 py-1 text-xs text-[#E5E7EB] outline-none transition-colors"
+              className={`flex-1 min-w-0 px-2 py-1 text-xs ${COMPACT_FIELD_CLASS}`}
             />
             <button
               type="button"

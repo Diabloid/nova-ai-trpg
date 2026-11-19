@@ -1,6 +1,8 @@
 import React from 'react';
 import { Plus, X } from 'lucide-react';
+import { isTechnicalFieldKey, localizeFieldKey } from '../../utils/characterBlockStyles';
 import { hexToRgba } from '../../utils/lucideIconMap';
+import { COMPACT_FIELD_CLASS } from '../ui/Input';
 import { DynamicLucideIcon } from './DynamicLucideIcon';
 import type { DynamicSectionProps } from './types';
 
@@ -49,7 +51,10 @@ function extractCardParts(item: unknown): ExtractedCardParts {
     }
   }
   if (!titleKey) {
-    titleKey = keys.find((k) => typeof item[k] === 'string') ?? keys[0] ?? null;
+    titleKey =
+      keys.find((k) => !isTechnicalFieldKey(k) && typeof item[k] === 'string') ??
+      keys.find((k) => !isTechnicalFieldKey(k)) ??
+      null;
   }
 
   let descKey: string | null = null;
@@ -70,6 +75,7 @@ function extractCardParts(item: unknown): ExtractedCardParts {
     ([k, v]) =>
       k !== titleKey &&
       k !== descKey &&
+      !isTechnicalFieldKey(k) &&
       v !== undefined &&
       v !== null &&
       String(v).trim() !== ''
@@ -104,6 +110,7 @@ export const CardListSection: React.FC<DynamicSectionProps<any[]>> = ({
   mode,
   variant = 'column',
   emptyText = 'Записи відсутні',
+  fieldLabels,
   onChange,
 }) => {
   const items = Array.isArray(value) ? value : [];
@@ -147,7 +154,7 @@ export const CardListSection: React.FC<DynamicSectionProps<any[]>> = ({
       >
         <div className="flex items-center gap-1.5 min-w-0">
           <DynamicLucideIcon icon={icon} size={13} className="shrink-0" />
-          <span className="truncate">{title}</span>
+          <span className="truncate uppercase">{title}</span>
         </div>
         {mode === 'edit' && (
           <button
@@ -176,7 +183,7 @@ export const CardListSection: React.FC<DynamicSectionProps<any[]>> = ({
             return (
               <div
                 key={idx}
-                title={parts.desc || parts.title}
+                data-tooltip={parts.desc || parts.title}
                 className="shrink-0 rounded-md p-2 flex flex-col gap-1 border"
                 style={{
                   backgroundColor: cardBg,
@@ -206,7 +213,7 @@ export const CardListSection: React.FC<DynamicSectionProps<any[]>> = ({
                           borderColor: cardBorder,
                         }}
                       >
-                        <span className="opacity-70">{eKey}:</span>{' '}
+                        <span className="opacity-70">{localizeFieldKey(eKey, fieldLabels)}:</span>{' '}
                         <span className="font-medium">{String(eVal)}</span>
                       </span>
                     ))}
@@ -232,8 +239,8 @@ export const CardListSection: React.FC<DynamicSectionProps<any[]>> = ({
                   <button
                     type="button"
                     onClick={() => handleRemoveCard(idx)}
-                    title="Видалити запис"
-                    className="w-5 h-5 rounded flex items-center justify-center text-[#6B7280] hover:text-[#EF4444] hover:bg-[#2A1418] transition-colors cursor-pointer"
+                    aria-label="Видалити запис"
+                    className="w-5 h-5 rounded flex items-center justify-center text-[#6B7280] enabled:hover:text-[#EF4444] enabled:hover:bg-[#2A1418] transition-colors enabled:cursor-pointer"
                   >
                     <X size={12} />
                   </button>
@@ -249,7 +256,7 @@ export const CardListSection: React.FC<DynamicSectionProps<any[]>> = ({
                           value={String(fieldVal ?? '')}
                           onChange={(e) => handleUpdateField(idx, fieldKey, e.target.value)}
                           placeholder={`Введіть ${fieldKey}...`}
-                          className="w-full bg-[#181818] border border-[#2E2E2E] focus:border-[#7E0018] rounded px-2 py-1 text-xs text-[#E5E7EB] outline-none transition-colors"
+                          className={`w-full px-2 py-1 text-xs ${COMPACT_FIELD_CLASS}`}
                         />
                       </div>
                     ))}
@@ -260,7 +267,7 @@ export const CardListSection: React.FC<DynamicSectionProps<any[]>> = ({
                     value={String(item ?? '')}
                     onChange={(e) => handleUpdateField(idx, null, e.target.value)}
                     placeholder="Введіть значення..."
-                    className="w-full bg-[#181818] border border-[#2E2E2E] focus:border-[#7E0018] rounded px-2 py-1 text-xs text-[#E5E7EB] outline-none transition-colors"
+                    className={`w-full px-2 py-1 text-xs ${COMPACT_FIELD_CLASS}`}
                   />
                 )}
               </div>

@@ -13,11 +13,17 @@ import { useGameStore } from './useGameStore';
 import { formatSystemTime } from '../utils/formatTime';
 import {
   extractHeaderAnchors,
+  getByPath,
   parseDynamicSheet,
   serializeDynamicSheet,
   setByPath,
   type HeaderPatch,
 } from '../utils/dynamicSheetParser';
+import {
+  applyFieldLabelUpdate,
+  mergeFieldLabelsIntoState,
+  resolveMissingFieldKeyLabels,
+} from '../utils/templateKeyTranslator';
 
 const DEFAULT_WORLD_ID = 'default_dark_fantasy';
 
@@ -71,7 +77,6 @@ const DEFAULT_FALLBACK_TEMPLATE: Record<string, any> = {
     world_id: DEFAULT_WORLD_ID,
     name: '',
     location: '',
-    background: '',
     appearance: '',
     biography: '',
   },
@@ -94,6 +99,50 @@ function cloneDeep<T>(value: T): T {
   }
 }
 
+function normalizeForSnapshot(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(normalizeForSnapshot);
+  }
+  if (value && typeof value === 'object') {
+    const sorted: Record<string, unknown> = {};
+    for (const key of Object.keys(value as Record<string, unknown>).sort()) {
+      sorted[key] = normalizeForSnapshot((value as Record<string, unknown>)[key]);
+    }
+    return sorted;
+  }
+  return value;
+}
+
+function serializeStableSnapshot(state: unknown): string {
+  try {
+    return JSON.stringify(normalizeForSnapshot(state));
+  } catch {
+    return '';
+  }
+}
+
+function isFieldUnlocked(lockedPath: string, unlockedList: string[]): boolean {
+  if (!unlockedList || unlockedList.length === 0) return false;
+  return unlockedList.some((raw) => {
+    const u = typeof raw === 'string' ? raw.trim() : '';
+    if (!u) return false;
+    return (
+      u === lockedPath ||
+      lockedPath.startsWith(`${u}.`) ||
+      u.startsWith(`${lockedPath}.`)
+    );
+  });
+}
+
+function addLockedPaths(existing: string[], additions: string[]): string[] {
+  if (additions.length === 0) return existing;
+  const next = new Set(existing);
+  for (const path of additions) {
+    if (path) next.add(path);
+  }
+  return Array.from(next);
+}
+
 function buildInitialRawState(
   template: Record<string, any> | null | undefined,
   worldId: string
@@ -114,7 +163,9 @@ function mergeServerDraftWithSchema(
   prevRaw: Record<string, any>,
   serverDraft: Record<string, any>,
   worldId: string,
-  fallbackTemplate: Record<string, any> | null
+  fallbackTemplate: Record<string, any> | null,
+  lockedFields: string[] = [],
+  unlockedFields: string[] = []
 ): Record<string, any> {
   const next = cloneDeep(serverDraft);
   if (!next.meta || typeof next.meta !== 'object' || Array.isArray(next.meta)) {
@@ -126,14 +177,32 @@ function mergeServerDraftWithSchema(
     prevRaw._schema_meta || fallbackTemplate?._schema_meta;
   if (!next._schema_meta && fallbackSchema) {
     next._schema_meta = cloneDeep(fallbackSchema);
+  } else if (prevRaw._schema_meta?.field_labels) {
+    next._schema_meta = {
+      ...(next._schema_meta || { version: 1, sections: {} }),
+      field_labels: {
+        ...(prevRaw._schema_meta.field_labels || {}),
+        ...(next._schema_meta?.field_labels || {}),
+      },
+    };
   }
   if (prevRaw.meta?.avatar && !next.meta.avatar) {
     next.meta.avatar = prevRaw.meta.avatar;
   }
+
+  for (const lockedPath of lockedFields) {
+    const lockedVal = getByPath(prevRaw, lockedPath);
+    if (lockedVal !== undefined) {
+      setByPath(next, lockedPath, cloneDeep(lockedVal));
+    }
+  }
+
   if (
     typeof prevRaw.meta?.name === 'string' &&
     prevRaw.meta.name.trim() &&
-    (!next.meta.name || !String(next.meta.name).trim())
+    (!next.meta.name || !String(next.meta.name).trim()) &&
+    !lockedFields.includes('meta.name') &&
+    !isFieldUnlocked('meta.name', unlockedFields)
   ) {
     next.meta.name = prevRaw.meta.name;
   }
@@ -165,6 +234,9 @@ export interface WizardState {
 
   wizardRawState: Record<string, any>;
   initialDraftSnapshot: string;
+  lastSyncedSnapshot: string;
+  hasUnsyncedEdits: boolean;
+  lockedFields: string[];
   wizardMessages: ChatMessage[];
   wizardInput: string;
   isWizardThinking: boolean;
@@ -181,6 +253,8 @@ export interface WizardState {
   importCustomTemplate: (templateJson: Record<string, any>) => void;
   updateWizardHeaderField: (patch: HeaderPatch) => void;
   updateWizardSectionValue: (sectionPath: string, nextValue: any) => void;
+  updateWizardFieldLabel: (rawKey: string, nextLabel: string) => void;
+  translateWizardKeys: (keys: string[]) => Promise<void>;
   setWizardRawState: (nextState: Record<string, any>) => void;
   setWizardInput: (text: string) => void;
   sendWizardMessage: (rawText: string) => Promise<void>;
@@ -207,6 +281,11 @@ export const useWizardStore = create<WizardState>((set, get) => ({
   initialDraftSnapshot: JSON.stringify(
     buildInitialRawState(DEFAULT_FALLBACK_TEMPLATE, DEFAULT_WORLD_ID)
   ),
+  lastSyncedSnapshot: serializeStableSnapshot(
+    buildInitialRawState(DEFAULT_FALLBACK_TEMPLATE, DEFAULT_WORLD_ID)
+  ),
+  hasUnsyncedEdits: false,
+  lockedFields: [],
   wizardMessages: [],
   wizardInput: '',
   isWizardThinking: false,
@@ -251,6 +330,9 @@ export const useWizardStore = create<WizardState>((set, get) => ({
       isLoadingWorldSchema: true,
       wizardRawState: initialFallback,
       initialDraftSnapshot: JSON.stringify(initialFallback),
+      lastSyncedSnapshot: serializeStableSnapshot(initialFallback),
+      hasUnsyncedEdits: false,
+      lockedFields: [],
       wizardMessages: [createStarterGreeting()],
       isWizardThinking: false,
       isWizardTyping: false,
@@ -307,6 +389,9 @@ export const useWizardStore = create<WizardState>((set, get) => ({
         isLoadingWorldSchema: false,
         wizardRawState: nextRawState,
         initialDraftSnapshot: JSON.stringify(nextRawState),
+        lastSyncedSnapshot: serializeStableSnapshot(nextRawState),
+        hasUnsyncedEdits: false,
+        lockedFields: [],
         wizardMessages:
           state.wizardMessages.length <= 1
             ? [createStarterGreeting(resolvedWorldDetail?.title)]
@@ -369,6 +454,9 @@ export const useWizardStore = create<WizardState>((set, get) => ({
         isLoadingWorldSchema: false,
         wizardRawState: nextRawState,
         initialDraftSnapshot: JSON.stringify(nextRawState),
+        lastSyncedSnapshot: serializeStableSnapshot(nextRawState),
+        hasUnsyncedEdits: false,
+        lockedFields: [],
         wizardMessages: [createStarterGreeting(detail.title)],
         wizardInput: '',
       });
@@ -380,6 +468,9 @@ export const useWizardStore = create<WizardState>((set, get) => ({
         isLoadingWorldSchema: false,
         wizardRawState: fallbackRaw,
         initialDraftSnapshot: JSON.stringify(fallbackRaw),
+        lastSyncedSnapshot: serializeStableSnapshot(fallbackRaw),
+        hasUnsyncedEdits: false,
+        lockedFields: [],
         wizardMessages: [createStarterGreeting()],
       });
       useGameStore
@@ -400,6 +491,9 @@ export const useWizardStore = create<WizardState>((set, get) => ({
         templateOverride: null,
         wizardRawState: nextRaw,
         initialDraftSnapshot: JSON.stringify(nextRaw),
+        lastSyncedSnapshot: serializeStableSnapshot(nextRaw),
+        hasUnsyncedEdits: false,
+        lockedFields: [],
         wizardMessages: [createStarterGreeting(activeWorldDetail?.title)],
       });
       return;
@@ -415,6 +509,9 @@ export const useWizardStore = create<WizardState>((set, get) => ({
       templateOverride: overrideTemplate,
       wizardRawState: nextRaw,
       initialDraftSnapshot: JSON.stringify(nextRaw),
+      lastSyncedSnapshot: serializeStableSnapshot(nextRaw),
+      hasUnsyncedEdits: false,
+      lockedFields: [],
       wizardMessages: [createStarterGreeting(activeWorldDetail?.title)],
     });
   },
@@ -428,6 +525,9 @@ export const useWizardStore = create<WizardState>((set, get) => ({
       templateOverride: overrideTemplate,
       wizardRawState: nextRaw,
       initialDraftSnapshot: JSON.stringify(nextRaw),
+      lastSyncedSnapshot: serializeStableSnapshot(nextRaw),
+      hasUnsyncedEdits: false,
+      lockedFields: [],
       wizardMessages: [createStarterGreeting(activeWorldDetail?.title)],
     });
     useGameStore
@@ -436,20 +536,85 @@ export const useWizardStore = create<WizardState>((set, get) => ({
   },
 
   setWizardRawState: (nextState: Record<string, any>) => {
-    set({ wizardRawState: nextState });
+    set((state) => ({
+      wizardRawState: nextState,
+      hasUnsyncedEdits: serializeStableSnapshot(nextState) !== state.lastSyncedSnapshot,
+    }));
   },
 
   updateWizardHeaderField: (patch: HeaderPatch) => {
-    set((state) => ({
-      wizardRawState: serializeDynamicSheet(state.wizardRawState, [], patch),
-    }));
+    set((state) => {
+      const nextState = serializeDynamicSheet(state.wizardRawState, [], patch);
+      const additions: string[] = [];
+      if (patch.name !== undefined) additions.push('meta.name');
+      if (patch.location !== undefined) additions.push('meta.location');
+      if (patch.avatar !== undefined) additions.push('meta.avatar');
+      if (patch.overallState !== undefined) {
+        const useAnatomyPath =
+          state.wizardRawState?.anatomy_and_health &&
+          typeof state.wizardRawState.anatomy_and_health === 'object' &&
+          !Array.isArray(state.wizardRawState.anatomy_and_health) &&
+          state.wizardRawState?.meta?.overall_state === undefined;
+        additions.push(
+          useAnatomyPath ? 'anatomy_and_health.overall_state' : 'meta.overall_state'
+        );
+      }
+
+      return {
+        wizardRawState: nextState,
+        lockedFields: addLockedPaths(state.lockedFields, additions),
+        hasUnsyncedEdits: serializeStableSnapshot(nextState) !== state.lastSyncedSnapshot,
+      };
+    });
   },
 
   updateWizardSectionValue: (sectionPath: string, nextValue: any) => {
     set((state) => {
       const nextState = cloneDeep(state.wizardRawState);
       setByPath(nextState, sectionPath, cloneDeep(nextValue));
-      return { wizardRawState: nextState };
+      return {
+        wizardRawState: nextState,
+        lockedFields: addLockedPaths(state.lockedFields, [sectionPath]),
+        hasUnsyncedEdits: serializeStableSnapshot(nextState) !== state.lastSyncedSnapshot,
+      };
+    });
+  },
+
+  updateWizardFieldLabel: (rawKey: string, nextLabel: string) => {
+    const schemaFallback = get().getActiveSchemaFallback();
+    set((state) => {
+      const nextState = applyFieldLabelUpdate(
+        state.wizardRawState,
+        rawKey,
+        nextLabel,
+        schemaFallback
+      );
+      return {
+        wizardRawState: nextState,
+        hasUnsyncedEdits: serializeStableSnapshot(nextState) !== state.lastSyncedSnapshot,
+      };
+    });
+  },
+
+  translateWizardKeys: async (keys: string[]) => {
+    const schemaFallback = get().getActiveSchemaFallback();
+    const existingLabels = {
+      ...(schemaFallback?.field_labels || {}),
+      ...(get().wizardRawState?._schema_meta?.field_labels || {}),
+    };
+    const translated = await resolveMissingFieldKeyLabels(keys, existingLabels);
+    if (Object.keys(translated).length === 0) return;
+
+    set((state) => {
+      const nextState = mergeFieldLabelsIntoState(
+        state.wizardRawState,
+        translated,
+        schemaFallback
+      );
+      return {
+        wizardRawState: nextState,
+        hasUnsyncedEdits: serializeStableSnapshot(nextState) !== state.lastSyncedSnapshot,
+      };
     });
   },
 
@@ -459,6 +624,12 @@ export const useWizardStore = create<WizardState>((set, get) => ({
   sendWizardMessage: async (rawText: string) => {
     const text = rawText.trim();
     if (!text || get().isWizardThinking || get().isLoadingWorldSchema) return;
+    if (useGameStore.getState().backendOffline) {
+      useGameStore
+        .getState()
+        .setSystemAlert('Сервер офлайн — діалог із Творцем Долі тимчасово недоступний.', 'warning');
+      return;
+    }
 
     const cleanUserText = text.replace(/\*\*/g, '');
     const timeNow = formatSystemTime();
@@ -486,7 +657,14 @@ export const useWizardStore = create<WizardState>((set, get) => ({
     wizardAbortController = new AbortController();
 
     try {
-      const { wizardMessages, selectedWorldId, templateOverride, activeWorldDetail } = get();
+      const {
+        wizardMessages,
+        wizardRawState,
+        lockedFields,
+        selectedWorldId,
+        templateOverride,
+        activeWorldDetail,
+      } = get();
       const history = wizardMessages.map((m) => ({
         role: m.sender.includes('Творець Долі') ? ('narrator' as const) : ('player' as const),
         content: m.text,
@@ -497,6 +675,8 @@ export const useWizardStore = create<WizardState>((set, get) => ({
           message: text,
           history,
           include_draft: true,
+          draft_state: wizardRawState,
+          locked_fields: lockedFields,
           world_id: selectedWorldId,
           template_override: templateOverride,
         },
@@ -517,14 +697,23 @@ export const useWizardStore = create<WizardState>((set, get) => ({
         isPlayer: false,
       };
 
+      const unlockedList = Array.isArray(resp?.unlocked_fields) ? resp.unlocked_fields : [];
+
       set((state) => {
+        const remainingLocked =
+          unlockedList.length > 0
+            ? state.lockedFields.filter((path) => !isFieldUnlocked(path, unlockedList))
+            : state.lockedFields;
+
         let nextRaw = state.wizardRawState;
         if (resp?.draft_state && typeof resp.draft_state === 'object') {
           nextRaw = mergeServerDraftWithSchema(
             state.wizardRawState,
             resp.draft_state,
             selectedWorldId,
-            templateOverride || activeWorldDetail?.character_template || null
+            templateOverride || activeWorldDetail?.character_template || null,
+            remainingLocked,
+            unlockedList
           );
         } else {
           const parsed = parseDynamicSheet(
@@ -542,6 +731,9 @@ export const useWizardStore = create<WizardState>((set, get) => ({
         return {
           wizardMessages: [...state.wizardMessages, aiMsg],
           wizardRawState: nextRaw,
+          lockedFields: remainingLocked,
+          lastSyncedSnapshot: serializeStableSnapshot(nextRaw),
+          hasUnsyncedEdits: false,
         };
       });
     } catch (err: any) {
@@ -567,8 +759,15 @@ export const useWizardStore = create<WizardState>((set, get) => ({
       activeWorldDetail,
       isSyncingDraft,
       isWizardThinking,
+      hasUnsyncedEdits,
     } = get();
-    if (isSyncingDraft || isWizardThinking) return;
+    if (isSyncingDraft || isWizardThinking || !hasUnsyncedEdits) return;
+    if (useGameStore.getState().backendOffline) {
+      useGameStore
+        .getState()
+        .setSystemAlert('Сервер офлайн — синхронізація драфту тимчасово недоступна.', 'warning');
+      return;
+    }
 
     set({ isSyncingDraft: true });
     if (wizardAbortController) {
@@ -587,25 +786,31 @@ export const useWizardStore = create<WizardState>((set, get) => ({
       );
 
       if (harmonized && typeof harmonized === 'object') {
-        set((state) => ({
-          wizardRawState: mergeServerDraftWithSchema(
+        set((state) => {
+          const nextRaw = mergeServerDraftWithSchema(
             state.wizardRawState,
             harmonized,
             selectedWorldId,
-            templateOverride || activeWorldDetail?.character_template || null
-          ),
-          wizardMessages: [
-            ...state.wizardMessages,
-            {
-              id: `wizard-sync-${Date.now()}`,
-              sender: 'Творець Долі:',
-              text: 'Картку персонажа гармонізовано! Параметри та секції анкети узгоджено з вашими правками.',
-              senderColor: '#A78BFA',
-              timeText: formatSystemTime(),
-              isPlayer: false,
-            },
-          ],
-        }));
+            templateOverride || activeWorldDetail?.character_template || null,
+            state.lockedFields
+          );
+          return {
+            wizardRawState: nextRaw,
+            lastSyncedSnapshot: serializeStableSnapshot(nextRaw),
+            hasUnsyncedEdits: false,
+            wizardMessages: [
+              ...state.wizardMessages,
+              {
+                id: `wizard-sync-${Date.now()}`,
+                sender: 'Творець Долі:',
+                text: 'Картку персонажа гармонізовано! Параметри та секції анкети узгоджено з вашими правками.',
+                senderColor: '#A78BFA',
+                timeText: formatSystemTime(),
+                isPlayer: false,
+              },
+            ],
+          };
+        });
       }
     } catch (err: any) {
       if (err.name === 'AbortError') return;
@@ -627,6 +832,12 @@ export const useWizardStore = create<WizardState>((set, get) => ({
       templateOverride,
     } = get();
     if (wizardMessages.length === 0 || isWizardThinking) return;
+    if (useGameStore.getState().backendOffline) {
+      useGameStore
+        .getState()
+        .setSystemAlert('Сервер офлайн — завершення створення персонажа недоступне.', 'warning');
+      return;
+    }
 
     set({
       isWizardThinking: true,
@@ -662,7 +873,7 @@ export const useWizardStore = create<WizardState>((set, get) => ({
           .getState()
           .setSystemAlert(
             'ШІ тимчасово перевантажений або ліміт запитів вичерпано, зачекайте 15–20 секунд і спробуйте знову.',
-            'error'
+            'warning'
           );
         return;
       }
@@ -706,7 +917,7 @@ export const useWizardStore = create<WizardState>((set, get) => ({
         set({ isWizardOpen: false });
         gameStore.setSystemAlert('Героя та кампанію успішно створено!', 'success');
       } else {
-        gameStore.setSystemAlert('Персонажа створено, але не знайдено у списку', 'info');
+        gameStore.setSystemAlert('Персонажа створено, але не знайдено у списку', 'warning');
         set({ isWizardOpen: false });
       }
     } catch (err: any) {

@@ -16,6 +16,7 @@ export const CampaignList: React.FC<CampaignListProps> = ({
     campaigns,
     activeCharacterId,
     activeCampaignId,
+    backendOffline,
     selectCampaign,
     togglePinCampaign,
   } = useGameStore();
@@ -29,12 +30,14 @@ export const CampaignList: React.FC<CampaignListProps> = ({
         </span>
         <button
           type="button"
-          disabled={!activeCharacterId}
+          disabled={!activeCharacterId || backendOffline}
           onClick={onNewCampaign}
-          title={
-            activeCharacterId
-              ? 'Створити нову кампанію за цього героя'
-              : 'Спочатку створіть або оберіть героя'
+          data-tooltip={
+            backendOffline
+              ? 'Недоступно в офлайн-режимі'
+              : activeCharacterId
+                ? 'Створити нову кампанію за цього героя'
+                : 'Спочатку створіть або оберіть героя'
           }
           className="text-[11px] font-semibold text-[#9CA3AF] bg-[#1A1A1A] border border-[#2D2D2D] px-2 py-0.5 rounded transition-colors flex items-center gap-1 enabled:hover:text-[#E5E7EB] enabled:hover:bg-[#262626] enabled:cursor-pointer disabled:opacity-40 disabled:cursor-default"
         >
@@ -98,7 +101,7 @@ export const CampaignList: React.FC<CampaignListProps> = ({
                       e.stopPropagation();
                       togglePinCampaign(camp.campaign_id);
                     }}
-                    title={isPinned ? 'Відкріпити кампанію' : 'Закріпити кампанію'}
+                    data-tooltip={isPinned ? 'Відкріпити кампанію' : 'Закріпити кампанію'}
                     className={`w-6 h-6 rounded flex items-center justify-center transition-colors cursor-pointer ${
                       isPinned
                         ? 'text-[#EAB308] hover:bg-[#222222]'
@@ -115,7 +118,7 @@ export const CampaignList: React.FC<CampaignListProps> = ({
                         e.stopPropagation();
                         onRequestDeleteCampaign(camp);
                       }}
-                      title="Видалити кампанію"
+                      data-tooltip="Видалити кампанію"
                       className="w-6 h-6 rounded flex items-center justify-center text-[#6B7280] hover:text-[#EF4444] hover:bg-[#2A1418] transition-colors cursor-pointer"
                     >
                       <Trash2 size={12} />

@@ -25,6 +25,15 @@ export interface SchemaSectionMeta {
 export interface TemplateSchemaMeta {
   version: number;
   sections: Record<string, SchemaSectionMeta>;
+  field_labels?: Record<string, string>;
+}
+
+export interface TranslateKeysRequest {
+  keys: string[];
+}
+
+export interface TranslateKeysResponse {
+  labels: Record<string, string>;
 }
 
 export interface IntentItem {
@@ -129,6 +138,7 @@ export interface CampaignSummary {
   is_pinned: boolean;
   created_at: string;
   last_played: string;
+  rollback_depth?: number;
 }
 
 export interface CampaignCreateRequest {
@@ -149,6 +159,8 @@ export interface RollbackResponse {
   previous_user_input: string;
   current_state: PlayerState;
   message: string;
+  can_rollback?: boolean;
+  rollback_depth?: number;
 }
 
 export interface CharacterDialogHistoryItem {
@@ -160,6 +172,8 @@ export interface CharacterDialogRequest {
   message: string;
   history?: CharacterDialogHistoryItem[];
   include_draft?: boolean;
+  draft_state?: Record<string, any> | null;
+  locked_fields?: string[];
   world_id?: string;
   template_override?: Record<string, any> | null;
 }
@@ -167,6 +181,7 @@ export interface CharacterDialogRequest {
 export interface CharacterDialogResponse {
   reply: string;
   draft_state?: PlayerState | null;
+  unlocked_fields?: string[];
 }
 
 export interface CharacterSyncRequest {
@@ -307,6 +322,8 @@ export interface WorldPromptsGenRequest {
   tone_chips?: string[];
   custom_instruction?: string;
   current_prompts?: WorldAiPrompts | null;
+  lore_digest?: string;
+  character_template?: Record<string, any> | null;
 }
 
 export interface WorldLoreDraftItem {

@@ -5,7 +5,7 @@ import type {
   WorldDetailResponse,
   WorldSummary,
 } from '../../types/api';
-import type { ChatMessage, SystemAlert, DrawerTab } from '../../types/game';
+import type { ChatMessage, SystemAlert, SystemAlertType, DrawerTab } from '../../types/game';
 import type { SyntaxSelectionRange } from '../../utils/novaSyntax';
 
 export interface UiSlice {
@@ -21,8 +21,9 @@ export interface UiSlice {
   expandedContainers: Record<string, boolean>;
 
   systemAlert: SystemAlert | null;
+  isSystemAlertVisible: boolean;
 
-  setSystemAlert: (message: string, type?: 'info' | 'error' | 'success') => void;
+  setSystemAlert: (message: string, type?: SystemAlertType) => void;
   clearSystemAlert: () => void;
   setBackendOffline: (offline: boolean) => void;
 
@@ -73,6 +74,7 @@ export interface GameplaySlice {
   userInput: string;
   suppressedSpans: SyntaxSelectionRange[];
   isRollingBack: boolean;
+  activeCampaignRollbackDepth: number;
   rollbackInputSignal: number;
   rollbackGhost: RollbackGhostState | null;
 

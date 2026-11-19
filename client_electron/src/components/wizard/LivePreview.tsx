@@ -1,9 +1,11 @@
 import React, { useMemo } from 'react';
 import { ArrowRight, Info, Loader2, RefreshCw } from 'lucide-react';
+import { useGameStore } from '../../store/useGameStore';
 import { useWizardStore } from '../../store/useWizardStore';
 import { parseDynamicSheet } from '../../utils/dynamicSheetParser';
 import { DynamicSectionRenderer } from '../dynamic-sheet';
 import { Button } from '../ui/Button';
+import { COMPACT_FIELD_CLASS } from '../ui/Input';
 
 function isPlainRecord(val: unknown): val is Record<string, any> {
   return typeof val === 'object' && val !== null && !Array.isArray(val);
@@ -17,12 +19,16 @@ export const LivePreview: React.FC = () => {
     isLoadingWorldSchema,
     updateWizardHeaderField,
     updateWizardSectionValue,
+    updateWizardFieldLabel,
+    translateWizardKeys,
     isSyncingDraft,
+    hasUnsyncedEdits,
     syncWizardDraft,
     finalizeWizard,
     isWizardTyping,
     wizardMessages,
   } = useWizardStore();
+  const backendOffline = useGameStore((s) => s.backendOffline);
 
   const schemaFallback = useMemo(
     () =>
@@ -70,8 +76,20 @@ export const LivePreview: React.FC = () => {
         <button
           type="button"
           onClick={() => syncWizardDraft()}
-          disabled={isSyncingDraft || isWizardTyping || isLoadingWorldSchema}
-          title="Синхронізувати ручні правки з ШІ за схемою світу"
+          disabled={
+            isSyncingDraft ||
+            isWizardTyping ||
+            isLoadingWorldSchema ||
+            backendOffline ||
+            !hasUnsyncedEdits
+          }
+          data-tooltip={
+            backendOffline
+              ? 'Немає підключення до сервера гри'
+              : !hasUnsyncedEdits
+                ? 'Змін для синхронізації немає'
+                : 'Синхронізувати ручні правки з ШІ за схемою світу'
+          }
           className="flex items-center gap-1.5 px-2 py-1 bg-[#1A1A1A] border border-[#333333] rounded-md text-[#D1D5DB] text-[10px] font-semibold transition-all duration-150 shrink-0 enabled:hover:bg-[#252525] enabled:hover:border-[#444444] enabled:active:scale-[0.98] enabled:cursor-pointer disabled:opacity-50 disabled:cursor-default"
         >
           <RefreshCw className={`w-3 h-3 ${isSyncingDraft ? 'animate-spin text-[#A78BFA]' : ''}`} />
@@ -97,7 +115,7 @@ export const LivePreview: React.FC = () => {
                   value={parsedSheet.headers.name}
                   onChange={(e) => updateWizardHeaderField({ name: e.target.value })}
                   placeholder="Буде виведено з діалогу..."
-                  className="w-full bg-[#121212] border border-[#2B2B2B] hover:border-[#3E3E3E] focus:border-[#7E0018] focus:hover:border-[#7E0018] rounded-md px-2.5 py-1.5 text-xs text-[#E5E7EB] placeholder-[#555555] outline-none transition-colors"
+                  className={`w-full px-2.5 py-1.5 text-xs ${COMPACT_FIELD_CLASS}`}
                 />
               </div>
 
@@ -109,7 +127,7 @@ export const LivePreview: React.FC = () => {
                     value={parsedSheet.headers.location}
                     onChange={(e) => updateWizardHeaderField({ location: e.target.value })}
                     placeholder="Визначається світом або діалогом..."
-                    className="w-full bg-[#121212] border border-[#2B2B2B] hover:border-[#3E3E3E] focus:border-[#7E0018] focus:hover:border-[#7E0018] rounded-md px-2.5 py-1.5 text-xs text-[#E5E7EB] placeholder-[#555555] outline-none transition-colors"
+                    className={`w-full px-2.5 py-1.5 text-xs ${COMPACT_FIELD_CLASS}`}
                   />
                 </div>
               )}
@@ -122,7 +140,7 @@ export const LivePreview: React.FC = () => {
                     value={parsedSheet.headers.overallState ?? ''}
                     onChange={(e) => updateWizardHeaderField({ overallState: e.target.value })}
                     placeholder="Поточний стан персонажа..."
-                    className="w-full bg-[#121212] border border-[#2B2B2B] hover:border-[#3E3E3E] focus:border-[#7E0018] focus:hover:border-[#7E0018] rounded-md px-2.5 py-1.5 text-xs text-[#E5E7EB] placeholder-[#555555] outline-none transition-colors"
+                    className={`w-full px-2.5 py-1.5 text-xs ${COMPACT_FIELD_CLASS}`}
                   />
                 </div>
               )}
@@ -136,6 +154,10 @@ export const LivePreview: React.FC = () => {
                 mode="edit"
                 variant="compact"
                 onChange={(nextValue) => updateWizardSectionValue(section.path, nextValue)}
+                onFieldLabelChange={updateWizardFieldLabel}
+                onTranslateKeys={(keys) => {
+                  void translateWizardKeys(keys);
+                }}
               />
             ))}
 
@@ -155,7 +177,13 @@ export const LivePreview: React.FC = () => {
         <Button
           variant="primary"
           onClick={() => finalizeWizard()}
-          disabled={isWizardTyping || isLoadingWorldSchema || wizardMessages.length <= 1}
+          disabled={
+            isWizardTyping ||
+            isLoadingWorldSchema ||
+            backendOffline ||
+            wizardMessages.length <= 1
+          }
+          data-tooltip={backendOffline ? 'Немає підключення до сервера гри' : undefined}
           className="w-full justify-center text-xs py-2.5 font-bold shadow-md"
         >
           <span>Завершити створення</span>

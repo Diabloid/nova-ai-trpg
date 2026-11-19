@@ -7,12 +7,14 @@ import {
   UserCheck,
   Wand2,
 } from 'lucide-react';
+import { useGameStore } from '../../store/useGameStore';
 import {
   useWorldStudioStore,
   WORLD_TONE_CHIPS,
 } from '../../store/useWorldStudioStore';
 import type { WorldAiPrompts } from '../../types/api';
 import { Button } from '../ui/Button';
+import { STANDARD_FIELD_CLASS } from '../ui/Input';
 
 interface PromptCardConfig {
   field: keyof WorldAiPrompts;
@@ -68,7 +70,14 @@ export const WorldStepPrompts: React.FC = () => {
     resetPromptToAi,
   } = useWorldStudioStore();
 
+  const backendOffline = useGameStore((s) => s.backendOffline);
   const isBusy = isGeneratingPrompts || isLoadingWorld;
+  const hasAnyPromptModified = Boolean(
+    aiGeneratedPromptsSnapshot &&
+      PROMPT_CARDS.some(
+        (card) => (aiPrompts[card.field] || '') !== (aiGeneratedPromptsSnapshot[card.field] || '')
+      )
+  );
 
   return (
     <div className="flex-1 flex flex-col gap-4 min-h-0 overflow-hidden">
@@ -100,14 +109,14 @@ export const WorldStepPrompts: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            {aiGeneratedPromptsSnapshot && (
+            {hasAnyPromptModified && (
               <Button
                 type="button"
                 variant="secondary"
                 size="sm"
                 disabled={isBusy}
                 onClick={() => resetPromptToAi()}
-                title="Повернути всі 4 поля до згенерованої ШІ версії"
+                data-tooltip="Повернути всі 4 поля до згенерованої ШІ версії"
               >
                 <RotateCcw size={12} />
                 <span>Скинути всі до ШІ</span>
@@ -118,7 +127,7 @@ export const WorldStepPrompts: React.FC = () => {
               type="button"
               variant="primary"
               size="sm"
-              disabled={isBusy}
+              disabled={isBusy || backendOffline}
               isLoading={isGeneratingPrompts}
               onClick={() => {
                 void generateAiPrompts();
@@ -136,7 +145,7 @@ export const WorldStepPrompts: React.FC = () => {
           disabled={isBusy}
           onChange={(e) => setPromptsCustomInstruction(e.target.value)}
           placeholder="Побажання для ШІ (необов'язково): наприклад, «Зроби магію смертельно небезпечною і без телепортації»..."
-          className="w-full bg-[#161616] text-[#E5E7EB] text-xs rounded-lg px-3 py-2 border border-[#2D2D2D] placeholder-[#555555] focus:outline-none focus:border-[#7E0018] disabled:opacity-60"
+          className={`w-full text-xs px-3 py-2 ${STANDARD_FIELD_CLASS}`}
         />
       </div>
 
@@ -162,20 +171,18 @@ export const WorldStepPrompts: React.FC = () => {
                     </h3>
                   </div>
 
-                  <button
-                    type="button"
-                    disabled={isBusy || !canReset}
-                    onClick={() => resetPromptToAi(card.field)}
-                    title={
-                      canReset
-                        ? 'Скинути це поле до версії ШІ'
-                        : 'Поле відповідає версії ШІ'
-                    }
-                    className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-[#161616] border border-[#2A2A2A] text-[11px] font-medium text-[#9CA3AF] transition-colors shrink-0 enabled:hover:text-white enabled:hover:bg-[#202020] enabled:hover:border-[#3A3A3A] enabled:cursor-pointer disabled:opacity-35 disabled:cursor-default"
-                  >
-                    <RotateCcw size={11} />
-                    <span>Скинути до ШІ</span>
-                  </button>
+                  {canReset && (
+                    <button
+                      type="button"
+                      disabled={isBusy}
+                      onClick={() => resetPromptToAi(card.field)}
+                      data-tooltip="Скинути це поле до версії ШІ"
+                      className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-[#161616] border border-[#2A2A2A] text-[11px] font-medium text-[#9CA3AF] transition-colors shrink-0 enabled:hover:text-white enabled:hover:bg-[#202020] enabled:hover:border-[#3A3A3A] enabled:cursor-pointer disabled:opacity-35 disabled:cursor-default"
+                    >
+                      <RotateCcw size={11} />
+                      <span>Скинути до ШІ</span>
+                    </button>
+                  )}
                 </div>
 
                 <p className="text-[11px] text-[#6B7280] leading-snug break-words">
@@ -188,7 +195,7 @@ export const WorldStepPrompts: React.FC = () => {
                   disabled={isBusy}
                   onChange={(e) => updateAiPromptField(card.field, e.target.value)}
                   placeholder={card.placeholder}
-                  className="w-full bg-[#161616] text-[#E5E7EB] text-xs leading-relaxed rounded-lg px-3 py-2.5 border border-[#303030] placeholder-[#555555] focus:outline-none focus:border-[#7E0018] focus:ring-1 focus:ring-[#7E0018] resize-y disabled:opacity-60"
+                  className={`w-full text-xs leading-relaxed px-3 py-2.5 resize-y ${STANDARD_FIELD_CLASS}`}
                 />
               </div>
             );

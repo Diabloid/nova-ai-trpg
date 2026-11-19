@@ -46,7 +46,7 @@ export const HeaderStatusBar: React.FC = () => {
         type="button"
         disabled={isBarDisabled}
         onClick={toggleCharacterDrawer}
-        title={
+        data-tooltip={
           backendOffline
             ? 'Очікування підключення до сервера гри'
             : isWorldEmpty
@@ -62,12 +62,17 @@ export const HeaderStatusBar: React.FC = () => {
         }`}
       >
         {backendOffline ? (
-          <div className="flex items-center gap-3 min-w-0 py-1">
-            <WifiOff size={16} className="text-[#6B7280] shrink-0" />
-            <span className="text-[14px] font-medium text-[#9CA3AF] truncate">
-              Очікування підключення...
-            </span>
-          </div>
+          <>
+            <div className="flex items-center gap-3 min-w-0 py-1 flex-1">
+              <WifiOff size={16} className="text-[#EF4444] shrink-0" />
+              <span className="text-[14px] font-semibold text-[#FCA5A5] truncate">
+                Сервер офлайн • Очікування підключення...
+              </span>
+            </div>
+            <div className="px-2.5 py-0.5 rounded-full bg-[#2A1414]/70 border border-[#5A0010] text-[11px] font-medium text-[#FCA5A5] shrink-0">
+              Офлайн
+            </div>
+          </>
         ) : isWorldEmpty ? (
           <>
             <div className="flex items-center gap-3 min-w-[130px] flex-1">
@@ -121,7 +126,7 @@ export const HeaderStatusBar: React.FC = () => {
                   </span>
                   {activeCampaign?.title && (
                     <span
-                      title={`Активна кампанія: ${activeCampaign.title}`}
+                      data-tooltip={`Активна кампанія: ${activeCampaign.title}`}
                       className={`px-2 py-0.5 rounded-md bg-[#222222] border border-[#2F2F2F] text-[10px] font-medium text-[#D1D5DB] truncate max-w-[160px] shrink-0 transition-opacity ${
                         isSidebarOpen ? 'hidden md:inline-block opacity-75' : 'inline-block opacity-100'
                       }`}
@@ -143,7 +148,7 @@ export const HeaderStatusBar: React.FC = () => {
                   {anchors.headerBadges.slice(0, 3).map((badge) => (
                     <div
                       key={badge.key}
-                      title={`${badge.label}: ${badge.value}`}
+                      data-tooltip={`${badge.label}: ${badge.value}`}
                       className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border max-w-[135px] min-w-0 shrink"
                       style={{
                         backgroundColor: hexToRgba(badge.color, 0.14),
@@ -167,7 +172,7 @@ export const HeaderStatusBar: React.FC = () => {
 
               {state && overallState && (
                 <div
-                  title={overallState}
+                  data-tooltip={overallState}
                   className="flex items-center gap-2 px-3 py-1 rounded-full bg-[#2A1414]/60 border border-[#4A1818]/80 max-w-[180px] sm:max-w-[240px] min-w-0 shrink-0"
                 >
                   <Heart size={13} className="text-[#EF4444] fill-[#EF4444]/40 shrink-0" />

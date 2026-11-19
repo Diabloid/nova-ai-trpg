@@ -3,7 +3,9 @@ import { Layers, Plus } from 'lucide-react';
 import type { TemplateArchetype, TemplatePlacement } from '../../types/api';
 import { toAsciiSlug, type AddSectionInput } from '../../utils/schemaMergeUtils';
 import { Button } from '../ui/Button';
+import { ColorPickerPopover } from '../ui/ColorPickerPopover';
 import { CustomSelect, type CustomSelectOption } from '../ui/CustomSelect';
+import { STANDARD_FIELD_CLASS } from '../ui/Input';
 import { Modal } from '../ui/Modal';
 import { IconPicker } from './IconPicker';
 
@@ -86,7 +88,7 @@ const AddSectionForm: React.FC<{
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Наприклад: Шкала Радіації або Тайні титули"
-          className="w-full bg-[#121212] border border-[#2B2B2B] focus:border-[#7E0018] rounded-lg px-3 py-2 text-xs text-[#E5E7EB] placeholder-[#555555] outline-none transition-colors"
+          className={`w-full px-3 py-2 text-xs ${STANDARD_FIELD_CLASS}`}
         />
         <div className="text-[10px] text-[#6B7280] font-mono truncate">
           Шлях у JSON: <span className="text-[#9CA3AF]">{previewPath}</span>
@@ -132,7 +134,7 @@ const AddSectionForm: React.FC<{
                 <button
                   key={presetHex}
                   type="button"
-                  title={presetHex}
+                  data-tooltip={presetHex}
                   onClick={() => setColor(presetHex)}
                   className={`w-4 h-4 rounded-full transition-transform enabled:cursor-pointer ${
                     isSelected
@@ -143,12 +145,12 @@ const AddSectionForm: React.FC<{
                 />
               );
             })}
-            <input
-              type="color"
+            <ColorPickerPopover
               value={color}
-              onChange={(e) => setColor(e.target.value)}
-              title="Довільний колір"
-              className="w-5 h-5 bg-transparent border-0 p-0 cursor-pointer rounded overflow-hidden ml-auto shrink-0"
+              variant="swatch"
+              ariaLabel="Довільний акцентний колір секції"
+              onChange={(hex) => setColor(hex)}
+              className="ml-auto"
             />
           </div>
         </div>

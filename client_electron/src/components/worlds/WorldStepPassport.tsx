@@ -13,9 +13,10 @@ import { useWorldStudioStore } from '../../store/useWorldStudioStore';
 import { hexToRgba } from '../../utils/lucideIconMap';
 import { IconPicker } from '../character-editor/IconPicker';
 import { DynamicLucideIcon } from '../dynamic-sheet';
-import { SendOrMicButton } from '../input/SendOrMicButton';
-import { VoiceBanner } from '../input/VoiceBanner';
+import { ChatInputDock } from '../input/ChatInputDock';
 import { Button } from '../ui/Button';
+import { ColorPickerPopover } from '../ui/ColorPickerPopover';
+import { COMPACT_FIELD_CLASS, STANDARD_FIELD_CLASS } from '../ui/Input';
 
 const WORLD_ACCENT_PALETTE = [
   '#7E0018',
@@ -45,6 +46,7 @@ export const WorldStepPassport: React.FC = () => {
     sendPassportDialog,
     generatePassportOneShot,
   } = useWorldStudioStore();
+  const backendOffline = useGameStore((s) => s.backendOffline);
   const setSystemAlert = useGameStore((s) => s.setSystemAlert);
 
   const [newLocationInput, setNewLocationInput] = useState('');
@@ -106,7 +108,7 @@ export const WorldStepPassport: React.FC = () => {
 
   const handleSendChat = () => {
     const trimmed = passportInput.trim();
-    if (!trimmed || isGeneratingPassport || isLoadingWorld) return;
+    if (!trimmed || isGeneratingPassport || isLoadingWorld || backendOffline) return;
     void sendPassportDialog(trimmed);
   };
 
@@ -120,6 +122,8 @@ export const WorldStepPassport: React.FC = () => {
   const handleSendOrRecord = () => {
     if (isRecording) {
       stopRecording();
+    } else if (backendOffline) {
+      return;
     } else if (passportInput.trim().length > 0) {
       handleSendChat();
     } else {
@@ -129,7 +133,7 @@ export const WorldStepPassport: React.FC = () => {
 
   const accentColor = passport.accent_color || '#7E0018';
   const isFormDisabled = isLoadingWorld || isGeneratingPassport;
-  const isChatDisabled = isGeneratingPassport || isTranscribing || isLoadingWorld;
+  const isChatDisabled = isGeneratingPassport || isTranscribing || isLoadingWorld || backendOffline;
 
   return (
     <div className="flex-1 flex gap-4 min-h-0 overflow-hidden">
@@ -171,7 +175,7 @@ export const WorldStepPassport: React.FC = () => {
               disabled={isFormDisabled}
               onChange={(e) => updatePassport({ title: e.target.value })}
               placeholder="Напр.: Нео-Київ 2099"
-              className="w-full bg-[#161616] text-[#E5E7EB] text-sm rounded-lg px-3 py-2 border border-[#333333] placeholder-[#555555] focus:outline-none focus:border-[#7E0018] focus:ring-1 focus:ring-[#7E0018] disabled:opacity-60"
+              className={`w-full text-sm px-3 py-2 ${STANDARD_FIELD_CLASS}`}
             />
           </div>
 
@@ -185,7 +189,7 @@ export const WorldStepPassport: React.FC = () => {
               disabled={isFormDisabled}
               onChange={(e) => updatePassport({ genre: e.target.value })}
               placeholder="Напр.: Кіберпанк-нуар"
-              className="w-full bg-[#161616] text-[#E5E7EB] text-sm rounded-lg px-3 py-2 border border-[#333333] placeholder-[#555555] focus:outline-none focus:border-[#7E0018] focus:ring-1 focus:ring-[#7E0018] disabled:opacity-60"
+              className={`w-full text-sm px-3 py-2 ${STANDARD_FIELD_CLASS}`}
             />
           </div>
         </div>
@@ -201,7 +205,7 @@ export const WorldStepPassport: React.FC = () => {
             disabled={isFormDisabled}
             onChange={(e) => updatePassport({ description: e.target.value })}
             placeholder="Короткий опис атмосфери, головної загрози, технологій чи магії..."
-            className="w-full bg-[#161616] text-[#E5E7EB] text-xs leading-relaxed rounded-lg px-3 py-2.5 border border-[#333333] placeholder-[#555555] focus:outline-none focus:border-[#7E0018] focus:ring-1 focus:ring-[#7E0018] resize-y disabled:opacity-60"
+            className={`w-full text-xs leading-relaxed px-3 py-2.5 resize-y ${STANDARD_FIELD_CLASS}`}
           />
         </div>
 
@@ -233,7 +237,7 @@ export const WorldStepPassport: React.FC = () => {
                     type="button"
                     disabled={isFormDisabled}
                     onClick={() => updatePassport({ accent_color: hex })}
-                    title={hex}
+                    data-tooltip={hex}
                     className={`w-5 h-5 rounded-md border transition-transform enabled:cursor-pointer enabled:hover:scale-110 disabled:opacity-50 disabled:cursor-default ${
                       isSelected ? 'border-white ring-1 ring-white/60 scale-110' : 'border-black/40'
                     }`}
@@ -242,27 +246,14 @@ export const WorldStepPassport: React.FC = () => {
                 );
               })}
 
-              <label
-                title="Власний колір"
-                className={`ml-auto inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#222222] border border-[#353535] text-[10px] font-mono text-[#D1D5DB] transition-colors ${
-                  isFormDisabled
-                    ? 'opacity-50 cursor-default'
-                    : 'cursor-pointer hover:border-[#505050]'
-                }`}
-              >
-                <input
-                  type="color"
-                  value={/^#[0-9a-fA-F]{6}$/.test(accentColor) ? accentColor : '#7E0018'}
-                  disabled={isFormDisabled}
-                  onChange={(e) => updatePassport({ accent_color: e.target.value })}
-                  className="sr-only"
-                />
-                <span
-                  className="w-2.5 h-2.5 rounded-full border border-white/30"
-                  style={{ backgroundColor: accentColor }}
-                />
-                <span>{accentColor.toUpperCase()}</span>
-              </label>
+              <ColorPickerPopover
+                value={/^#[0-9a-fA-F]{6}$/.test(accentColor) ? accentColor : '#7E0018'}
+                disabled={isFormDisabled}
+                variant="pill"
+                ariaLabel="Власний колір акценту світу"
+                onChange={(hex) => updatePassport({ accent_color: hex })}
+                className="ml-auto"
+              />
             </div>
           </div>
         </div>
@@ -289,7 +280,7 @@ export const WorldStepPassport: React.FC = () => {
                 }
               }}
               placeholder="Додати стартову локацію..."
-              className="flex-1 bg-[#161616] text-[#E5E7EB] text-xs rounded-lg px-3 py-2 border border-[#333333] placeholder-[#555555] focus:outline-none focus:border-[#7E0018] disabled:opacity-60"
+              className={`flex-1 text-xs px-3 py-2 ${STANDARD_FIELD_CLASS}`}
             />
             <Button
               type="button"
@@ -312,8 +303,8 @@ export const WorldStepPassport: React.FC = () => {
             <div className="flex flex-col gap-1.5">
               {passport.starting_locations.map((loc, idx) => (
                 <div
-                  key={`${idx}-${loc}`}
-                  className="flex items-center gap-2 bg-[#161616] border border-[#262626] rounded-lg px-2.5 py-1.5"
+                  key={idx}
+                  className="flex items-center gap-2 bg-[#161616] border border-[#262626] rounded-lg px-2 py-1.5"
                 >
                   <MapPin size={12} className="text-[#9CA3AF] shrink-0" />
                   <input
@@ -321,13 +312,13 @@ export const WorldStepPassport: React.FC = () => {
                     value={loc}
                     disabled={isFormDisabled}
                     onChange={(e) => updateStartingLocation(idx, e.target.value)}
-                    className="flex-1 bg-transparent text-xs text-[#E5E7EB] focus:outline-none min-w-0"
+                    className={`flex-1 min-w-0 text-xs px-2 py-1 ${COMPACT_FIELD_CLASS}`}
                   />
                   <button
                     type="button"
                     disabled={isFormDisabled}
                     onClick={() => removeStartingLocation(idx)}
-                    title="Видалити локацію"
+                    data-tooltip="Видалити локацію"
                     className="w-6 h-6 rounded flex items-center justify-center text-[#9CA3AF] enabled:hover:text-[#EF4444] enabled:hover:bg-[#2A1418] transition-colors enabled:cursor-pointer disabled:opacity-40 disabled:cursor-default shrink-0"
                   >
                     <Trash2 size={12} />
@@ -352,7 +343,7 @@ export const WorldStepPassport: React.FC = () => {
               type="button"
               variant="primary"
               size="sm"
-              disabled={!oneShotDescription.trim() || isGeneratingPassport || isLoadingWorld}
+              disabled={!oneShotDescription.trim() || isGeneratingPassport || isLoadingWorld || backendOffline}
               isLoading={isGeneratingPassport}
               onClick={() => {
                 void generatePassportOneShot();
@@ -366,10 +357,14 @@ export const WorldStepPassport: React.FC = () => {
           <textarea
             rows={4}
             value={oneShotDescription}
-            disabled={isGeneratingPassport || isLoadingWorld}
+            disabled={isGeneratingPassport || isLoadingWorld || backendOffline}
             onChange={(e) => setOneShotDescription(e.target.value)}
-            placeholder="Вставте один абзац із ідеєю світу (напр.: «Стім-панк мегаполіс на дні океану, де корпорації торгують киснем, а глибоководні мутанти погрожують куполам...»)"
-            className="w-full bg-[#161616] text-[#E5E7EB] text-xs rounded-lg px-3 py-2 border border-[#2D2D2D] placeholder-[#555555] focus:outline-none focus:border-[#7E0018] resize-none disabled:opacity-60"
+            placeholder={
+              backendOffline
+                ? 'Сервер офлайн — швидка ШІ-генерація недоступна до відновлення з’єднання...'
+                : 'Вставте один абзац із ідеєю світу (напр.: «Стім-панк мегаполіс на дні океану, де корпорації торгують киснем, а глибоководні мутанти погрожують куполам...»)'
+            }
+            className={`w-full text-xs px-3 py-2 resize-none ${STANDARD_FIELD_CLASS}`}
           />
         </div>
 
@@ -424,31 +419,31 @@ export const WorldStepPassport: React.FC = () => {
             )}
           </div>
 
-          <div className="w-full flex flex-col select-none pt-2 border-t border-[#1F1F1F] shrink-0">
-            <VoiceBanner isRecording={isRecording} isTranscribing={isTranscribing} />
-
-            <div className="relative flex items-center gap-2.5">
-              <textarea
-                ref={textareaRef}
-                rows={1}
-                disabled={isChatDisabled}
-                value={passportInput}
-                onChange={(e) => setPassportInput(e.target.value)}
-                onKeyDown={handleChatKeyDown}
-                placeholder="Обговоріть сеттинг із Архітектором Світів або надиктуйте ідею голосом..."
-                className={`flex-1 bg-[#161616] text-[#E5E7EB] text-sm rounded-lg px-3.5 py-2.5 border border-[#333333] hover:border-[#444444] placeholder-[#555555] focus:outline-none focus:border-[#7E0018] focus:hover:border-[#7E0018] focus:ring-1 focus:ring-[#7E0018] disabled:opacity-50 disabled:cursor-not-allowed resize-none transition-all duration-150 leading-relaxed max-h-20 ${
-                  isInputOverflowing ? 'overflow-y-auto' : 'overflow-hidden'
-                }`}
-              />
-
-              <SendOrMicButton
-                hasText={passportInput.trim().length > 0}
-                isRecording={isRecording}
-                disabled={isChatDisabled}
-                onClick={handleSendOrRecord}
-              />
-            </div>
-          </div>
+          <ChatInputDock
+            hasText={passportInput.trim().length > 0}
+            isRecording={isRecording}
+            isTranscribing={isTranscribing}
+            isSendDisabled={isChatDisabled}
+            onSendOrRecord={handleSendOrRecord}
+            isDimmed={isChatDisabled}
+          >
+            <textarea
+              ref={textareaRef}
+              rows={1}
+              disabled={isChatDisabled}
+              value={passportInput}
+              onChange={(e) => setPassportInput(e.target.value)}
+              onKeyDown={handleChatKeyDown}
+              placeholder={
+                backendOffline
+                  ? 'Сервер офлайн • Очікування підключення...'
+                  : 'Обговоріть сеттинг із Архітектором Світів або надиктуйте ідею голосом...'
+              }
+              className={`w-full bg-transparent text-[#E5E7EB] text-sm placeholder-[#555555] focus:outline-none disabled:cursor-not-allowed resize-none leading-6 max-h-20 m-0 p-0 border-0 ${
+                isInputOverflowing ? 'overflow-y-auto' : 'overflow-hidden'
+              }`}
+            />
+          </ChatInputDock>
         </div>
       </div>
     </div>

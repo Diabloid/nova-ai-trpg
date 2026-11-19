@@ -114,6 +114,7 @@ export const createEntitySlice: StateCreator<GameState, [], [], EntitySlice> = (
           activeCampaign: null,
           playerState: null,
           messages: [],
+          activeCampaignRollbackDepth: 0,
         });
       }
     } catch (err: any) {
@@ -138,11 +139,24 @@ export const createEntitySlice: StateCreator<GameState, [], [], EntitySlice> = (
       ]);
 
       // Мапимо HistoryMessage в UI ChatMessage (ігноруємо технічні системні логи)
-      const formattedMessages: ChatMessage[] = history
-        .filter((msg: HistoryMessage) => msg.role.toLowerCase() !== 'system')
-        .map((msg: HistoryMessage, index: number, arr: HistoryMessage[]) => {
+      const nonSystemHistory = history.filter(
+        (msg: HistoryMessage) => msg.role.toLowerCase() !== 'system'
+      );
+      const resolvedRollbackDepth =
+        typeof currentCamp?.rollback_depth === 'number'
+          ? Math.max(0, currentCamp.rollback_depth)
+          : nonSystemHistory.length > 1
+            ? 1
+            : 0;
+
+      const formattedMessages: ChatMessage[] = nonSystemHistory.map(
+        (msg: HistoryMessage, index: number, arr: HistoryMessage[]) => {
           const isPlayer = msg.role.toLowerCase() === 'player';
-          const isLastNarrator = !isPlayer && index === arr.length - 1 && arr.length > 1;
+          const isLastNarrator =
+            !isPlayer &&
+            index === arr.length - 1 &&
+            index > 0 &&
+            resolvedRollbackDepth > 0;
 
           let timeStr = formatSystemTime();
           if (msg.timestamp) {
@@ -163,11 +177,13 @@ export const createEntitySlice: StateCreator<GameState, [], [], EntitySlice> = (
             isPlayer,
             canRollback: isLastNarrator,
           };
-        });
+        }
+      );
 
       set({
         messages: formattedMessages,
         playerState: state,
+        activeCampaignRollbackDepth: resolvedRollbackDepth,
       });
     } catch (err: any) {
       get().setSystemAlert(`Помилка відкриття кампанії: ${err.message}`, 'error');
@@ -180,7 +196,7 @@ export const createEntitySlice: StateCreator<GameState, [], [], EntitySlice> = (
   createCampaign: async (title?: string) => {
     const { activeCharacterId } = get();
     if (!activeCharacterId) {
-      get().setSystemAlert('Спочатку оберіть або створіть персонажа', 'error');
+      get().setSystemAlert('Спочатку оберіть або створіть персонажа', 'warning');
       return null;
     }
 
@@ -189,6 +205,9 @@ export const createEntitySlice: StateCreator<GameState, [], [], EntitySlice> = (
       const newCamp = await campaignsApi.createCampaign(activeCharacterId, title);
       await get().loadCampaigns(activeCharacterId, false);
       await get().selectCampaign(newCamp.campaign_id);
+      if (typeof newCamp.rollback_depth !== 'number') {
+        set({ activeCampaignRollbackDepth: 0 });
+      }
       return newCamp;
     } catch (err: any) {
       get().setSystemAlert(`Не вдалося створити кампанію: ${err.message}`, 'error');

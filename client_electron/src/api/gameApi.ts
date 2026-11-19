@@ -1,4 +1,4 @@
-import { apiClient, BASE_URL, ApiError } from './client';
+import { apiClient, BASE_URL, ApiError, notifyNetworkStatus } from './client';
 import type { ActionRequest, ActionResponse, PlayerState, VoiceTranscriptionResponse } from '../types/api';
 
 export interface StreamActionCallbacks {
@@ -9,6 +9,15 @@ export interface StreamActionCallbacks {
 }
 
 export const gameApi = {
+  /** Легкий heartbeat-запит доступності сервера */
+  checkHealth: async (signal?: AbortSignal): Promise<boolean> => {
+    const res = await apiClient.get<{ status?: string }>('/health', {
+      signal,
+      cache: 'no-store',
+    });
+    return Boolean(res);
+  },
+
   /** Звичайний синхронний REST-хід у кампанії */
   sendAction: (req: ActionRequest, options?: RequestInit): Promise<ActionResponse> => {
     return apiClient.post<ActionResponse>('/action', req, options);
@@ -25,15 +34,25 @@ export const gameApi = {
   ): Promise<{ story: string; playerState?: PlayerState }> => {
     const url = `${BASE_URL}/action/stream`;
 
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'text/event-stream',
-      },
-      body: JSON.stringify(req),
-      signal,
-    });
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'text/event-stream',
+        },
+        body: JSON.stringify(req),
+        signal,
+      });
+    } catch (error) {
+      const err = error as Error;
+      if (err.name === 'AbortError') throw err;
+      notifyNetworkStatus(true);
+      throw new ApiError(err.message || "Мережева помилка з'єднання з бекендом", 0);
+    }
+
+    notifyNetworkStatus(false);
 
     if (!response.ok) {
       let errorMsg = `HTTP ${response.status} ${response.statusText}`;
@@ -142,11 +161,21 @@ export const gameApi = {
     const formData = new FormData();
     formData.append('file', audioBlob, filename);
 
-    const response = await fetch(`${BASE_URL}/voice/transcribe`, {
-      method: 'POST',
-      body: formData,
-      signal,
-    });
+    let response: Response;
+    try {
+      response = await fetch(`${BASE_URL}/voice/transcribe`, {
+        method: 'POST',
+        body: formData,
+        signal,
+      });
+    } catch (error) {
+      const err = error as Error;
+      if (err.name === 'AbortError') throw err;
+      notifyNetworkStatus(true);
+      throw new ApiError(err.message || "Мережева помилка з'єднання з бекендом", 0);
+    }
+
+    notifyNetworkStatus(false);
 
     if (!response.ok) {
       throw new ApiError(`Помилка розпізнавання аудіо: HTTP ${response.status}`, response.status);

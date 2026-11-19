@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
 import {
-  ArrowLeft,
-  ArrowRight,
   BookOpen,
   Check,
   Globe,
@@ -9,8 +7,10 @@ import {
   Loader2,
   Save,
   Sparkles,
+  WifiOff,
   X,
 } from 'lucide-react';
+import { useGameStore } from '../../store/useGameStore';
 import {
   useWorldStudioStore,
   type WorldStudioStep,
@@ -34,25 +34,25 @@ const STUDIO_STEPS: StepMeta[] = [
     step: 1,
     label: '1. Паспорт',
     subtitle: 'Назва, жанр, опис, іконка, акцентний колір та стартові локації світу.',
-    icon: <Globe size={13} />,
+    icon: <Globe size={12} />,
   },
   {
     step: 2,
-    label: '2. Промпти ШІ',
-    subtitle: 'Правила світу для Оповідача, Аналізатора стану та Творця Персонажів.',
-    icon: <Sparkles size={13} />,
+    label: '2. База Лору',
+    subtitle: 'Стартові статті лору та власні .md / .txt матеріали всесвіту.',
+    icon: <BookOpen size={12} />,
   },
   {
     step: 3,
-    label: '3. База Лору',
-    subtitle: 'Стартові статті лору та власні .md / .txt матеріали всесвіту.',
-    icon: <BookOpen size={13} />,
+    label: '3. Шаблон Анкети',
+    subtitle: 'Структура листа персонажа та живе візуальне прев’ю з демо-даними.',
+    icon: <LayoutTemplate size={12} />,
   },
   {
     step: 4,
-    label: '4. Шаблон Анкети',
-    subtitle: 'Структура листа персонажа та живе візуальне прев’ю з демо-даними.',
-    icon: <LayoutTemplate size={13} />,
+    label: '4. Промпти ШІ',
+    subtitle: 'Правила світу для Оповідача, Аналізатора стану та Творця Персонажів.',
+    icon: <Sparkles size={12} />,
   },
 ];
 
@@ -73,12 +73,11 @@ export const WorldStudioScreen: React.FC = () => {
     loreGenProgress,
     isDirty,
     setCurrentStep,
-    nextStep,
-    prevStep,
     closeStudio,
     finalizeCreateWorld,
     saveEditWorld,
   } = useWorldStudioStore();
+  const backendOffline = useGameStore((s) => s.backendOffline);
 
   const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState(false);
 
@@ -134,14 +133,14 @@ export const WorldStudioScreen: React.FC = () => {
     }
 
     if (currentStep === 2) {
-      return <WorldStepPrompts />;
-    }
-
-    if (currentStep === 3) {
       return <WorldStepLore />;
     }
 
-    return <WorldStepTemplate />;
+    if (currentStep === 3) {
+      return <WorldStepTemplate />;
+    }
+
+    return <WorldStepPrompts />;
   };
 
   return (
@@ -160,13 +159,18 @@ export const WorldStudioScreen: React.FC = () => {
             </p>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
-            {mode === 'edit' && (
+          <div className="flex items-center gap-2.5 shrink-0">
+            {mode === 'edit' && isDirty && (
+              <span className="text-xs font-semibold text-[#FCA5A5] drop-shadow-[0_0_8px_rgba(239,68,68,0.28)]">
+                <span className="text-[#EF4444]">*</span> Є незбережені зміни
+              </span>
+            )}
+            {mode === 'edit' ? (
               <Button
                 type="button"
                 variant="primary"
                 size="sm"
-                disabled={isBusy || !hasValidTitle}
+                disabled={isBusy || backendOffline || !hasValidTitle}
                 isLoading={isSavingWorld}
                 onClick={() => {
                   void saveEditWorld();
@@ -175,14 +179,39 @@ export const WorldStudioScreen: React.FC = () => {
                 <Save size={13} />
                 <span>Зберегти зміни світу</span>
               </Button>
+            ) : (
+              <Button
+                type="button"
+                variant="emerald"
+                size="sm"
+                disabled={isBusy || backendOffline || !hasValidTitle || !hasTemplate}
+                data-tooltip={
+                  backendOffline
+                    ? 'Немає підключення до сервера гри'
+                    : !hasValidTitle
+                      ? 'Спочатку вкажіть назву світу на Кроці 1'
+                      : !hasTemplate
+                        ? 'Згенеруйте або створіть шаблон анкети на Кроці 3'
+                        : undefined
+                }
+                isLoading={isSavingWorld}
+                onClick={() => {
+                  void finalizeCreateWorld();
+                }}
+                className="font-semibold"
+              >
+                <Sparkles size={13} />
+                <span>Завершити і Створити Світ</span>
+              </Button>
             )}
 
             <Button
               type="button"
               variant="secondary"
+              size="sm"
               disabled={isBusy}
               onClick={handleRequestClose}
-              className="text-xs px-3 py-1.5 text-[#9CA3AF] enabled:hover:text-[#EF4444] enabled:hover:bg-[#201014] border-[#333333] enabled:hover:border-[#7E0018]"
+              className="text-[#9CA3AF] enabled:hover:text-[#EF4444] enabled:hover:bg-[#2A1418] border-[#333333] enabled:hover:border-[#7E0018]/60"
             >
               <X size={13} />
               <span>{mode === 'edit' ? 'Закрити' : 'Скасувати'}</span>
@@ -205,7 +234,7 @@ export const WorldStudioScreen: React.FC = () => {
                 type="button"
                 disabled={!isClickable}
                 onClick={() => handleTabClick(item.step)}
-                title={
+                data-tooltip={
                   !isClickable && mode === 'create' && !hasValidTitle
                     ? 'Спочатку вкажіть назву світу'
                     : item.label
@@ -219,7 +248,7 @@ export const WorldStudioScreen: React.FC = () => {
                 }`}
               >
                 <span
-                  className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 border ${
+                  className={`w-6 h-6 rounded-full inline-flex items-center justify-center leading-none shrink-0 border ${
                     isActive
                       ? 'bg-[#7E0018] border-[#9E0020] text-white'
                       : isCompleted
@@ -227,7 +256,7 @@ export const WorldStudioScreen: React.FC = () => {
                         : 'bg-[#202020] border-[#333333] text-[#9CA3AF]'
                   }`}
                 >
-                  {isCompleted ? <Check size={11} strokeWidth={3} /> : item.icon}
+                  {isCompleted ? <Check size={12} strokeWidth={3} /> : item.icon}
                 </span>
                 <span className="truncate">{item.label}</span>
               </button>
@@ -236,61 +265,22 @@ export const WorldStudioScreen: React.FC = () => {
         </div>
       </div>
 
+      {/* 1.5. Попередження при втраті з'єднання з сервером */}
+      {backendOffline && (
+        <div className="mb-3 shrink-0 flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-[#2A1215]/90 border border-[#7E0018] text-xs text-[#FCA5A5] shadow-md">
+          <WifiOff size={15} className="text-[#EF4444] shrink-0" />
+          <span className="font-medium leading-snug">
+            Немає підключення до сервера гри. Запити до ШІ, генерація лору/шаблону та збереження світу тимчасово заблоковані.
+          </span>
+        </div>
+      )}
+
       {/* 2. Контент активного кроку */}
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
         {renderStepContent()}
       </div>
 
-      {/* 3. Покрокова навігація внизу (режим create) */}
-      {mode === 'create' && (
-        <div className="pt-4 mt-4 border-t border-[#222222] flex items-center justify-between gap-4 shrink-0">
-          <Button
-            type="button"
-            variant="secondary"
-            disabled={isBusy || currentStep === 1}
-            onClick={prevStep}
-          >
-            <ArrowLeft size={14} />
-            <span>Назад</span>
-          </Button>
-
-          <span className="text-xs text-[#6B7280] font-medium">
-            {currentStep === 1 && !hasValidTitle
-              ? 'Вкажіть назву світу, щоб перейти далі'
-              : currentStep === 4 && !hasTemplate
-                ? 'Згенеруйте або створіть шаблон анкети, щоб завершити створення світу'
-                : `Крок ${currentStep} з 4`}
-          </span>
-
-          {currentStep < 4 ? (
-            <Button
-              type="button"
-              variant="primary"
-              disabled={isBusy || (currentStep === 1 && !hasValidTitle)}
-              onClick={nextStep}
-            >
-              <span>Далі</span>
-              <ArrowRight size={14} />
-            </Button>
-          ) : (
-            <Button
-              type="button"
-              variant="emerald"
-              disabled={isBusy || !hasValidTitle || !hasTemplate}
-              isLoading={isSavingWorld}
-              onClick={() => {
-                void finalizeCreateWorld();
-              }}
-              className="font-semibold"
-            >
-              <Sparkles size={14} />
-              <span>Завершити і Створити Світ</span>
-            </Button>
-          )}
-        </div>
-      )}
-
-      {/* 4. Підтвердження скасування при наявності змін */}
+      {/* 3. Підтвердження скасування при наявності змін */}
       <ConfirmModal
         isOpen={isCancelConfirmOpen}
         onClose={() => setIsCancelConfirmOpen(false)}

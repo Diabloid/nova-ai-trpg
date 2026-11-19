@@ -1,12 +1,11 @@
 import React from 'react';
-import { ChevronDown, Copy, Edit3, Plus, Trash2 } from 'lucide-react';
+import { Copy, Edit3, RefreshCw, Trash2 } from 'lucide-react';
 import { useGameStore } from '../../store/useGameStore';
 import type { WorldSummary } from '../../types/api';
 import { hexToRgba } from '../../utils/lucideIconMap';
 import { DynamicLucideIcon } from '../dynamic-sheet';
 
 interface ActiveWorldCardProps {
-  onCreateWorld?: () => void;
   onEditWorld?: (world: WorldSummary) => void;
   onCloneWorld?: (world: WorldSummary) => void;
   onRequestDeleteWorld?: (world: WorldSummary) => void;
@@ -23,7 +22,6 @@ function formatHeroCount(count: number): string {
 }
 
 export const ActiveWorldCard: React.FC<ActiveWorldCardProps> = ({
-  onCreateWorld,
   onEditWorld,
   onCloneWorld,
   onRequestDeleteWorld,
@@ -33,6 +31,7 @@ export const ActiveWorldCard: React.FC<ActiveWorldCardProps> = ({
     activeWorldId,
     activeWorldDetail,
     isWorldSelectorOpen,
+    backendOffline,
     toggleWorldSelector,
     selectWorld,
   } = useGameStore();
@@ -56,7 +55,7 @@ export const ActiveWorldCard: React.FC<ActiveWorldCardProps> = ({
         <button
           type="button"
           onClick={toggleWorldSelector}
-          title={
+          data-tooltip={
             isWorldSelectorOpen
               ? 'Згорнути список світів'
               : 'Розгорнути список світів для перемикання'
@@ -89,32 +88,32 @@ export const ActiveWorldCard: React.FC<ActiveWorldCardProps> = ({
 
         {/* Кнопки швидких дій та індикатор розкриття */}
         <div className="flex items-center gap-1 shrink-0 ml-1.5">
+          <button
+            type="button"
+            onClick={toggleWorldSelector}
+            data-tooltip={isWorldSelectorOpen ? 'Згорнути список світів' : 'Перемкнути світ'}
+            className={`w-7 h-7 rounded flex items-center justify-center text-[#9CA3AF] enabled:hover:text-[#E5E7EB] enabled:hover:bg-[#222222] transition-colors enabled:cursor-pointer ${
+              isWorldSelectorOpen ? 'bg-[#222222] text-[#F3F4F6]' : ''
+            }`}
+          >
+            <RefreshCw
+              size={13}
+              className={`transition-transform duration-200 ${
+                isWorldSelectorOpen ? 'rotate-180' : ''
+              }`}
+            />
+          </button>
+
           {currentWorld && onEditWorld && (
             <button
               type="button"
               onClick={() => onEditWorld(currentWorld)}
-              title="Редагувати активний світ"
+              data-tooltip="Редагувати активний світ"
               className="w-7 h-7 rounded flex items-center justify-center text-[#9CA3AF] enabled:hover:text-[#E5E7EB] enabled:hover:bg-[#222222] transition-colors enabled:cursor-pointer"
             >
               <Edit3 size={12} />
             </button>
           )}
-
-          <button
-            type="button"
-            onClick={toggleWorldSelector}
-            title={isWorldSelectorOpen ? 'Згорнути список світів' : 'Перемкнути світ'}
-            className={`w-7 h-7 rounded flex items-center justify-center text-[#9CA3AF] enabled:hover:text-[#E5E7EB] enabled:hover:bg-[#222222] transition-colors enabled:cursor-pointer ${
-              isWorldSelectorOpen ? 'bg-[#222222] text-[#F3F4F6]' : ''
-            }`}
-          >
-            <ChevronDown
-              size={14}
-              className={`transition-transform duration-200 ${
-                isWorldSelectorOpen ? 'rotate-180' : 'rotate-0'
-              }`}
-            />
-          </button>
         </div>
       </div>
 
@@ -152,10 +151,11 @@ export const ActiveWorldCard: React.FC<ActiveWorldCardProps> = ({
                   >
                     <button
                       type="button"
+                      disabled={backendOffline}
                       onClick={() => {
                         void selectWorld(world.world_id);
                       }}
-                      className="flex items-center gap-2 min-w-0 flex-1 text-left py-0.5 enabled:cursor-pointer"
+                      className="flex items-center gap-2 min-w-0 flex-1 text-left py-0.5 enabled:cursor-pointer disabled:opacity-50 disabled:cursor-default"
                     >
                       <div
                         className="w-6 h-6 rounded flex items-center justify-center shrink-0 border"
@@ -190,9 +190,14 @@ export const ActiveWorldCard: React.FC<ActiveWorldCardProps> = ({
                       {onEditWorld && (
                         <button
                           type="button"
+                          disabled={backendOffline}
                           onClick={() => onEditWorld(world)}
-                          title={`Редагувати «${world.title}»`}
-                          className="w-6 h-6 rounded flex items-center justify-center text-[#9CA3AF] opacity-80 group-hover/world:opacity-100 enabled:hover:text-[#F3F4F6] enabled:hover:bg-[#2A2A2A] transition-colors enabled:cursor-pointer"
+                          data-tooltip={
+                            backendOffline
+                              ? 'Недоступно в офлайн-режимі'
+                              : `Редагувати «${world.title}»`
+                          }
+                          className="w-6 h-6 rounded flex items-center justify-center text-[#9CA3AF] opacity-80 group-hover/world:opacity-100 enabled:hover:text-[#F3F4F6] enabled:hover:bg-[#2A2A2A] transition-colors enabled:cursor-pointer disabled:opacity-35 disabled:cursor-default"
                         >
                           <Edit3 size={11} />
                         </button>
@@ -201,9 +206,14 @@ export const ActiveWorldCard: React.FC<ActiveWorldCardProps> = ({
                       {onCloneWorld && (
                         <button
                           type="button"
+                          disabled={backendOffline}
                           onClick={() => onCloneWorld(world)}
-                          title={`Клонувати «${world.title}»`}
-                          className="w-6 h-6 rounded flex items-center justify-center text-[#9CA3AF] opacity-80 group-hover/world:opacity-100 enabled:hover:text-[#93C5FD] enabled:hover:bg-[#1E293B]/60 transition-colors enabled:cursor-pointer"
+                          data-tooltip={
+                            backendOffline
+                              ? 'Недоступно в офлайн-режимі'
+                              : `Клонувати «${world.title}»`
+                          }
+                          className="w-6 h-6 rounded flex items-center justify-center text-[#9CA3AF] opacity-80 group-hover/world:opacity-100 enabled:hover:text-[#F3F4F6] enabled:hover:bg-[#2A2A2A] transition-colors enabled:cursor-pointer disabled:opacity-35 disabled:cursor-default"
                         >
                           <Copy size={11} />
                         </button>
@@ -212,12 +222,14 @@ export const ActiveWorldCard: React.FC<ActiveWorldCardProps> = ({
                       {onRequestDeleteWorld && (
                         <button
                           type="button"
-                          disabled={world.is_default}
+                          disabled={backendOffline || world.is_default}
                           onClick={() => onRequestDeleteWorld(world)}
-                          title={
+                          data-tooltip={
                             world.is_default
                               ? 'Базовий світ неможливо видалити'
-                              : `Видалити «${world.title}»`
+                              : backendOffline
+                                ? 'Недоступно в офлайн-режимі'
+                                : `Видалити «${world.title}»`
                           }
                           className="w-6 h-6 rounded flex items-center justify-center text-[#9CA3AF] opacity-80 group-hover/world:opacity-100 enabled:hover:text-[#EF4444] enabled:hover:bg-[#2A1418] transition-colors enabled:cursor-pointer disabled:opacity-30 disabled:cursor-default"
                         >
@@ -230,15 +242,6 @@ export const ActiveWorldCard: React.FC<ActiveWorldCardProps> = ({
               })
             )}
           </div>
-
-          <button
-            type="button"
-            onClick={onCreateWorld}
-            className="w-full bg-[#7E0018] enabled:hover:bg-[#9E0020] enabled:active:bg-[#5C0012] text-white text-xs font-semibold py-2 px-3 rounded-md flex items-center justify-center gap-1.5 transition-colors enabled:cursor-pointer shadow-sm shrink-0"
-          >
-            <Plus size={13} />
-            <span>Створити новий світ</span>
-          </button>
         </div>
       </div>
     </div>

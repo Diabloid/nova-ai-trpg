@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertCircle,
+  Crop,
   Download,
   ImagePlus,
   Loader2,
@@ -8,16 +9,14 @@ import {
   RefreshCw,
   RotateCcw,
   Save,
-  Sparkles,
   Trash2,
   Upload,
   X,
 } from 'lucide-react';
-import { charactersApi } from '../../api/charactersApi';
 import { worldsApi } from '../../api/worldsApi';
 import { useGameStore } from '../../store/useGameStore';
 import type { PlayerState, TemplatePlacement, WorldDetailResponse } from '../../types/api';
-import { compressAvatarFileToWebP } from '../../utils/avatarUtils';
+import { readAvatarFileAsDataUrl } from '../../utils/avatarUtils';
 import {
   parseDynamicSheet,
   serializeDynamicSheet,
@@ -31,12 +30,19 @@ import {
   removeSectionFromState,
   type AddSectionInput,
 } from '../../utils/schemaMergeUtils';
+import {
+  applyFieldLabelUpdate,
+  mergeFieldLabelsIntoState,
+  resolveMissingFieldKeyLabels,
+} from '../../utils/templateKeyTranslator';
 import { ConfirmModal } from '../modals/ConfirmModal';
 import { DynamicSectionRenderer } from '../dynamic-sheet';
 import { Button } from '../ui/Button';
 import { HeroAvatar } from '../ui/HeroAvatar';
+import { STANDARD_FIELD_CLASS } from '../ui/Input';
 import { Modal } from '../ui/Modal';
 import { AddSectionDialog } from './AddSectionDialog';
+import { AvatarCropModal } from './AvatarCropModal';
 import { IconPicker } from './IconPicker';
 
 export type CharacterEditorMode = 'blueprint' | 'live_state';
@@ -100,9 +106,10 @@ const CharacterEditorContent: React.FC<{
   );
   const [worldDetail, setWorldDetail] = useState<WorldDetailResponse | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [isHarmonizing, setIsHarmonizing] = useState(false);
   const [isPullingSchema, setIsPullingSchema] = useState(false);
   const [isCompressingAvatar, setIsCompressingAvatar] = useState(false);
+  const [originalAvatarSrc, setOriginalAvatarSrc] = useState<string | null>(null);
+  const [cropModalSrc, setCropModalSrc] = useState<string | null>(null);
   const [isAddSectionOpen, setIsAddSectionOpen] = useState(false);
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
 
@@ -138,8 +145,10 @@ const CharacterEditorContent: React.FC<{
 
   const anchors = parsedSheet.headers;
   const isDirty = JSON.stringify(draftState) !== initialSnapshot;
-  const isBusy = isSaving || isHarmonizing || isPullingSchema || isCompressingAvatar;
+  const isBusy = isSaving || isPullingSchema || isCompressingAvatar;
   const isNameValid = anchors.name.trim().length > 0;
+  const isImageAvatar =
+    typeof anchors.avatar === 'string' && anchors.avatar.trim().startsWith('data:image/');
 
   const isBlueprint = mode === 'blueprint';
   const modalTitle = isBlueprint
@@ -175,6 +184,23 @@ const CharacterEditorContent: React.FC<{
     });
   };
 
+  const handleFieldLabelChange = (rawKey: string, nextLabel: string) => {
+    const schemaFallback = worldDetail?.character_template?._schema_meta || null;
+    setDraftState((prev) => applyFieldLabelUpdate(prev, rawKey, nextLabel, schemaFallback));
+  };
+
+  const handleTranslateKeys = async (keys: string[]) => {
+    const schemaFallback = worldDetail?.character_template?._schema_meta || null;
+    const existingLabels = {
+      ...(schemaFallback?.field_labels || {}),
+      ...(draftState?._schema_meta?.field_labels || {}),
+    };
+    const translated = await resolveMissingFieldKeyLabels(keys, existingLabels);
+    if (Object.keys(translated).length > 0) {
+      setDraftState((prev) => mergeFieldLabelsIntoState(prev, translated, schemaFallback));
+    }
+  };
+
   const handleAddSection = (input: AddSectionInput) => {
     const schemaFallback = worldDetail?.character_template?._schema_meta || null;
     setDraftState((prev) => {
@@ -195,59 +221,20 @@ const CharacterEditorContent: React.FC<{
 
     try {
       setIsCompressingAvatar(true);
-      const dataUri = await compressAvatarFileToWebP(file, 256, 0.82);
-      handleHeaderPatch({ avatar: dataUri });
-      setSystemAlert('Портрет стиснуто (256×256 WebP) і прикріплено', 'success');
+      const rawDataUrl = await readAvatarFileAsDataUrl(file);
+      setOriginalAvatarSrc(rawDataUrl);
+      setCropModalSrc(rawDataUrl);
     } catch (err: any) {
-      setSystemAlert(err?.message || 'Не вдалося обробити зображення аватара', 'error');
+      setSystemAlert(err?.message || 'Не вдалося прочитати зображення аватара', 'error');
     } finally {
       setIsCompressingAvatar(false);
     }
   };
 
-  const handleHarmonizeWithAi = async () => {
-    if (isBusy) return;
-    try {
-      setIsHarmonizing(true);
-      const currentPrepared = serializeDynamicSheet(
-        draftState,
-        parsedSheet.allEditableSections,
-        {
-          name: anchors.name,
-          location: anchors.location,
-          overallState: anchors.overallState,
-          avatar: anchors.avatar,
-        }
-      );
-
-      const harmonized = await charactersApi.syncDraft({
-        draft_state: currentPrepared,
-        world_id: worldId,
-        template_override: currentPrepared,
-      });
-
-      if (harmonized && typeof harmonized === 'object') {
-        setDraftState((prev) => {
-          const next = cloneStateSafe(harmonized);
-          if (!next.meta || typeof next.meta !== 'object') {
-            next.meta = {};
-          }
-          next.meta.world_id = next.meta.world_id || worldId;
-          if (!next._schema_meta && prev._schema_meta) {
-            next._schema_meta = cloneStateSafe(prev._schema_meta);
-          }
-          if (prev.meta?.avatar && !next.meta.avatar) {
-            next.meta.avatar = prev.meta.avatar;
-          }
-          return next;
-        });
-        setSystemAlert('Анкету гармонізовано з ШІ', 'success');
-      }
-    } catch (err: any) {
-      setSystemAlert(`Помилка гармонізації з ШІ: ${err?.message || 'Невідома помилка'}`, 'error');
-    } finally {
-      setIsHarmonizing(false);
-    }
+  const handleOpenAvatarCrop = () => {
+    const rawAvatar = typeof anchors.avatar === 'string' ? anchors.avatar.trim() : '';
+    if (isBusy || !rawAvatar.startsWith('data:image/')) return;
+    setCropModalSrc(originalAvatarSrc || rawAvatar);
   };
 
   const handlePullWorldSchema = async () => {
@@ -366,7 +353,7 @@ const CharacterEditorContent: React.FC<{
       <Modal
         isOpen
         onClose={handleCloseRequest}
-        closeDisabled={isBusy || !!confirmAction || isAddSectionOpen}
+        closeDisabled={isBusy || !!confirmAction || isAddSectionOpen || !!cropModalSrc}
         className="w-[820px] max-w-[95vw] h-[86vh] max-h-[820px] border-[#333333] gap-0 p-0 overflow-hidden"
       >
         {/* 1. Шапка студії */}
@@ -385,8 +372,8 @@ const CharacterEditorContent: React.FC<{
             type="button"
             disabled={isBusy}
             onClick={handleCloseRequest}
-            title="Закрити студію"
-            className="w-7 h-7 rounded-lg flex items-center justify-center text-[#9CA3AF] border border-transparent enabled:hover:text-white enabled:hover:bg-[#222222] enabled:hover:border-[#333333] enabled:cursor-pointer disabled:opacity-40 disabled:cursor-default transition-all shrink-0"
+            aria-label="Закрити студію"
+            className="w-7 h-7 rounded-lg flex items-center justify-center text-[#9CA3AF] border border-transparent enabled:hover:text-[#EF4444] enabled:hover:bg-[#2A1418] enabled:hover:border-[#7E0018]/60 enabled:cursor-pointer disabled:opacity-40 disabled:cursor-default transition-all shrink-0"
           >
             <X size={15} />
           </button>
@@ -394,19 +381,6 @@ const CharacterEditorContent: React.FC<{
 
         {/* 2. Панель швидких дій (єдина висота h-[34px]) */}
         <div className="shrink-0 px-6 py-2.5 border-b border-[#222222] bg-[#151515] flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            disabled={isBusy}
-            onClick={handleHarmonizeWithAi}
-            className="h-[34px] px-3 rounded-[8px] bg-[#1C1626] border border-[#3B2654] text-xs font-medium text-[#E5E7EB] inline-flex items-center gap-1.5 transition-all duration-150 enabled:hover:bg-[#261D35] enabled:hover:border-[#6D28D9]/70 enabled:active:scale-[0.985] enabled:cursor-pointer disabled:opacity-50 disabled:cursor-default"
-          >
-            <Sparkles
-              size={13}
-              className={`text-[#C084FC] shrink-0 ${isHarmonizing ? 'animate-pulse' : ''}`}
-            />
-            <span>{isHarmonizing ? 'Гармонізація...' : 'Гармонізувати з ШІ'}</span>
-          </button>
-
           <button
             type="button"
             disabled={isBusy}
@@ -457,13 +431,35 @@ const CharacterEditorContent: React.FC<{
           <div className="shrink-0 bg-[#141414] border border-[#262626] rounded-xl p-4 flex flex-col sm:flex-row gap-4">
             {/* Ліва колонка: прев'ю + керування аватаром */}
             <div className="flex sm:flex-col items-center gap-3 shrink-0 sm:w-[176px]">
-              <HeroAvatar
-                avatar={anchors.avatar}
-                name={anchors.name || 'Герой'}
-                iconSize={26}
-                iconClassName="text-[#9CA3AF]"
-                containerClassName="w-16 h-16 rounded-xl bg-[#111111] border border-[#2E2E2E] shadow-inner"
-              />
+              {isImageAvatar ? (
+                <button
+                  type="button"
+                  disabled={isBusy}
+                  onClick={handleOpenAvatarCrop}
+                  aria-label="Кадрувати аватар"
+                  className="group relative rounded-xl outline-none enabled:cursor-pointer disabled:cursor-default shrink-0"
+                >
+                  <HeroAvatar
+                    avatar={anchors.avatar}
+                    name={anchors.name || 'Герой'}
+                    iconSize={28}
+                    iconClassName="text-[#9CA3AF]"
+                    containerClassName="w-[76px] h-[76px] rounded-xl bg-[#111111] border-2 border-[#3A3A3A] group-enabled:group-hover:border-[#7E0018] shadow-inner transition-colors"
+                  />
+                  <div className="absolute inset-0 rounded-xl bg-black/65 opacity-0 group-enabled:group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-0.5 text-white pointer-events-none">
+                    <Crop size={14} className="text-[#60A5FA]" />
+                    <span className="text-[10px] font-medium tracking-wide">Кадрувати</span>
+                  </div>
+                </button>
+              ) : (
+                <HeroAvatar
+                  avatar={anchors.avatar}
+                  name={anchors.name || 'Герой'}
+                  iconSize={28}
+                  iconClassName="text-[#9CA3AF]"
+                  containerClassName="w-[76px] h-[76px] rounded-xl bg-[#111111] border-2 border-[#3A3A3A] shadow-inner"
+                />
+              )}
 
               <div className="flex flex-col gap-1.5 w-full">
                 <button
@@ -482,7 +478,10 @@ const CharacterEditorContent: React.FC<{
 
                 <IconPicker
                   value={currentAvatarIcon}
-                  onChange={(iconKey) => handleHeaderPatch({ avatar: iconKey })}
+                  onChange={(iconKey) => {
+                    setOriginalAvatarSrc(null);
+                    handleHeaderPatch({ avatar: iconKey });
+                  }}
                   label="Обрати іконку"
                   disabled={isBusy}
                 />
@@ -490,7 +489,10 @@ const CharacterEditorContent: React.FC<{
                 <button
                   type="button"
                   disabled={isBusy || !anchors.avatar}
-                  onClick={() => handleHeaderPatch({ avatar: '' })}
+                  onClick={() => {
+                    setOriginalAvatarSrc(null);
+                    handleHeaderPatch({ avatar: '' });
+                  }}
                   className="h-[30px] w-full px-2.5 rounded-[7px] bg-[#161616] border border-[#262626] text-[11px] font-medium text-[#9CA3AF] inline-flex items-center justify-center gap-1.5 transition-all enabled:hover:text-[#EF4444] enabled:hover:bg-[#2A1418] enabled:hover:border-[#7E0018]/60 enabled:active:scale-[0.98] enabled:cursor-pointer disabled:opacity-40 disabled:cursor-default"
                 >
                   <RotateCcw size={11} className="shrink-0" />
@@ -518,14 +520,22 @@ const CharacterEditorContent: React.FC<{
                   value={anchors.name}
                   onChange={(e) => handleHeaderPatch({ name: e.target.value })}
                   placeholder="Введіть ім'я героя..."
-                  className="w-full bg-[#111111] border border-[#2B2B2B] focus:border-[#7E0018] rounded-lg px-3 py-2 text-xs text-[#E5E7EB] placeholder-[#555555] outline-none transition-colors"
+                  className={`w-full px-3 py-2 text-xs ${STANDARD_FIELD_CLASS}`}
                 />
-                {!isNameValid && (
-                  <div className="flex items-center gap-1 text-[11px] text-[#EF4444]">
-                    <AlertCircle size={11} className="shrink-0" />
-                    <span>Ім&apos;я персонажа не може бути порожнім</span>
+                <div
+                  className={`grid transition-all duration-200 ease-out ${
+                    !isNameValid
+                      ? 'grid-rows-[1fr] opacity-100'
+                      : 'grid-rows-[0fr] opacity-0 -mt-1 pointer-events-none'
+                  }`}
+                >
+                  <div className="min-h-0 overflow-hidden">
+                    <div className="flex items-center gap-1 text-[11px] text-[#EF4444]">
+                      <AlertCircle size={11} className="shrink-0" />
+                      <span>Ім&apos;я персонажа не може бути порожнім</span>
+                    </div>
                   </div>
-                )}
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -536,7 +546,7 @@ const CharacterEditorContent: React.FC<{
                     value={anchors.location}
                     onChange={(e) => handleHeaderPatch({ location: e.target.value })}
                     placeholder="Наприклад: Таверна на краю лісу"
-                    className="w-full bg-[#111111] border border-[#2B2B2B] focus:border-[#7E0018] rounded-lg px-3 py-2 text-xs text-[#E5E7EB] placeholder-[#555555] outline-none transition-colors"
+                    className={`w-full px-3 py-2 text-xs ${STANDARD_FIELD_CLASS}`}
                   />
                 </div>
 
@@ -547,20 +557,25 @@ const CharacterEditorContent: React.FC<{
                     value={anchors.overallState ?? ''}
                     onChange={(e) => handleHeaderPatch({ overallState: e.target.value })}
                     placeholder="Наприклад: Повний сил / Виснажений"
-                    className="w-full bg-[#111111] border border-[#2B2B2B] focus:border-[#7E0018] rounded-lg px-3 py-2 text-xs text-[#E5E7EB] placeholder-[#555555] outline-none transition-colors"
+                    className={`w-full px-3 py-2 text-xs ${STANDARD_FIELD_CLASS}`}
                   />
                 </div>
               </div>
 
-              <div className="text-[11px] text-[#6B7280] flex flex-wrap items-center gap-2 pt-0.5">
-                <span>
-                  Світ:{' '}
-                  <strong className="text-[#D1D5DB]">
+              <div className="text-[11px] text-[#9CA3AF] flex flex-wrap items-center gap-2 pt-0.5">
+                <span className="inline-flex items-center gap-1">
+                  <span>Світ:</span>
+                  <strong className="font-semibold text-[#E5E7EB]">
                     {worldDetail?.title || worldId}
                   </strong>
                 </span>
-                <span>•</span>
-                <span>Секцій у листі: {parsedSheet.allEditableSections.length}</span>
+                <span className="text-[#4B5563]">•</span>
+                <span className="inline-flex items-center gap-1">
+                  <span>Секцій у листі:</span>
+                  <strong className="font-semibold text-[#E5E7EB]">
+                    {parsedSheet.allEditableSections.length}
+                  </strong>
+                </span>
               </div>
             </div>
           </div>
@@ -608,7 +623,7 @@ const CharacterEditorContent: React.FC<{
                           type="button"
                           disabled={isBusy}
                           onClick={() => handleRemoveSection(section.path, section.title)}
-                          title={`Видалити секцію «${section.title}»`}
+                          data-tooltip={`Видалити секцію «${section.title}»`}
                           className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] text-[#9CA3AF] enabled:hover:text-[#EF4444] enabled:hover:bg-[#2A1418] enabled:cursor-pointer disabled:opacity-40 disabled:cursor-default transition-colors shrink-0"
                         >
                           <Trash2 size={11} />
@@ -624,6 +639,10 @@ const CharacterEditorContent: React.FC<{
                       onChange={(nextValue) =>
                         handleSectionValueChange(section.path, nextValue)
                       }
+                      onFieldLabelChange={handleFieldLabelChange}
+                      onTranslateKeys={(keys) => {
+                        void handleTranslateKeys(keys);
+                      }}
                     />
                   </div>
                 );
@@ -634,9 +653,20 @@ const CharacterEditorContent: React.FC<{
 
         {/* 4. Футер збереження */}
         <div className="shrink-0 px-6 py-3.5 border-t border-[#242424] bg-[#141414] flex items-center justify-between gap-3">
-          <span className="text-[11px] text-[#9CA3AF]">
-            {isDirty ? 'Є незбережені зміни' : 'Усі зміни збережено'}
-          </span>
+          <div className="relative flex items-center text-xs leading-4 font-medium">
+            {isDirty ? (
+              <>
+                <span aria-hidden="true" className="absolute -left-2.5 text-[#EF4444] font-bold">
+                  *
+                </span>
+                <span className="text-[#FCA5A5] drop-shadow-[0_0_8px_rgba(239,68,68,0.28)]">
+                  Є незбережені зміни
+                </span>
+              </>
+            ) : (
+              <span className="text-[#6B7280]">Усі зміни збережено</span>
+            )}
+          </div>
 
           <div className="flex items-center gap-2.5">
             <Button
@@ -667,6 +697,16 @@ const CharacterEditorContent: React.FC<{
         isOpen={isAddSectionOpen}
         onClose={() => setIsAddSectionOpen(false)}
         onAdd={handleAddSection}
+      />
+
+      <AvatarCropModal
+        isOpen={Boolean(cropModalSrc)}
+        imageSrc={cropModalSrc}
+        onClose={() => setCropModalSrc(null)}
+        onApply={(croppedDataUri) => {
+          handleHeaderPatch({ avatar: croppedDataUri });
+          setSystemAlert('Портрет кадрувано (256×256 WebP) і прикріплено', 'success');
+        }}
       />
 
       {confirmConfig && (

@@ -1,4 +1,5 @@
 import type { StateCreator } from 'zustand';
+import { ApiError } from '../../api/client';
 import type { ChatMessage } from '../../types/game';
 import { campaignsApi } from '../../api/campaignsApi';
 import { gameApi } from '../../api/gameApi';
@@ -26,7 +27,7 @@ async function dispatchPlayerAction(
   const { activeCampaignId, isStreaming, isLoading, isRollingBack } = get();
 
   if (!activeCampaignId) {
-    get().setSystemAlert('Спочатку оберіть або створіть кампанію', 'info');
+    get().setSystemAlert('Спочатку оберіть або створіть кампанію', 'warning');
     return;
   }
   if (!text || isStreaming || isLoading || isRollingBack) return;
@@ -120,22 +121,38 @@ async function dispatchPlayerAction(
     );
 
     // Фіналізація стрімінгу
-    set((state) => ({
-      isStreaming: false,
-      statusText: '',
-      playerState: result.playerState || state.playerState,
-      messages: state.messages.map((m) =>
-        m.id === narratorMsgId
-          ? {
-              ...m,
-              text: sanitizeStory(result.story || m.text),
-              isStreaming: false,
-              canRollback: true,
-            }
-          : m
-      ),
-    }));
+    set((state) => {
+      const nextDepth = state.activeCampaignRollbackDepth + 1;
+      return {
+        isStreaming: false,
+        backendOffline: false,
+        statusText: '',
+        playerState: result.playerState || state.playerState,
+        activeCampaignRollbackDepth: nextDepth,
+        activeCampaign:
+          state.activeCampaign && state.activeCampaign.campaign_id === activeCampaignId
+            ? { ...state.activeCampaign, rollback_depth: nextDepth }
+            : state.activeCampaign,
+        campaigns: state.campaigns.map((c) =>
+          c.campaign_id === activeCampaignId ? { ...c, rollback_depth: nextDepth } : c
+        ),
+        messages: state.messages.map((m) =>
+          m.id === narratorMsgId
+            ? {
+                ...m,
+                text: sanitizeStory(result.story || m.text),
+                isStreaming: false,
+                canRollback: true,
+              }
+            : m
+        ),
+      };
+    });
   } catch (err: unknown) {
+    const isNetworkFailure = !(err instanceof ApiError) || err.status === 0;
+    if (isNetworkFailure) {
+      set({ backendOffline: true });
+    }
     const errMsg = err instanceof Error ? err.message : 'Невідома помилка';
     get().setSystemAlert(`Помилка ходу: ${errMsg}`, 'error');
 
@@ -175,6 +192,7 @@ export const createGameplaySlice: StateCreator<GameState, [], [], GameplaySlice>
   userInput: '',
   suppressedSpans: [],
   isRollingBack: false,
+  activeCampaignRollbackDepth: 0,
   rollbackInputSignal: 0,
   rollbackGhost: null,
 
@@ -200,13 +218,33 @@ export const createGameplaySlice: StateCreator<GameState, [], [], GameplaySlice>
 
   // --- ПЛАВНИЙ ВІДКАТ ХОДУ (UNDO) БЕЗ ПЕРЕЗАВАНТАЖЕННЯ КАМПАНІЇ ---
   rollbackLastTurn: async () => {
-    const { activeCampaignId, isStreaming, isLoading, isRollingBack } = get();
-    if (!activeCampaignId || isStreaming || isLoading || isRollingBack) return;
+    const {
+      activeCampaignId,
+      isStreaming,
+      isLoading,
+      isRollingBack,
+      activeCampaignRollbackDepth,
+    } = get();
+    if (
+      !activeCampaignId ||
+      isStreaming ||
+      isLoading ||
+      isRollingBack ||
+      activeCampaignRollbackDepth <= 0
+    ) {
+      return;
+    }
 
     try {
       set({ isRollingBack: true });
       const res = await campaignsApi.rollbackCampaign(activeCampaignId);
       const nextLocation = res.current_state?.meta?.location;
+      const nextDepth =
+        typeof res.rollback_depth === 'number'
+          ? Math.max(0, res.rollback_depth)
+          : res.can_rollback === false
+            ? 0
+            : Math.max(0, get().activeCampaignRollbackDepth - 1);
 
       // Знаходимо 2 останні повідомлення ходу (гравець + оповідач) для плавного зникнення
       const currentMessages = get().messages;
@@ -249,19 +287,28 @@ export const createGameplaySlice: StateCreator<GameState, [], [], GameplaySlice>
         }
       }
 
-      // Тихо оновлюємо стан і локацію; вмикаємо згасання бульбашок і переліт тексту в інпут
+      // Тихо оновлюємо стан, локацію та актуальну глибину відкату; вмикаємо згасання бульбашок і переліт тексту в інпут
       set((state) => ({
         playerState: res.current_state,
         rollbackGhost: ghostPayload,
+        activeCampaignRollbackDepth: nextDepth,
         activeCampaign:
-          state.activeCampaign && state.activeCampaign.campaign_id === activeCampaignId && nextLocation
-            ? { ...state.activeCampaign, current_location: nextLocation }
+          state.activeCampaign && state.activeCampaign.campaign_id === activeCampaignId
+            ? {
+                ...state.activeCampaign,
+                ...(nextLocation ? { current_location: nextLocation } : {}),
+                rollback_depth: nextDepth,
+              }
             : state.activeCampaign,
-        campaigns: nextLocation
-          ? state.campaigns.map((c) =>
-              c.campaign_id === activeCampaignId ? { ...c, current_location: nextLocation } : c
-            )
-          : state.campaigns,
+        campaigns: state.campaigns.map((c) =>
+          c.campaign_id === activeCampaignId
+            ? {
+                ...c,
+                ...(nextLocation ? { current_location: nextLocation } : {}),
+                rollback_depth: nextDepth,
+              }
+            : c
+        ),
         messages: state.messages.map((m) =>
           targetIds.has(m.id) ? { ...m, isRollingBack: true, canRollback: false } : m
         ),
@@ -281,8 +328,8 @@ export const createGameplaySlice: StateCreator<GameState, [], [], GameplaySlice>
             break;
           }
         }
-        // Початкове привітання (індекс 0 без жодного ходу гравця) не можна відкочувати
-        const canRollbackNext = newLastNarratorIdx > 0;
+        // Початкове привітання (індекс 0 без жодного ходу гравця) або вичерпаний стек (nextDepth === 0) не можна відкочувати
+        const canRollbackNext = newLastNarratorIdx > 0 && nextDepth > 0;
         return {
           userInput: res.previous_user_input,
           suppressedSpans: [],
@@ -295,6 +342,32 @@ export const createGameplaySlice: StateCreator<GameState, [], [], GameplaySlice>
         };
       });
     } catch (err: unknown) {
+      if (err instanceof ApiError && err.status === 409) {
+        set((state) => ({
+          rollbackGhost: null,
+          activeCampaignRollbackDepth: 0,
+          activeCampaign:
+            state.activeCampaign && state.activeCampaign.campaign_id === activeCampaignId
+              ? { ...state.activeCampaign, rollback_depth: 0 }
+              : state.activeCampaign,
+          campaigns: state.campaigns.map((c) =>
+            c.campaign_id === activeCampaignId ? { ...c, rollback_depth: 0 } : c
+          ),
+          messages: state.messages.map((m) =>
+            m.canRollback ? { ...m, canRollback: false } : m
+          ),
+        }));
+        get().setSystemAlert(
+          'Відкат більше недоступний — досягнуто початкового стану збереження.',
+          'warning'
+        );
+        return;
+      }
+
+      const isNetworkFailure = !(err instanceof ApiError) || err.status === 0;
+      if (isNetworkFailure) {
+        set({ backendOffline: true });
+      }
       const errMsg = err instanceof Error ? err.message : 'Невідома помилка';
       set({ rollbackGhost: null });
       get().setSystemAlert(`Помилка відкату: ${errMsg}`, 'error');

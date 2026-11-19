@@ -14,6 +14,8 @@ interface DynamicSectionRendererProps {
   variant?: DynamicSectionVariant;
   emptyText?: string;
   onChange?: (nextValue: any) => void;
+  onFieldLabelChange?: (rawKey: string, nextLabel: string) => void;
+  onTranslateKeys?: (keys: string[]) => void;
 }
 
 /**
@@ -25,6 +27,8 @@ export const DynamicSectionRenderer: React.FC<DynamicSectionRendererProps> = ({
   variant = 'column',
   emptyText,
   onChange,
+  onFieldLabelChange,
+  onTranslateKeys,
 }) => {
   const knownArchetypes = new Set([
     'card_list',
@@ -48,6 +52,7 @@ export const DynamicSectionRenderer: React.FC<DynamicSectionRendererProps> = ({
           mode={mode}
           variant={variant}
           emptyText={emptyText}
+          fieldLabels={section.fieldLabels}
           onChange={onChange}
         />
       );
@@ -62,6 +67,7 @@ export const DynamicSectionRenderer: React.FC<DynamicSectionRendererProps> = ({
           mode={mode}
           variant={variant}
           emptyText={emptyText}
+          fieldLabels={section.fieldLabels}
           onChange={onChange}
         />
       );
@@ -76,7 +82,10 @@ export const DynamicSectionRenderer: React.FC<DynamicSectionRendererProps> = ({
           mode={mode}
           variant={variant}
           emptyText={emptyText}
+          fieldLabels={section.fieldLabels}
           onChange={onChange}
+          onFieldLabelChange={onFieldLabelChange}
+          onTranslateKeys={onTranslateKeys}
         />
       );
 

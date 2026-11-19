@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useGameStore } from '../../store/useGameStore';
 import { Button } from '../ui/Button';
+import { STANDARD_FIELD_CLASS } from '../ui/Input';
 import { Modal } from '../ui/Modal';
 
 interface NewCampaignModalProps {
@@ -58,7 +59,7 @@ export const NewCampaignModal: React.FC<NewCampaignModalProps> = ({
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Наприклад: Дослідження занедбаної каплиці"
-            className="w-full bg-[#161616] text-[#E5E7EB] text-sm rounded-lg px-3 py-2 border border-[#333333] placeholder-[#555555] focus:outline-none focus:border-[#7E0018] focus:ring-1 focus:ring-[#7E0018] transition-all"
+            className={`w-full text-sm px-3 py-2 ${STANDARD_FIELD_CLASS}`}
           />
         </div>
 
