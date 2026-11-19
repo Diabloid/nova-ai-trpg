@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { worldsApi } from '../../api/worldsApi';
 import { useGameStore } from '../../store/useGameStore';
+import { RUBY_BUTTON_SURFACE_CLASS } from '../ui/Button';
 import type { PlayerState, TemplatePlacement, WorldDetailResponse } from '../../types/api';
 import { readAvatarFileAsDataUrl } from '../../utils/avatarUtils';
 import {
@@ -590,7 +591,7 @@ const CharacterEditorContent: React.FC<{
               type="button"
               disabled={isBusy}
               onClick={() => setIsAddSectionOpen(true)}
-              className="h-[34px] px-3 rounded-[8px] bg-[#7E0018] border border-[#9E0020]/50 text-xs font-semibold text-white inline-flex items-center gap-1.5 transition-all duration-150 enabled:hover:bg-[#9E0020] enabled:active:scale-[0.985] enabled:cursor-pointer disabled:opacity-50 disabled:cursor-default shadow-sm"
+              className={`h-[34px] px-3 rounded-[8px] text-xs font-semibold inline-flex items-center gap-1.5 transition-all duration-150 enabled:active:scale-[0.985] enabled:cursor-pointer disabled:opacity-50 disabled:cursor-default ${RUBY_BUTTON_SURFACE_CLASS}`}
             >
               <Plus size={13} className="shrink-0" />
               <span>Додати секцію / параметр</span>

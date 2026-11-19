@@ -265,9 +265,22 @@ export function formatBlockTitle(raw: string): string {
   return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
 }
 
+function resolveCustomFieldLabel(
+  rawKey: string,
+  trimmed: string,
+  norm: string,
+  fieldLabels?: Record<string, string> | null
+): string | null {
+  const candidate =
+    fieldLabels?.[rawKey] ?? fieldLabels?.[trimmed] ?? fieldLabels?.[norm];
+  if (typeof candidate !== 'string') return null;
+  const clean = candidate.trim();
+  return clean.length > 0 ? clean : null;
+}
+
 /**
  * Повертає true, якщо ключ вже не потребує запиту до LLM-перекладача
- * (містить кирилицю, є технічним або вже присутній у fieldLabels / KNOWN_FIELD_LABELS).
+ * (містить кирилицю, є технічним або має локальний словниковий / кириличний підпис).
  */
 export function isFieldKeyResolvedLocally(
   rawKey: string,
@@ -278,13 +291,15 @@ export function isFieldKeyResolvedLocally(
   if (isTechnicalFieldKey(trimmed) || containsCyrillic(trimmed)) return true;
 
   const norm = normalizeFieldKey(trimmed);
-  if (fieldLabels && (fieldLabels[trimmed] || fieldLabels[norm])) return true;
-  return Boolean(KNOWN_FIELD_LABELS[norm]);
+  if (KNOWN_FIELD_LABELS[norm]) return true;
+
+  const customLabel = resolveCustomFieldLabel(rawKey, trimmed, norm, fieldLabels);
+  return Boolean(customLabel && containsCyrillic(customLabel));
 }
 
 /**
- * Локалізує ключ поля для read-відображення за пріоритетом:
- * fieldLabels?.[key] ?? KNOWN_FIELD_LABELS[norm] ?? formatBlockTitle(rawKey)
+ * Локалізує ключ поля для read-відображення:
+ * не-кириличний `customLabel` зі старого сейву не перекриває `KNOWN_FIELD_LABELS[norm]`.
  */
 export function localizeFieldKey(
   rawKey: string,
@@ -294,13 +309,14 @@ export function localizeFieldKey(
   const trimmed = rawKey.trim();
   const norm = normalizeFieldKey(trimmed);
 
-  const customLabel =
-    fieldLabels?.[rawKey] ?? fieldLabels?.[trimmed] ?? fieldLabels?.[norm];
-  if (typeof customLabel === 'string' && customLabel.trim()) {
-    return customLabel.trim();
+  const customLabel = resolveCustomFieldLabel(rawKey, trimmed, norm, fieldLabels);
+  const knownLabel = KNOWN_FIELD_LABELS[norm];
+
+  if (customLabel && (containsCyrillic(customLabel) || !knownLabel)) {
+    return customLabel;
   }
 
-  return KNOWN_FIELD_LABELS[norm] ?? formatBlockTitle(rawKey);
+  return knownLabel ?? formatBlockTitle(rawKey);
 }
 
 export function getCharacterBlockStyle(

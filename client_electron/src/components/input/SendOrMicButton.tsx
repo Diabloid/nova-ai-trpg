@@ -1,5 +1,6 @@
 import React from 'react';
 import { Mic } from 'lucide-react';
+import { RUBY_BUTTON_SURFACE_CLASS } from '../ui/Button';
 
 interface SendOrMicButtonProps {
   hasText: boolean;
@@ -36,7 +37,7 @@ export const SendOrMicButton: React.FC<SendOrMicButtonProps> = ({
         isRecording
           ? 'bg-gradient-to-b from-[#7E0018] to-[#4A000E] border border-[#E11D48] shadow-[0_0_10px_rgba(225,29,72,0.35)] animate-pulse'
           : hasText
-          ? 'bg-gradient-to-b from-[#4D101B] to-[#2B070E] enabled:hover:from-[#631422] enabled:hover:to-[#3A0A13] border border-[#7E0018] enabled:hover:border-[#9E0020] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_0_10px_rgba(126,0,24,0.22)]'
+          ? RUBY_BUTTON_SURFACE_CLASS
           : 'bg-gradient-to-b from-[#2B0B11] to-[#1D070B] enabled:hover:from-[#3F1019] enabled:hover:to-[#29090F] border border-[#4D121C] enabled:hover:border-[#7E0018] text-[#E5E7EB] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]'
       }`}
     >

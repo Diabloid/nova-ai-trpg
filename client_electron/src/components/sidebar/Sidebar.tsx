@@ -5,7 +5,10 @@ import { ActiveWorldCard } from './ActiveWorldCard';
 import { ActiveHeroCard } from './ActiveHeroCard';
 import { CampaignList } from './CampaignList';
 import { AccountCard } from './AccountCard';
+import { RUBY_BUTTON_SURFACE_CLASS } from '../ui/Button';
 import type { CharacterSummary, CampaignSummary, WorldSummary } from '../../types/api';
+
+const SIDEBAR_CREATE_BUTTON_CLASS = `w-full text-xs font-semibold py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-all duration-150 enabled:active:scale-[0.98] enabled:cursor-pointer disabled:opacity-45 disabled:cursor-default ${RUBY_BUTTON_SURFACE_CLASS}`;
 
 interface SidebarProps {
   onOpenWizard?: () => void;
@@ -71,7 +74,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   ? 'Недоступно в офлайн-режимі'
                   : 'Відкрити 4-кроковий майстер створення нового світу'
               }
-              className="w-full bg-[#7E0018] enabled:hover:bg-[#9E0020] enabled:active:bg-[#5C0012] text-white text-xs font-semibold py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-colors enabled:cursor-pointer disabled:opacity-45 disabled:cursor-default shadow-md"
+              className={SIDEBAR_CREATE_BUTTON_CLASS}
             >
               <Globe size={13} className="text-[#FCA5A5]" />
               <span>Створити новий світ</span>
@@ -86,7 +89,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   ? 'Недоступно в офлайн-режимі'
                   : 'Відкрити майстер створення нового персонажа'
               }
-              className="w-full bg-[#7E0018] enabled:hover:bg-[#9E0020] enabled:active:bg-[#5C0012] text-white text-xs font-semibold py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-colors enabled:cursor-pointer disabled:opacity-45 disabled:cursor-default shadow-md"
+              className={SIDEBAR_CREATE_BUTTON_CLASS}
             >
               <Sparkles size={13} className="text-[#FCA5A5]" />
               <span>Створити нового персонажа</span>

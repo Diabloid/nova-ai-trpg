@@ -5,6 +5,7 @@ import { RollbackBtn } from './RollbackBtn';
 import { TypingStatus } from './TypingStatus';
 import type { NovaTokenType } from '../../utils/novaSyntax';
 import { formatSystemTime } from '../../utils/formatTime';
+import { RUBY_BUTTON_SURFACE_CLASS } from '../ui/Button';
 
 // Приглушена єдина палітра для читабельності логу чату (на відміну від яскравої підсвітки редактора)
 const CHAT_LOG_TOKEN_CLASSES: Record<NovaTokenType, string> = {
@@ -182,7 +183,7 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({
               onClick={() => {
                 retryFailedAction(message.id).catch(() => {});
               }}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-[#7E0018] enabled:hover:bg-[#9E0020] enabled:active:scale-[0.98] text-white border border-[#9E0020] transition-all enabled:cursor-pointer disabled:opacity-50 disabled:cursor-default"
+              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold enabled:active:scale-[0.98] transition-all enabled:cursor-pointer disabled:opacity-50 disabled:cursor-default ${RUBY_BUTTON_SURFACE_CLASS}`}
             >
               <RotateCcw size={11} />
               <span>Повторити хід</span>
