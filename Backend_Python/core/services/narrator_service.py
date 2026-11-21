@@ -3,7 +3,7 @@ import sys
 from typing import Optional, AsyncGenerator, List, Dict
 from core.services.llm_provider_service import LLMProviderService
 from core.services.prompt_service import PromptService
-from core.services.history_service import HistoryService
+from core.storage.history_service import HistoryService
 
 # Безпечне кодування консолі для Windows
 if sys.stdout and hasattr(sys.stdout, "reconfigure"):

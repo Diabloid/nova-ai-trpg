@@ -3,7 +3,7 @@ import os
 from datetime import datetime, timezone
 from typing import Any, Callable, Dict, Tuple
 
-from core.slugify import (
+from core.utils.slugify import (
     ensure_unique_slug,
     is_strict_ascii_id,
     merge_legacy_background_into_biography,

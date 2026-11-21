@@ -5,6 +5,7 @@ import sys
 from typing import Any, Dict, Iterable, List, Optional, Set
 
 from core.utils.llm_json import call_llm_json
+from core.utils.paths import BASE_DIR
 
 # Безпечне кодування консолі для Windows
 if sys.stdout and hasattr(sys.stdout, "reconfigure"):
@@ -13,7 +14,6 @@ if sys.stdout and hasattr(sys.stdout, "reconfigure"):
     except Exception:
         pass
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 DEFAULT_KEY_TRANSLATIONS_PATH = os.path.join(BASE_DIR, "data", "config", "key_translations.json")
 
 CYRILLIC_CHAR_RE = re.compile(r"[а-яА-ЯіІїЇєЄґҐ]")

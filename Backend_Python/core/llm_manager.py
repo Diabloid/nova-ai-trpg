@@ -4,34 +4,23 @@ import json
 from typing import Optional, List, Dict, Any, AsyncGenerator, Tuple, Union
 from dotenv import load_dotenv
 
-# Безпечне кодування консолі для Windows
-if sys.stdout and hasattr(sys.stdout, "reconfigure"):
-    try:
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-    except Exception:
-        pass
-if sys.stderr and hasattr(sys.stderr, "reconfigure"):
-    try:
-        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
-    except Exception:
-        pass
+from core.utils.paths import BASE_DIR
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 load_dotenv(dotenv_path=os.path.join(BASE_DIR, ".env"))
 
-from core.services.llm_provider_service import LLMProviderService
-from core.services.prompt_service import PromptService
-from core.services.history_service import HistoryService
-from core.services.chat_log_service import ChatLogService
-from core.services.narrator_service import NarratorService
-from core.services.state_analyzer_service import StateAnalyzerService
+from core.managers.campaign_manager import CampaignManager
+from core.managers.character_manager import CharacterManager
+from core.managers.world_manager import WorldManager
 from core.services.character_wizard_service import CharacterWizardService
+from core.services.key_translator import KeyTranslatorService
+from core.services.llm_provider_service import LLMProviderService
+from core.services.narrator_service import NarratorService
+from core.services.prompt_service import PromptService
+from core.services.state_analyzer_service import StateAnalyzerService
 from core.services.voice_service import VoiceService
 from core.services.world_wizard_service import WorldWizardService
-from core.services.key_translator import KeyTranslatorService
-from core.character_manager import CharacterManager
-from core.campaign_manager import CampaignManager
-from core.world_manager import WorldManager
+from core.storage.chat_log_service import ChatLogService
+from core.storage.history_service import HistoryService
 from schemas.game_dto import (
     PlayerState,
     WorldWizardStepRequest,

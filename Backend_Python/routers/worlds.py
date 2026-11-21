@@ -2,7 +2,7 @@ from typing import List
 from fastapi import APIRouter, HTTPException, Path, Query, status
 from fastapi.responses import JSONResponse
 
-from core.world_manager import WorldDeleteConflictError
+from core.managers.world_manager import WorldDeleteConflictError
 from dependencies import llm_controller
 from schemas.game_dto import (
     CharacterTemplateDraftResponse,

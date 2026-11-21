@@ -1,6 +1,6 @@
 from typing import Any, Dict, List
 from fastapi import APIRouter, HTTPException, status
-from core.template_presets import get_template_presets
+from core.storage.template_presets import get_template_presets
 from schemas.game_dto import (
     CharacterDialogRequest,
     CharacterDialogResponse,

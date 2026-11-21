@@ -16,14 +16,15 @@ if sys.stdout and hasattr(sys.stdout, "reconfigure"):
     except Exception:
         pass
 
-from core import world_lore_store, world_migration
-from core.slugify import (
+from core.storage import world_lore_store, world_migration
+from core.storage.world_lore_store import ALLOWED_LORE_EXTS, MAX_LORE_FILE_BYTES
+from core.utils.paths import BASE_DIR
+from core.utils.slugify import (
     ensure_unique_slug,
     is_strict_ascii_id,
     sanitize_icon_key,
     slugify_ascii,
 )
-from core.world_lore_store import ALLOWED_LORE_EXTS, MAX_LORE_FILE_BYTES
 
 if TYPE_CHECKING:
     from core.services.template_validator import TemplateValidator
@@ -39,7 +40,6 @@ from schemas.game_dto import (
     WorldUpdateRequest,
 )
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WORLDS_DIR = os.path.join(BASE_DIR, "data", "worlds")
 CHARACTERS_DIR = os.path.join(BASE_DIR, "data", "characters")
 SAVES_DIR = os.path.join(BASE_DIR, "data", "saves")

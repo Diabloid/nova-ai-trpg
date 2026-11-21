@@ -16,17 +16,17 @@ if sys.stderr and hasattr(sys.stderr, "reconfigure"):
     except Exception:
         pass
 
+from core.managers.world_manager import DEFAULT_WORLD_ID, WorldManager
 from core.services.llm_provider_service import LLMProviderService
 from core.services.prompt_service import PromptService
-from core.services.wizard_merge_utils import (
+from core.storage.template_presets import get_template_presets
+from core.utils.llm_json import call_llm_json
+from core.utils.wizard_merge_utils import (
     align_to_template,
     deep_merge_preserve_explicit,
     resolve_unlocked_fields,
     to_clean_dict,
 )
-from core.template_presets import get_template_presets
-from core.utils.llm_json import call_llm_json
-from core.world_manager import DEFAULT_WORLD_ID, WorldManager
 from schemas.game_dto import PlayerState
 
 

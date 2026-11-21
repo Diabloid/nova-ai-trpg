@@ -13,7 +13,8 @@ if sys.stdout and hasattr(sys.stdout, "reconfigure"):
     except Exception:
         pass
 
-from core.world_manager import WorldManager, DEFAULT_WORLD_ID, ALLOWED_LORE_EXTS
+from core.managers.world_manager import DEFAULT_WORLD_ID, WorldManager
+from core.storage.world_lore_store import ALLOWED_LORE_EXTS
 
 
 @dataclass

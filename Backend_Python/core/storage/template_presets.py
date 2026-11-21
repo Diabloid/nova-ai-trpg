@@ -3,9 +3,9 @@ import os
 from functools import lru_cache
 from typing import List, Tuple
 
+from core.utils.paths import BASE_DIR
 from schemas.game_dto import TemplatePreset
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PRESETS_JSON_PATH = os.path.join(BASE_DIR, "data", "presets", "template_presets.json")
 
 

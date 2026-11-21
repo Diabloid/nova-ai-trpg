@@ -12,14 +12,14 @@ if sys.stdout and hasattr(sys.stdout, "reconfigure"):
     except Exception:
         pass
 
+from core.managers.world_manager import WorldManager
+from core.services.key_translator import KeyTranslatorService
 from core.services.llm_provider_service import LLMProviderService
 from core.services.prompt_service import PromptService
 from core.services.template_validator import TemplateValidator
-from core.services.key_translator import KeyTranslatorService
-from core.slugify import sanitize_icon_key, slugify_ascii
-from core.template_presets import get_template_presets
+from core.storage.template_presets import get_template_presets
 from core.utils.llm_json import call_llm_json, strip_markdown_fences
-from core.world_manager import WorldManager
+from core.utils.slugify import sanitize_icon_key, slugify_ascii
 from schemas.game_dto import (
     CharacterTemplateDraftResponse,
     WorldAiPrompts,

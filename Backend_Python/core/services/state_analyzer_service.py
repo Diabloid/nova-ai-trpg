@@ -4,7 +4,7 @@ from typing import List, Any, Optional, Tuple
 from core.services.llm_provider_service import LLMProviderService
 from core.services.prompt_service import PromptService
 from core.services.key_translator import KeyTranslatorService
-from core.state_parser import StateDelta
+from schemas.state_delta import StateDelta
 
 # Безпечне кодування консолі для Windows
 if sys.stdout and hasattr(sys.stdout, "reconfigure"):

@@ -2,7 +2,7 @@ import copy
 import re
 from typing import Any, Dict, List, Optional
 
-from core.slugify import (
+from core.utils.slugify import (
     sanitize_icon_key,
     validate_and_normalize_meta_avatar,
     merge_legacy_background_into_biography,

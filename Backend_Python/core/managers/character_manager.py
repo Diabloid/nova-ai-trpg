@@ -14,7 +14,8 @@ if sys.stdout and hasattr(sys.stdout, "reconfigure"):
         pass
 
 from schemas.game_dto import PlayerState, CharacterSummary
-from core.slugify import (
+from core.utils.paths import BASE_DIR
+from core.utils.slugify import (
     slugify_ascii,
     ensure_unique_slug,
     validate_and_normalize_meta_avatar,
@@ -22,7 +23,6 @@ from core.slugify import (
     merge_legacy_background_into_biography,
 )
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CHARACTERS_DIR = os.path.join(BASE_DIR, "data", "characters")
 DEFAULT_WORLD_ID = "default_dark_fantasy"
 

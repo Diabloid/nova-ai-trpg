@@ -47,6 +47,13 @@ from schemas.game_dto import (
     WorldUpdateRequest,
     WorldWizardStepRequest,
 )
+from schemas.state_delta import (
+    DynamicListChange,
+    InjuryChange,
+    ItemChange,
+    NewSectionSpec,
+    StateDelta,
+)
 
 __all__ = [
     "FlexibleDTO",
@@ -96,4 +103,9 @@ __all__ = [
     "TranslateKeysRequest",
     "TranslateKeysResponse",
     "SessionInfo",
+    "ItemChange",
+    "InjuryChange",
+    "DynamicListChange",
+    "NewSectionSpec",
+    "StateDelta",
 ]

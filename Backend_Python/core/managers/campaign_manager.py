@@ -15,14 +15,14 @@ if sys.stdout and hasattr(sys.stdout, "reconfigure"):
         pass
 
 from schemas.game_dto import CampaignSummary, HistoryMessage, PlayerState
-from core.state_manager import GameState
-from core.services.history_service import HistoryService
-from core.services.chat_log_service import ChatLogService
-from core.character_manager import CharacterManager
-from core.world_manager import WorldManager, DEFAULT_WORLD_ID
-from core.slugify import slugify_ascii, ensure_unique_slug, sanitize_strict_ascii_id
+from core.managers.character_manager import CharacterManager
+from core.managers.state_manager import GameState
+from core.managers.world_manager import DEFAULT_WORLD_ID, WorldManager
+from core.storage.chat_log_service import ChatLogService
+from core.storage.history_service import HistoryService
+from core.utils.paths import BASE_DIR
+from core.utils.slugify import ensure_unique_slug, sanitize_strict_ascii_id, slugify_ascii
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SAVES_DIR = os.path.join(BASE_DIR, "data", "saves")
 MAX_TURN_SNAPSHOTS = 100
 

@@ -4,9 +4,15 @@ import os
 import sys
 from datetime import datetime, timezone
 from typing import Dict, Any, Optional, List, Tuple, Set
-from core.slugify import validate_and_normalize_meta_avatar, slugify_ascii, sanitize_icon_key, validate_hex_color
 from core.services.key_translator import KeyTranslatorService
-from core.state_parser import StateDelta, DynamicListChange, NewSectionSpec
+from core.utils.paths import BASE_DIR
+from core.utils.slugify import (
+    sanitize_icon_key,
+    slugify_ascii,
+    validate_and_normalize_meta_avatar,
+    validate_hex_color,
+)
+from schemas.state_delta import DynamicListChange, NewSectionSpec, StateDelta
 
 # Безпечне кодування консолі для Windows
 if sys.stdout and hasattr(sys.stdout, "reconfigure"):
@@ -20,7 +26,6 @@ if sys.stderr and hasattr(sys.stderr, "reconfigure"):
     except Exception:
         pass
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULT_SAVE_PATH = os.path.join(BASE_DIR, "data", "saves", "savegame.json")
 
 PROTECTED_PATHS = {"_schema_meta", "meta.world_id", "meta.avatar", "created_at", "updated_at"}
