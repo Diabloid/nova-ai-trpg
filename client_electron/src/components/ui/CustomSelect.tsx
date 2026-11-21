@@ -145,18 +145,18 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
         }}
         className={`w-full h-[34px] px-2.5 rounded-[8px] border flex items-center justify-between gap-2 text-left transition-all duration-150 select-none outline-none ${
           isMenuOpen
-            ? 'bg-[#1A1A1A] border-[#7E0018]/70'
-            : 'bg-[#161616] border-[#2A2A2A]'
-        } enabled:hover:bg-[#1E1E1E] enabled:hover:border-[#3E3E3E] enabled:active:bg-[#141414] enabled:active:scale-[0.985] enabled:cursor-pointer disabled:opacity-50 disabled:cursor-default`}
+            ? 'bg-bg-inset border-accent-ruby/70'
+            : 'bg-bg-panel border-border-strong'
+        } enabled:hover:bg-bg-control enabled:hover:border-border-hover enabled:active:bg-bg-card enabled:active:scale-[0.985] enabled:cursor-pointer disabled:opacity-50 disabled:cursor-default`}
       >
         <div className="flex items-center gap-2 min-w-0 flex-1">
           {leftIcon && <span className="shrink-0 flex items-center">{leftIcon}</span>}
           {prefixLabel && (
-            <span className="text-xs font-medium text-[#9CA3AF] shrink-0">
+            <span className="text-xs font-medium text-text-muted shrink-0">
               {prefixLabel}
             </span>
           )}
-          <span className="text-xs font-medium text-[#E5E7EB] truncate">
+          <span className="text-xs font-medium text-text-primary truncate">
             {selectedOption
               ? selectedOption.sublabel
                 ? `${selectedOption.label} (${selectedOption.sublabel})`
@@ -168,7 +168,7 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
         <ChevronDown
           size={14}
           className={`shrink-0 transition-transform duration-150 ${
-            isMenuOpen ? 'rotate-180 text-[#E5E7EB]' : 'rotate-0 text-[#9CA3AF]'
+            isMenuOpen ? 'rotate-180 text-text-primary' : 'rotate-0 text-text-muted'
           }`}
         />
       </button>
@@ -184,7 +184,7 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
               top: menuPos.top,
               width: menuPos.width,
             }}
-            className="fixed z-[110] bg-[#161616] border border-[#262626] rounded-[8px] p-1 shadow-2xl animate-fade-in max-h-[280px] overflow-y-auto select-none"
+            className="fixed z-[110] bg-bg-panel border border-border-default rounded-[8px] p-1 shadow-2xl animate-fade-in max-h-[280px] overflow-y-auto select-none"
           >
             {options.map((opt) => {
               const isSelected = opt.value === value;
@@ -202,8 +202,8 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
                   }}
                   className={`w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-[5px] text-left text-xs transition-colors cursor-pointer ${
                     isSelected
-                      ? 'bg-[#7E0018]/25 border border-[#7E0018]/50 text-white font-semibold'
-                      : 'border border-transparent text-[#E5E7EB] hover:bg-[#242424] hover:text-white'
+                      ? 'bg-accent-ruby/25 border border-accent-ruby/50 text-white font-semibold'
+                      : 'border border-transparent text-text-primary hover:bg-bg-hover hover:text-white'
                   }`}
                 >
                   <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -212,31 +212,31 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
                     {opt.sublabel && (
                       <span
                         className={`text-[11px] truncate shrink-0 ${
-                          isSelected ? 'text-[#D1D5DB]' : 'text-[#9CA3AF]'
+                          isSelected ? 'text-text-secondary' : 'text-text-muted'
                         }`}
                       >
                         ({opt.sublabel})
                       </span>
                     )}
                   </div>
-                  {isSelected && <Check size={12} className="text-[#FCA5A5] shrink-0" />}
+                  {isSelected && <Check size={12} className="text-danger-soft shrink-0" />}
                 </button>
               );
             })}
 
             {actionItem && (
               <>
-                <div className="h-[1px] bg-[#262626] my-1 mx-1" />
+                <div className="h-[1px] bg-border-default my-1 mx-1" />
                 <button
                   type="button"
                   onClick={() => {
                     setIsOpen(false);
                     actionItem.onClick();
                   }}
-                  className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-[5px] text-left text-xs text-[#E5E7EB] hover:bg-[#242424] hover:text-white transition-colors cursor-pointer"
+                  className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-[5px] text-left text-xs text-text-primary hover:bg-bg-hover hover:text-white transition-colors cursor-pointer"
                 >
                   {actionItem.icon && (
-                    <span className="shrink-0 flex items-center text-[#A78BFA]">
+                    <span className="shrink-0 flex items-center text-accent-violet">
                       {actionItem.icon}
                     </span>
                   )}

@@ -20,7 +20,7 @@ import { hexToRgba } from '../../utils/lucideIconMap';
 import { AddSectionDialog } from '../character-editor/AddSectionDialog';
 import { DynamicLucideIcon, DynamicSectionRenderer } from '../dynamic-sheet';
 import { Button } from '../ui/Button';
-import { STANDARD_FIELD_CLASS } from '../ui/Input';
+import { Input, Textarea } from '../ui/Input';
 
 const PLACEMENT_LABELS: Record<string, string> = {
   drawer_column: 'Колонка шторки',
@@ -148,11 +148,11 @@ export const WorldStepTemplate: React.FC = () => {
   return (
     <div className="flex-1 flex flex-col gap-3 min-h-0 overflow-hidden">
       {/* 1. Верхня панель AI-генерації та коригування шаблону */}
-      <div className="bg-[#111111] border border-[#262626] rounded-xl p-3.5 flex flex-col gap-2.5 shrink-0 shadow-md">
+      <div className="bg-bg-deep border border-border-default rounded-xl p-3.5 flex flex-col gap-2.5 shrink-0 shadow-md">
         <div className="flex flex-wrap items-center justify-between gap-2.5">
           <div className="flex items-center gap-2 min-w-0">
             <LayoutTemplate size={15} className="text-[#38BDF8] shrink-0" />
-            <span className="text-xs font-semibold text-[#F3F4F6]">
+            <span className="text-xs font-semibold text-text-bright">
               Унікальний шаблон анкети персонажа цього світу
             </span>
           </div>
@@ -173,7 +173,7 @@ export const WorldStepTemplate: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <input
+          <Input
             type="text"
             value={templateCustomInstruction}
             disabled={isBusy}
@@ -185,7 +185,7 @@ export const WorldStepTemplate: React.FC = () => {
               }
             }}
             placeholder="AI-коригування шаблону: напр. «Додай шкалу Радіації й прибери Ману»..."
-            className={`flex-1 text-xs px-3 py-2 ${STANDARD_FIELD_CLASS}`}
+            className="w-auto flex-1 text-xs px-3 py-2"
           />
           <Button
             type="button"
@@ -212,13 +212,13 @@ export const WorldStepTemplate: React.FC = () => {
         >
           <div className="min-h-0 overflow-hidden">
             {templateSummaryNote && (
-              <div className="flex items-start justify-between gap-2 text-[11px] text-[#9CA3AF] bg-[#161616] border border-[#262626] rounded-lg px-3 py-1.5">
+              <div className="flex items-start justify-between gap-2 text-[11px] text-text-muted bg-bg-panel border border-border-default rounded-lg px-3 py-1.5">
                 <span className="break-words min-w-0 leading-relaxed">{templateSummaryNote}</span>
                 <button
                   type="button"
                   onClick={handleCloseSummaryNote}
                   aria-label="Закрити підказку"
-                  className="w-5 h-5 rounded inline-flex items-center justify-center text-[#9CA3AF] shrink-0 enabled:hover:text-[#EF4444] enabled:hover:bg-[#2A1418] transition-colors enabled:cursor-pointer"
+                  className="w-5 h-5 rounded inline-flex items-center justify-center text-text-muted shrink-0 enabled:hover:text-danger enabled:hover:bg-accent-ruby-soft transition-colors enabled:cursor-pointer"
                 >
                   <X size={12} />
                 </button>
@@ -231,12 +231,12 @@ export const WorldStepTemplate: React.FC = () => {
       {/* 2. Спліт: Ліворуч живе прев'ю анкети з демо-даними, Праворуч конструктор / JSON */}
       <div className="flex-1 flex gap-4 min-h-0 overflow-hidden">
         {/* ЛІВА ПАНЕЛЬ: Живе візуальне прев'ю */}
-        <div className="flex-1 min-w-0 h-full bg-[#111111] border border-[#262626] rounded-xl p-4 flex flex-col gap-3 overflow-hidden shadow-lg">
-          <div className="flex items-center justify-between gap-2 pb-2 border-b border-[#222222] shrink-0">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-[#9CA3AF]">
+        <div className="flex-1 min-w-0 h-full bg-bg-deep border border-border-default rounded-xl p-4 flex flex-col gap-3 overflow-hidden shadow-lg">
+          <div className="flex items-center justify-between gap-2 pb-2 border-b border-border-subtle shrink-0">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-text-muted">
               ЖИВЕ ПРЕВ’Ю АНКЕТИ ГЕРОЯ
             </span>
-            <span className="text-[11px] text-[#6B7280]">
+            <span className="text-[11px] text-text-dim">
               {demoState && Object.keys(demoState).length > 0
                 ? 'Із демо-даними ШІ'
                 : 'Структура шаблону'}
@@ -244,9 +244,9 @@ export const WorldStepTemplate: React.FC = () => {
           </div>
 
           {!hasTemplate ? (
-            <div className="flex-1 flex flex-col items-center justify-center text-center px-6 text-[#6B7280]">
+            <div className="flex-1 flex flex-col items-center justify-center text-center px-6 text-text-dim">
               <LayoutTemplate size={28} className="mb-2 text-[#4B5563]" />
-              <span className="text-sm font-medium text-[#9CA3AF]">
+              <span className="text-sm font-medium text-text-muted">
                 Шаблон анкети ще не сформовано
               </span>
               <span className="text-xs mt-1 max-w-md">
@@ -256,16 +256,16 @@ export const WorldStepTemplate: React.FC = () => {
           ) : (
             <div className="flex-1 overflow-y-auto pr-1 space-y-3 min-h-0">
               {/* Прев'ю верхньої шапки з header_badge */}
-              <div className="bg-[#181818] border border-[#2C2C2C] rounded-xl p-3 flex flex-wrap items-center justify-between gap-2.5">
+              <div className="bg-bg-tooltip border border-[#2C2C2C] rounded-xl p-3 flex flex-wrap items-center justify-between gap-2.5">
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="w-8 h-8 rounded-lg bg-[#222222] border border-[#323232] flex items-center justify-center shrink-0">
-                    <User size={15} className="text-[#9CA3AF]" />
+                  <div className="w-8 h-8 rounded-lg bg-bg-elevated border border-[#323232] flex items-center justify-center shrink-0">
+                    <User size={15} className="text-text-muted" />
                   </div>
                   <div className="flex flex-col min-w-0">
-                    <span className="text-sm font-bold text-[#F3F4F6] truncate">
+                    <span className="text-sm font-bold text-text-bright truncate">
                       {parsedPreview.headers.name || 'Ім’я демо-героя'}
                     </span>
-                    <span className="inline-flex items-center gap-1 text-[11px] text-[#9CA3AF] truncate">
+                    <span className="inline-flex items-center gap-1 text-[11px] text-text-muted truncate">
                       <MapPin size={11} className="shrink-0" />
                       <span className="truncate">
                         {parsedPreview.headers.location ||
@@ -291,7 +291,7 @@ export const WorldStepTemplate: React.FC = () => {
                         size={11}
                         style={{ color: badge.color }}
                       />
-                      <span className="text-[#D1D5DB]">
+                      <span className="text-text-secondary">
                         {badge.label}:{' '}
                         <strong className="text-white font-semibold">{badge.value}</strong>
                       </span>
@@ -299,8 +299,8 @@ export const WorldStepTemplate: React.FC = () => {
                   ))}
 
                   {parsedPreview.headers.overallState && (
-                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#2A1414]/70 border border-[#4A1818] text-[11px] text-[#FCA5A5] font-semibold">
-                      <Heart size={11} className="text-[#EF4444] shrink-0" />
+                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#2A1414]/70 border border-[#4A1818] text-[11px] text-danger-soft font-semibold">
+                      <Heart size={11} className="text-danger shrink-0" />
                       <span>{parsedPreview.headers.overallState}</span>
                     </div>
                   )}
@@ -313,7 +313,7 @@ export const WorldStepTemplate: React.FC = () => {
                   {parsedPreview.drawerColumns.map((section) => (
                     <div
                       key={section.path}
-                      className="bg-[#161616] border border-[#262626] rounded-xl p-3 flex flex-col min-h-[140px]"
+                      className="bg-bg-panel border border-border-default rounded-xl p-3 flex flex-col min-h-[140px]"
                     >
                       <DynamicSectionRenderer
                         section={section}
@@ -327,15 +327,15 @@ export const WorldStepTemplate: React.FC = () => {
 
               {/* Секції деталей */}
               {parsedPreview.detailSections.length > 0 && (
-                <div className="bg-[#161616] border border-[#262626] rounded-xl p-3 space-y-3">
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-[#6B7280]">
+                <div className="bg-bg-panel border border-border-default rounded-xl p-3 space-y-3">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-text-dim">
                     ДЕТАЛІ ЛИСТА (СПОЙЛЕР)
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {parsedPreview.detailSections.map((section) => (
                       <div
                         key={section.path}
-                        className="bg-[#121212] border border-[#242424] rounded-lg p-2.5"
+                        className="bg-bg-app border border-bg-hover rounded-lg p-2.5"
                       >
                         <DynamicSectionRenderer
                           section={section}
@@ -352,9 +352,9 @@ export const WorldStepTemplate: React.FC = () => {
         </div>
 
         {/* ПРАВА ПАНЕЛЬ: Конструктор секцій або Режим JSON */}
-        <div className="w-[410px] lg:w-[440px] shrink-0 h-full bg-[#111111] border border-[#262626] rounded-xl p-4 flex flex-col gap-3 overflow-hidden shadow-lg">
-          <div className="flex items-center justify-between gap-2 pb-2 border-b border-[#222222] shrink-0">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-[#9CA3AF]">
+        <div className="w-[410px] lg:w-[440px] shrink-0 h-full bg-bg-deep border border-border-default rounded-xl p-4 flex flex-col gap-3 overflow-hidden shadow-lg">
+          <div className="flex items-center justify-between gap-2 pb-2 border-b border-border-subtle shrink-0">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-text-muted">
               {isJsonMode ? 'РЕДАКТОР JSON-ШАБЛОНУ' : 'КОНСТРУКТОР СЕКЦІЙ'}
             </span>
 
@@ -372,7 +372,7 @@ export const WorldStepTemplate: React.FC = () => {
 
           {isJsonMode ? (
             <div className="flex-1 flex flex-col gap-2.5 min-h-0">
-              <textarea
+              <Textarea
                 value={rawJsonText}
                 disabled={isBusy}
                 onChange={(e) => {
@@ -380,7 +380,7 @@ export const WorldStepTemplate: React.FC = () => {
                   setJsonError(null);
                 }}
                 spellCheck={false}
-                className={`flex-1 w-full text-xs font-mono leading-relaxed p-3 resize-none overflow-y-auto ${STANDARD_FIELD_CLASS}`}
+                className="flex-1 font-mono p-3 resize-none overflow-y-auto"
               />
 
               <div
@@ -392,7 +392,7 @@ export const WorldStepTemplate: React.FC = () => {
               >
                 <div className="min-h-0 overflow-hidden">
                   {jsonError && (
-                    <div className="text-xs text-[#FCA5A5] bg-[#2A1215] border border-[#7F1D1D] rounded-lg px-3 py-2 break-words">
+                    <div className="text-xs text-danger-soft bg-[#2A1215] border border-[#7F1D1D] rounded-lg px-3 py-2 break-words">
                       Помилка JSON: {jsonError}
                     </div>
                   )}
@@ -443,14 +443,14 @@ export const WorldStepTemplate: React.FC = () => {
 
               <div className="flex-1 overflow-y-auto space-y-2 pr-1 min-h-0">
                 {parsedTemplateSections.length === 0 ? (
-                  <div className="text-xs text-[#6B7280] italic text-center py-8 px-3 border border-dashed border-[#262626] rounded-lg">
+                  <div className="text-xs text-text-dim italic text-center py-8 px-3 border border-dashed border-border-default rounded-lg">
                     У шаблоні поки немає секцій. Згенеруйте шаблон з ШІ або додайте секцію вручну.
                   </div>
                 ) : (
                   parsedTemplateSections.map((sec) => (
                     <div
                       key={sec.path}
-                      className="flex items-center justify-between gap-2 bg-[#161616] border border-[#262626] rounded-lg p-2.5"
+                      className="flex items-center justify-between gap-2 bg-bg-panel border border-border-default rounded-lg p-2.5"
                     >
                       <div className="flex items-center gap-2.5 min-w-0 flex-1">
                         <div
@@ -468,17 +468,17 @@ export const WorldStepTemplate: React.FC = () => {
                         </div>
 
                         <div className="flex flex-col min-w-0 flex-1">
-                          <span className="text-xs font-semibold text-[#F3F4F6] truncate">
+                          <span className="text-xs font-semibold text-text-bright truncate">
                             {sec.title}
                           </span>
                           <div className="flex flex-wrap items-center gap-1 mt-0.5">
-                            <span className="text-[10px] font-mono text-[#6B7280] truncate">
+                            <span className="text-[10px] font-mono text-text-dim truncate">
                               {sec.path}
                             </span>
-                            <span className="px-1.5 py-0.2 rounded bg-[#202020] border border-[#2F2F2F] text-[10px] text-[#9CA3AF]">
+                            <span className="px-1.5 py-0.2 rounded bg-[#202020] border border-[#2F2F2F] text-[10px] text-text-muted">
                               {sec.archetype}
                             </span>
-                            <span className="px-1.5 py-0.2 rounded bg-[#202020] border border-[#2F2F2F] text-[10px] text-[#9CA3AF]">
+                            <span className="px-1.5 py-0.2 rounded bg-[#202020] border border-[#2F2F2F] text-[10px] text-text-muted">
                               {PLACEMENT_LABELS[sec.placement] || sec.placement}
                             </span>
                           </div>
@@ -490,7 +490,7 @@ export const WorldStepTemplate: React.FC = () => {
                         disabled={isBusy}
                         onClick={() => removeTemplateSection(sec.path)}
                         data-tooltip={`Видалити секцію «${sec.title}»`}
-                        className="w-7 h-7 rounded flex items-center justify-center text-[#9CA3AF] shrink-0 enabled:hover:text-[#EF4444] enabled:hover:bg-[#2A1418] transition-colors enabled:cursor-pointer disabled:opacity-35 disabled:cursor-default"
+                        className="w-7 h-7 rounded flex items-center justify-center text-text-muted shrink-0 enabled:hover:text-danger enabled:hover:bg-accent-ruby-soft transition-colors enabled:cursor-pointer disabled:opacity-35 disabled:cursor-default"
                       >
                         <Trash2 size={13} />
                       </button>

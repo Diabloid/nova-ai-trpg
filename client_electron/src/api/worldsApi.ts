@@ -56,7 +56,7 @@ export function extractWorldDeleteConflict(err: unknown): WorldDeleteConflict | 
 }
 
 /**
- * Повний API-клієнт Світів, Бази Лору, Пресетів та 4-Крокового AI-Майстра Світів (Контракт v2.0.0).
+ * Повний API-клієнт Світів, Бази Лору, Пресетів та 4-Крокового AI-Майстра Світів.
  */
 export const worldsApi = {
   // --- СВІТИ (CRUD) ---

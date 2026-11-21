@@ -78,11 +78,11 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
       ref={menuRef}
       style={{ left: clampedX, top: clampedY }}
       onContextMenu={(e) => e.preventDefault()}
-      className="fixed z-[100] min-w-[185px] bg-[#161616] border border-[#262626] rounded-[8px] p-1 shadow-2xl select-none animate-fade-in"
+      className="fixed z-[100] min-w-[185px] bg-bg-panel border border-border-default rounded-[8px] p-1 shadow-2xl select-none animate-fade-in"
     >
       {items.map((item, idx) => {
         if (item.type === 'separator') {
-          return <div key={`sep-${idx}`} className="h-[1px] bg-[#262626] my-1 mx-1" />;
+          return <div key={`sep-${idx}`} className="h-[1px] bg-border-default my-1 mx-1" />;
         }
 
         return (
@@ -103,16 +103,16 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
               item.disabled
                 ? 'opacity-40 cursor-not-allowed'
                 : item.danger
-                ? 'text-[#FCA5A5] hover:bg-[#2A1418] hover:text-white cursor-pointer'
-                : 'text-[#E5E7EB] hover:bg-[#242424] hover:text-white cursor-pointer'
+                ? 'text-danger-soft hover:bg-accent-ruby-soft hover:text-white cursor-pointer'
+                : 'text-text-primary hover:bg-bg-hover hover:text-white cursor-pointer'
             }`}
           >
             <span className="flex items-center gap-2 min-w-0">
-              {item.icon && <span className="text-[#9CA3AF] shrink-0">{item.icon}</span>}
+              {item.icon && <span className="text-text-muted shrink-0">{item.icon}</span>}
               <span className="truncate">{item.label}</span>
             </span>
             {item.shortcut && (
-              <span className="text-[11px] text-[#6B7280] font-mono shrink-0 ml-2">
+              <span className="text-[11px] text-text-dim font-mono shrink-0 ml-2">
                 {item.shortcut}
               </span>
             )}

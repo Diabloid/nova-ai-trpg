@@ -5,7 +5,7 @@ import { toAsciiSlug, type AddSectionInput } from '../../utils/schemaMergeUtils'
 import { Button } from '../ui/Button';
 import { ColorPickerPopover } from '../ui/ColorPickerPopover';
 import { CustomSelect, type CustomSelectOption } from '../ui/CustomSelect';
-import { STANDARD_FIELD_CLASS } from '../ui/Input';
+import { Input } from '../ui/Input';
 import { Modal } from '../ui/Modal';
 import { IconPicker } from './IconPicker';
 
@@ -71,8 +71,8 @@ const AddSectionForm: React.FC<{
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-3.5">
-      <div className="flex items-center gap-2 text-[#F3F4F6]">
-        <Layers size={16} className="text-[#A78BFA] shrink-0" />
+      <div className="flex items-center gap-2 text-text-bright">
+        <Layers size={16} className="text-accent-violet shrink-0" />
         <h3 className="text-sm font-bold tracking-wide uppercase">
           Додати нову секцію
         </h3>
@@ -80,25 +80,25 @@ const AddSectionForm: React.FC<{
 
       {/* Назва секції */}
       <div className="space-y-1">
-        <label className="block text-xs text-[#9CA3AF]">Назва секції:</label>
-        <input
+        <label className="block text-xs text-text-muted">Назва секції:</label>
+        <Input
           type="text"
           autoFocus
           required
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Наприклад: Шкала Радіації або Тайні титули"
-          className={`w-full px-3 py-2 text-xs ${STANDARD_FIELD_CLASS}`}
+          className="px-3 py-2 text-xs"
         />
-        <div className="text-[10px] text-[#6B7280] font-mono truncate">
-          Шлях у JSON: <span className="text-[#9CA3AF]">{previewPath}</span>
+        <div className="text-[10px] text-text-dim font-mono truncate">
+          Шлях у JSON: <span className="text-text-muted">{previewPath}</span>
         </div>
       </div>
 
       {/* Архетип і розміщення через CustomSelect */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
         <div className="space-y-1">
-          <label className="block text-xs text-[#9CA3AF]">Тип (архетип):</label>
+          <label className="block text-xs text-text-muted">Тип (архетип):</label>
           <CustomSelect
             value={archetype}
             options={ARCHETYPE_OPTIONS}
@@ -108,7 +108,7 @@ const AddSectionForm: React.FC<{
         </div>
 
         <div className="space-y-1">
-          <label className="block text-xs text-[#9CA3AF]">Місце виводу:</label>
+          <label className="block text-xs text-text-muted">Місце виводу:</label>
           <CustomSelect
             value={placement}
             options={PLACEMENT_OPTIONS}
@@ -121,13 +121,13 @@ const AddSectionForm: React.FC<{
       {/* Іконка та акцентний колір */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 items-start">
         <div className="space-y-1">
-          <label className="block text-xs text-[#9CA3AF]">Векторна іконка:</label>
+          <label className="block text-xs text-text-muted">Векторна іконка:</label>
           <IconPicker value={icon} onChange={setIcon} accentColor={color} />
         </div>
 
         <div className="space-y-1">
-          <label className="block text-xs text-[#9CA3AF]">Акцентний колір:</label>
-          <div className="flex flex-wrap items-center gap-1.5 min-h-[34px] bg-[#121212] border border-[#2A2A2A] rounded-[8px] px-2 py-1">
+          <label className="block text-xs text-text-muted">Акцентний колір:</label>
+          <div className="flex flex-wrap items-center gap-1.5 min-h-[34px] bg-bg-app border border-border-strong rounded-[8px] px-2 py-1">
             {PRESET_COLORS.map((presetHex) => {
               const isSelected = color.toLowerCase() === presetHex.toLowerCase();
               return (
@@ -181,7 +181,7 @@ export const AddSectionDialog: React.FC<AddSectionDialogProps> = ({
   onAdd,
 }) => {
   return (
-    <Modal isOpen={isOpen} onClose={onClose} className="w-[460px] border-[#333333] gap-0">
+    <Modal isOpen={isOpen} onClose={onClose} className="w-[460px] border-border-input gap-0">
       {isOpen && <AddSectionForm onClose={onClose} onAdd={onAdd} />}
     </Modal>
   );

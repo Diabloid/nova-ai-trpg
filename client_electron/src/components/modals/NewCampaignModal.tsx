@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useGameStore } from '../../store/useGameStore';
 import { Button } from '../ui/Button';
-import { STANDARD_FIELD_CLASS } from '../ui/Input';
+import { Input } from '../ui/Input';
 import { Modal } from '../ui/Modal';
 
 interface NewCampaignModalProps {
@@ -39,27 +39,27 @@ export const NewCampaignModal: React.FC<NewCampaignModalProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       closeDisabled={isCreating}
-      className="w-[380px] border-[#333333] gap-3.5"
+      className="w-[380px] border-border-input gap-3.5"
     >
       <div>
-        <div className="text-[#9CA3AF] text-[11px] font-bold tracking-widest uppercase">
+        <div className="text-text-muted text-[11px] font-bold tracking-widest uppercase">
           НОВА КАМПАНІЯ
         </div>
-        <h2 className="text-[#F3F4F6] text-base font-bold mt-1">
+        <h2 className="text-text-bright text-base font-bold mt-1">
           Створення нового ігрового забігу
         </h2>
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-3.5 mt-1">
         <div className="space-y-1">
-          <label className="block text-xs text-[#9CA3AF]">Назва пригоди:</label>
-          <input
+          <label className="block text-xs text-text-muted">Назва пригоди:</label>
+          <Input
             type="text"
             autoFocus
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Наприклад: Дослідження занедбаної каплиці"
-            className={`w-full text-sm px-3 py-2 ${STANDARD_FIELD_CLASS}`}
+            className="px-3 py-2"
           />
         </div>
 

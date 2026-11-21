@@ -16,7 +16,7 @@ export const Modal: React.FC<ModalProps> = ({
   isOpen,
   onClose,
   closeDisabled = false,
-  className = 'w-[380px] border-[#333333] gap-3.5',
+  className = 'w-[380px] border-border-input gap-3.5',
   children,
 }) => {
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -63,7 +63,7 @@ export const Modal: React.FC<ModalProps> = ({
         role="dialog"
         aria-modal="true"
         className={twMerge(
-          'relative z-10 max-w-full bg-[#161616] border rounded-xl p-6 shadow-2xl flex flex-col text-[#E5E7EB] outline-none',
+          'relative z-10 max-w-full bg-bg-panel border rounded-xl p-6 shadow-2xl flex flex-col text-text-primary outline-none',
           className
         )}
       >

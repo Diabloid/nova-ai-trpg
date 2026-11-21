@@ -411,8 +411,8 @@ export const ColorPickerPopover: React.FC<ColorPickerPopoverProps> = ({
           onClick={() => {
             if (!disabled) setIsOpen((prev) => !prev);
           }}
-          className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-[#202020] border text-[10px] font-mono text-[#E5E7EB] transition-colors outline-none ${
-            isMenuOpen ? 'border-[#7E0018]' : 'border-[#353535]'
+          className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-[#202020] border text-[10px] font-mono text-text-primary transition-colors outline-none ${
+            isMenuOpen ? 'border-accent-ruby' : 'border-[#353535]'
           } enabled:hover:bg-[#272727] enabled:hover:border-[#505050] enabled:cursor-pointer disabled:opacity-50 disabled:cursor-default ${className}`}
         >
           <span
@@ -434,7 +434,7 @@ export const ColorPickerPopover: React.FC<ColorPickerPopoverProps> = ({
           className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all outline-none shrink-0 ${
             isMenuOpen
               ? 'border-white ring-1 ring-white/50 scale-105'
-              : 'border-[#3A3A3A] enabled:hover:border-[#6B7280] enabled:hover:scale-105'
+              : 'border-border-compact-hover enabled:hover:border-text-dim enabled:hover:scale-105'
           } enabled:cursor-pointer disabled:opacity-50 disabled:cursor-default ${className}`}
           style={{ backgroundColor: safeHex }}
         >
@@ -453,7 +453,7 @@ export const ColorPickerPopover: React.FC<ColorPickerPopoverProps> = ({
               left: popoverPos.left,
               top: popoverPos.top,
             }}
-            className="fixed z-[120] w-[256px] bg-[#161616] border border-[#2D2D2D] rounded-xl p-3 shadow-2xl animate-fade-in select-none flex flex-col gap-3"
+            className="fixed z-[120] w-[256px] bg-bg-panel border border-[#2D2D2D] rounded-xl p-3 shadow-2xl animate-fade-in select-none flex flex-col gap-3"
           >
             {/* 2D градієнтна область Saturation / Brightness */}
             <div
@@ -463,7 +463,7 @@ export const ColorPickerPopover: React.FC<ColorPickerPopoverProps> = ({
               onPointerUp={endPointerCapture}
               onPointerCancel={endPointerCapture}
               style={{ backgroundColor: hueHex }}
-              className="relative w-full h-[142px] rounded-lg overflow-hidden border border-[#2A2A2A] cursor-crosshair touch-none"
+              className="relative w-full h-[142px] rounded-lg overflow-hidden border border-border-strong cursor-crosshair touch-none"
             >
               <div
                 className="absolute inset-0 pointer-events-none"
@@ -496,7 +496,7 @@ export const ColorPickerPopover: React.FC<ColorPickerPopoverProps> = ({
                   onClick={() => {
                     void handleEyeDropper();
                   }}
-                  className="w-7 h-7 rounded-lg bg-[#1F1F1F] border border-[#2E2E2E] flex items-center justify-center text-[#9CA3AF] enabled:hover:text-white enabled:hover:bg-[#2A2A2A] enabled:hover:border-[#404040] transition-colors shrink-0 enabled:cursor-pointer"
+                  className="w-7 h-7 rounded-lg bg-[#1F1F1F] border border-border-frame flex items-center justify-center text-text-muted enabled:hover:text-white enabled:hover:bg-bg-active enabled:hover:border-[#404040] transition-colors shrink-0 enabled:cursor-pointer"
                 >
                   <Pipette size={13} />
                 </button>
@@ -520,7 +520,7 @@ export const ColorPickerPopover: React.FC<ColorPickerPopoverProps> = ({
                 className="relative flex-1 h-3 rounded-full border border-white/10 cursor-ew-resize touch-none"
               >
                 <div
-                  className="absolute top-1/2 w-3.5 h-3.5 rounded-full bg-white border border-[#161616] shadow-[0_1px_4px_rgba(0,0,0,0.85)] -translate-x-1/2 -translate-y-1/2 pointer-events-none"
+                  className="absolute top-1/2 w-3.5 h-3.5 rounded-full bg-white border border-bg-panel shadow-[0_1px_4px_rgba(0,0,0,0.85)] -translate-x-1/2 -translate-y-1/2 pointer-events-none"
                   style={{
                     left: `${clamp((hsv.h / 360) * 100, 0, 100)}%`,
                   }}
@@ -531,7 +531,7 @@ export const ColorPickerPopover: React.FC<ColorPickerPopoverProps> = ({
             {/* Поля HEX та R / G / B */}
             <div className="flex items-end gap-1.5">
               <div className="w-[82px] shrink-0 space-y-1">
-                <label className="block text-[10px] font-semibold uppercase tracking-wider text-[#9CA3AF]">
+                <label className="block text-[10px] font-semibold uppercase tracking-wider text-text-muted">
                   HEX
                 </label>
                 <input
@@ -553,7 +553,7 @@ export const ColorPickerPopover: React.FC<ColorPickerPopoverProps> = ({
                 ] as const
               ).map((channel) => (
                 <div key={channel.key} className="flex-1 min-w-0 space-y-1">
-                  <label className="block text-[10px] font-semibold uppercase tracking-wider text-[#9CA3AF] text-center">
+                  <label className="block text-[10px] font-semibold uppercase tracking-wider text-text-muted text-center">
                     {channel.label}
                   </label>
                   <input

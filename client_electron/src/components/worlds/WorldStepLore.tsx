@@ -15,7 +15,7 @@ import { useGameStore } from '../../store/useGameStore';
 import { useWorldStudioStore } from '../../store/useWorldStudioStore';
 import { estimateLoreStats } from '../../utils/loreFileUtils';
 import { Button } from '../ui/Button';
-import { COMPACT_FIELD_CLASS, STANDARD_FIELD_CLASS } from '../ui/Input';
+import { Input, Textarea } from '../ui/Input';
 
 export const WorldStepLore: React.FC = () => {
   const {
@@ -63,20 +63,20 @@ export const WorldStepLore: React.FC = () => {
   const budgetConfig =
     stats.totalKb > 120
       ? {
-          barClass: 'bg-[#EF4444]',
-          textClass: 'text-[#FCA5A5]',
-          badgeClass: 'bg-[#2A1215] border-[#7F1D1D] text-[#FCA5A5]',
+          barClass: 'bg-danger',
+          textClass: 'text-danger-soft',
+          badgeClass: 'bg-[#2A1215] border-[#7F1D1D] text-danger-soft',
           label: 'Перевищено рекомендований обсяг',
         }
       : stats.totalKb >= 80
         ? {
-            barClass: 'bg-[#F59E0B]',
+            barClass: 'bg-warning',
             textClass: 'text-[#FCD34D]',
             badgeClass: 'bg-[#291D0B] border-[#78350F] text-[#FCD34D]',
             label: 'Помітне навантаження на контекст',
           }
         : {
-            barClass: 'bg-[#10B981]',
+            barClass: 'bg-success',
             textClass: 'text-[#6EE7B7]',
             badgeClass: 'bg-[#0F241D] border-[#065F46] text-[#6EE7B7]',
             label: 'Оптимальний бюджет',
@@ -116,10 +116,10 @@ export const WorldStepLore: React.FC = () => {
   return (
     <div className="flex-1 flex flex-col gap-3 min-h-0 overflow-hidden">
       {/* 1. Верхня панель: Бюджет лору + кнопка генерації 5 статей + живий прогрес */}
-      <div className="bg-[#111111] border border-[#262626] rounded-xl p-3.5 flex flex-col gap-2.5 shrink-0 shadow-md">
+      <div className="bg-bg-deep border border-border-default rounded-xl p-3.5 flex flex-col gap-2.5 shrink-0 shadow-md">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2.5 min-w-0">
-            <div className="flex items-center gap-1.5 text-xs font-semibold text-[#F3F4F6]">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-text-bright">
               <BookOpen size={14} className="text-[#C084FC] shrink-0" />
               <span>
                 Лор: {stats.totalKb.toFixed(1)} / 120 КБ (~{stats.estTokens.toLocaleString('uk-UA')} токенів)
@@ -149,7 +149,7 @@ export const WorldStepLore: React.FC = () => {
         </div>
 
         {/* Шкала бюджету */}
-        <div className="w-full h-1.5 rounded-full bg-[#1C1C1C] overflow-hidden">
+        <div className="w-full h-1.5 rounded-full bg-bg-surface overflow-hidden">
           <div
             className={`h-full transition-all duration-300 ${budgetConfig.barClass}`}
             style={{ width: progressWidth }}
@@ -177,7 +177,7 @@ export const WorldStepLore: React.FC = () => {
       {/* 2. Двоколонковий редактор: зліва список статей, справа редактор + AI-розширення */}
       <div className="flex-1 flex gap-4 min-h-0 overflow-hidden">
         {/* ЛІВА КОЛОНКА: Список статей та завантаження .md / .txt */}
-        <div className="w-[320px] shrink-0 h-full bg-[#111111] border border-[#262626] rounded-xl p-3 flex flex-col gap-2.5 overflow-hidden shadow-lg">
+        <div className="w-[320px] shrink-0 h-full bg-bg-deep border border-border-default rounded-xl p-3 flex flex-col gap-2.5 overflow-hidden shadow-lg">
           <div className="grid grid-cols-2 gap-2 shrink-0">
             <Button
               type="button"
@@ -225,27 +225,28 @@ export const WorldStepLore: React.FC = () => {
             }`}
           >
             <div className="min-h-0 overflow-hidden">
-              <div className="bg-[#161616] border border-[#2E2E2E] rounded-lg p-2.5 flex flex-col gap-2">
+              <div className="bg-bg-panel border border-border-frame rounded-lg p-2.5 flex flex-col gap-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-semibold text-[#D1D5DB]">
+                  <span className="text-[11px] font-semibold text-text-secondary">
                     Тема або назва статті
                   </span>
                   <button
                     type="button"
                     onClick={() => setIsNewFormOpen(false)}
                     aria-label="Закрити форму нової статті"
-                    className="w-5 h-5 rounded flex items-center justify-center text-[#9CA3AF] enabled:hover:text-[#EF4444] enabled:hover:bg-[#2A1418] transition-colors enabled:cursor-pointer"
+                    className="w-5 h-5 rounded flex items-center justify-center text-text-muted enabled:hover:text-danger enabled:hover:bg-accent-ruby-soft transition-colors enabled:cursor-pointer"
                   >
                     <X size={12} />
                   </button>
                 </div>
-                <input
+                <Input
+                  variant="compact"
                   type="text"
                   value={newArticleTopic}
                   disabled={isBusy}
                   onChange={(e) => setNewArticleTopic(e.target.value)}
                   placeholder="Напр.: Підпільні кібер-клініки та валюта"
-                  className={`w-full text-xs px-2.5 py-1.5 ${COMPACT_FIELD_CLASS}`}
+                  className="px-2.5 py-1.5"
                 />
                 <div className="grid grid-cols-2 gap-1.5">
                   <Button
@@ -281,7 +282,7 @@ export const WorldStepLore: React.FC = () => {
           {/* Список статей */}
           <div className="flex-1 overflow-y-auto space-y-1.5 pr-1 min-h-0">
             {loreArticles.length === 0 ? (
-              <div className="text-xs text-[#6B7280] italic text-center py-8 px-3 border border-dashed border-[#262626] rounded-lg">
+              <div className="text-xs text-text-dim italic text-center py-8 px-3 border border-dashed border-border-default rounded-lg">
                 База лору порожня. Натисніть «Згенерувати 5 стартових статей» або завантажте власні .md / .txt файли.
               </div>
             ) : (
@@ -295,8 +296,8 @@ export const WorldStepLore: React.FC = () => {
                     key={art.filename}
                     className={`flex items-center gap-1.5 rounded-lg border px-2 py-1.5 transition-colors ${
                       isActive
-                        ? 'bg-[#211216] border-[#7E0018]/70 text-white'
-                        : 'bg-[#161616] border-[#262626] hover:bg-[#1C1C1C] text-[#E5E7EB]'
+                        ? 'bg-[#211216] border-accent-ruby/70 text-white'
+                        : 'bg-bg-panel border-border-default hover:bg-bg-surface text-text-primary'
                     }`}
                   >
                     <button
@@ -306,21 +307,21 @@ export const WorldStepLore: React.FC = () => {
                     >
                       <FileText
                         size={13}
-                        className={isActive ? 'text-[#FCA5A5] shrink-0' : 'text-[#9CA3AF] shrink-0'}
+                        className={isActive ? 'text-danger-soft shrink-0' : 'text-text-muted shrink-0'}
                       />
                       <div className="flex flex-col min-w-0 flex-1">
                         <span className="text-xs font-semibold truncate flex items-center gap-1.5">
                           <span className="truncate">{art.title || art.filename}</span>
                           <span
                             data-tooltip={isArtDirty ? 'Незбережені зміни статті' : undefined}
-                            className={`h-1.5 rounded-full bg-[#F59E0B] shrink-0 transition-all duration-200 ${
+                            className={`h-1.5 rounded-full bg-warning shrink-0 transition-all duration-200 ${
                               isArtDirty
                                 ? 'w-1.5 opacity-100 scale-100'
                                 : 'w-0 opacity-0 scale-0 pointer-events-none'
                             }`}
                           />
                         </span>
-                        <span className="text-[10px] text-[#9CA3AF] truncate">
+                        <span className="text-[10px] text-text-muted truncate">
                           {art.filename} • {sizeKb} КБ
                         </span>
                       </div>
@@ -333,7 +334,7 @@ export const WorldStepLore: React.FC = () => {
                         void deleteLoreArticleItem(art.filename);
                       }}
                       aria-label={`Видалити статтю «${art.title}»`}
-                      className="w-6 h-6 rounded flex items-center justify-center text-[#9CA3AF] shrink-0 enabled:hover:text-[#EF4444] enabled:hover:bg-[#2A1418] transition-colors enabled:cursor-pointer disabled:opacity-35 disabled:cursor-default"
+                      className="w-6 h-6 rounded flex items-center justify-center text-text-muted shrink-0 enabled:hover:text-danger enabled:hover:bg-accent-ruby-soft transition-colors enabled:cursor-pointer disabled:opacity-35 disabled:cursor-default"
                     >
                       <Trash2 size={12} />
                     </button>
@@ -345,11 +346,11 @@ export const WorldStepLore: React.FC = () => {
         </div>
 
         {/* ПРАВА КОЛОНКА: Редактор вибраної статті та AI expand_article */}
-        <div className="flex-1 min-w-0 h-full bg-[#111111] border border-[#262626] rounded-xl p-4 flex flex-col gap-3 overflow-hidden shadow-lg">
+        <div className="flex-1 min-w-0 h-full bg-bg-deep border border-border-default rounded-xl p-4 flex flex-col gap-3 overflow-hidden shadow-lg">
           {!selectedArticle ? (
-            <div className="flex-1 flex flex-col items-center justify-center text-center text-[#6B7280] px-6">
+            <div className="flex-1 flex flex-col items-center justify-center text-center text-text-dim px-6">
               <FileText size={28} className="mb-2 text-[#4B5563]" />
-              <span className="text-sm font-medium text-[#9CA3AF]">
+              <span className="text-sm font-medium text-text-muted">
                 Оберіть або створіть статтю лору
               </span>
               <span className="text-xs mt-1 max-w-md">
@@ -359,9 +360,9 @@ export const WorldStepLore: React.FC = () => {
           ) : (
             <>
               {/* Шапка редактора: Заголовок + Ім'я файлу + Кнопка зберегти (у режимі edit) */}
-              <div className="flex flex-wrap items-center justify-between gap-2.5 pb-2.5 border-b border-[#222222] shrink-0">
+              <div className="flex flex-wrap items-center justify-between gap-2.5 pb-2.5 border-b border-border-subtle shrink-0">
                 <div className="flex items-center gap-2 min-w-0 flex-1">
-                  <input
+                  <Input
                     type="text"
                     value={selectedArticle.title}
                     disabled={isBusy}
@@ -371,9 +372,9 @@ export const WorldStepLore: React.FC = () => {
                       })
                     }
                     placeholder="Заголовок статті"
-                    className={`flex-1 min-w-[180px] text-sm font-bold text-[#F3F4F6] px-3 py-1.5 ${STANDARD_FIELD_CLASS}`}
+                    className="w-auto flex-1 min-w-[180px] text-sm font-bold text-text-bright px-3 py-1.5"
                   />
-                  <span className="px-2 py-1 rounded bg-[#181818] border border-[#2A2A2A] text-[11px] font-mono text-[#9CA3AF] shrink-0">
+                  <span className="px-2 py-1 rounded bg-bg-tooltip border border-border-strong text-[11px] font-mono text-text-muted shrink-0">
                     {selectedArticle.filename}
                   </span>
                 </div>
@@ -397,7 +398,7 @@ export const WorldStepLore: React.FC = () => {
 
               {/* Рядок AI-інструкції expand_article */}
               <div className="flex items-center gap-2 shrink-0">
-                <input
+                <Input
                   type="text"
                   value={expandInstruction}
                   disabled={isBusy || backendOffline}
@@ -413,7 +414,7 @@ export const WorldStepLore: React.FC = () => {
                       ? 'Сервер офлайн — ШІ-редагування недоступне...'
                       : 'Інструкція для ШІ: напр. «Допиши розділ про місцеві фракції, валюту й заборонені технології»...'
                   }
-                  className={`flex-1 text-xs px-3 py-2 ${STANDARD_FIELD_CLASS}`}
+                  className="w-auto flex-1 text-xs px-3 py-2"
                 />
                 <Button
                   type="button"
@@ -432,7 +433,7 @@ export const WorldStepLore: React.FC = () => {
               </div>
 
               {/* Markdown-редактор тексту */}
-              <textarea
+              <Textarea
                 value={selectedArticle.content}
                 disabled={isBusy}
                 onChange={(e) =>
@@ -441,7 +442,7 @@ export const WorldStepLore: React.FC = () => {
                   })
                 }
                 placeholder="Вміст статті у форматі Markdown або звичайного тексту..."
-                className={`flex-1 min-h-[200px] w-full text-xs leading-relaxed font-mono p-3.5 resize-none overflow-y-auto ${STANDARD_FIELD_CLASS}`}
+                className="flex-1 min-h-[200px] font-mono p-3.5 resize-none overflow-y-auto"
               />
             </>
           )}

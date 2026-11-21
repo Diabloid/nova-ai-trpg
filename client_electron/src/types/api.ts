@@ -1,5 +1,5 @@
 /**
- * NOVA AI TRPG — API & DTO Contract (v2.0.0)
+ * NOVA AI TRPG — API & DTO Contract
  * Strictly matches Backend_Python/schemas/game_dto.py and docs/API_CONTRACT.md
  */
 

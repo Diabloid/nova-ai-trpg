@@ -17,8 +17,8 @@ export const HeroAvatar: React.FC<HeroAvatarProps> = ({
   avatar,
   name = 'Герой',
   iconSize = 15,
-  iconClassName = 'text-[#9CA3AF]',
-  containerClassName = 'w-7 h-7 rounded-lg bg-[#222222] border border-[#2E2E2E]',
+  iconClassName = 'text-text-muted',
+  containerClassName = 'w-7 h-7 rounded-lg bg-bg-elevated border border-border-frame',
 }) => {
   const cleanAvatar = typeof avatar === 'string' ? avatar.trim() : '';
   const isImageAvatar = cleanAvatar.startsWith('data:image/');

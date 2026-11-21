@@ -16,7 +16,7 @@ import { DynamicLucideIcon } from '../dynamic-sheet';
 import { ChatInputDock } from '../input/ChatInputDock';
 import { Button } from '../ui/Button';
 import { ColorPickerPopover } from '../ui/ColorPickerPopover';
-import { COMPACT_FIELD_CLASS, STANDARD_FIELD_CLASS } from '../ui/Input';
+import { Input, Textarea } from '../ui/Input';
 
 const WORLD_ACCENT_PALETTE = [
   '#7E0018',
@@ -138,8 +138,8 @@ export const WorldStepPassport: React.FC = () => {
   return (
     <div className="flex-1 flex gap-4 min-h-0 overflow-hidden">
       {/* ЛІВА ПАНЕЛЬ: Ручний редактор паспорта світу */}
-      <div className="w-[460px] lg:w-[500px] shrink-0 h-full bg-[#111111] border border-[#262626] rounded-xl p-4 flex flex-col gap-4 overflow-y-auto shadow-lg">
-        <div className="flex items-center gap-3 pb-3 border-b border-[#222222] shrink-0">
+      <div className="w-[460px] lg:w-[500px] shrink-0 h-full bg-bg-deep border border-border-default rounded-xl p-4 flex flex-col gap-4 overflow-y-auto shadow-lg">
+        <div className="flex items-center gap-3 pb-3 border-b border-border-subtle shrink-0">
           <div
             className="w-11 h-11 rounded-xl border flex items-center justify-center shrink-0"
             style={{
@@ -154,10 +154,10 @@ export const WorldStepPassport: React.FC = () => {
             />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="text-[11px] font-bold tracking-wider uppercase text-[#9CA3AF]">
+            <div className="text-[11px] font-bold tracking-wider uppercase text-text-muted">
               ПАСПОРТ СВІТУ
             </div>
-            <div className="text-sm font-bold text-[#F3F4F6] truncate">
+            <div className="text-sm font-bold text-text-bright truncate">
               {passport.title.trim() || 'Новий безіменний світ'}
             </div>
           </div>
@@ -166,53 +166,53 @@ export const WorldStepPassport: React.FC = () => {
         {/* Назва + Жанр */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 shrink-0">
           <div className="space-y-1.5">
-            <label className="block text-xs font-medium text-[#9CA3AF]">
-              Назва світу <span className="text-[#EF4444]">*</span>
+            <label className="block text-xs font-medium text-text-muted">
+              Назва світу <span className="text-danger">*</span>
             </label>
-            <input
+            <Input
               type="text"
               value={passport.title}
               disabled={isFormDisabled}
               onChange={(e) => updatePassport({ title: e.target.value })}
               placeholder="Напр.: Нео-Київ 2099"
-              className={`w-full text-sm px-3 py-2 ${STANDARD_FIELD_CLASS}`}
+              className="px-3 py-2"
             />
           </div>
 
           <div className="space-y-1.5">
-            <label className="block text-xs font-medium text-[#9CA3AF]">
+            <label className="block text-xs font-medium text-text-muted">
               Жанр / Сетинг
             </label>
-            <input
+            <Input
               type="text"
               value={passport.genre}
               disabled={isFormDisabled}
               onChange={(e) => updatePassport({ genre: e.target.value })}
               placeholder="Напр.: Кіберпанк-нуар"
-              className={`w-full text-sm px-3 py-2 ${STANDARD_FIELD_CLASS}`}
+              className="px-3 py-2"
             />
           </div>
         </div>
 
         {/* Опис світу */}
         <div className="space-y-1.5 shrink-0">
-          <label className="block text-xs font-medium text-[#9CA3AF]">
+          <label className="block text-xs font-medium text-text-muted">
             Анотація та концепція світу
           </label>
-          <textarea
+          <Textarea
             rows={4}
             value={passport.description}
             disabled={isFormDisabled}
             onChange={(e) => updatePassport({ description: e.target.value })}
             placeholder="Короткий опис атмосфери, головної загрози, технологій чи магії..."
-            className={`w-full text-xs leading-relaxed px-3 py-2.5 resize-y ${STANDARD_FIELD_CLASS}`}
+            className="resize-y"
           />
         </div>
 
         {/* Іконка (IconPicker) + Акцентний колір */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 shrink-0">
           <div className="space-y-1.5">
-            <label className="block text-xs font-medium text-[#9CA3AF]">
+            <label className="block text-xs font-medium text-text-muted">
               Іконка світу
             </label>
             <IconPicker
@@ -224,11 +224,11 @@ export const WorldStepPassport: React.FC = () => {
           </div>
 
           <div className="space-y-1.5">
-            <label className="flex items-center gap-1.5 text-xs font-medium text-[#9CA3AF]">
+            <label className="flex items-center gap-1.5 text-xs font-medium text-text-muted">
               <Palette size={12} />
               <span>Акцентний колір</span>
             </label>
-            <div className="bg-[#161616] border border-[#2C2C2C] rounded-lg p-2 flex flex-wrap items-center gap-1.5">
+            <div className="bg-bg-panel border border-[#2C2C2C] rounded-lg p-2 flex flex-wrap items-center gap-1.5">
               {WORLD_ACCENT_PALETTE.map((hex) => {
                 const isSelected = accentColor.toLowerCase() === hex.toLowerCase();
                 return (
@@ -261,14 +261,14 @@ export const WorldStepPassport: React.FC = () => {
         {/* Стартові локації */}
         <div className="space-y-2 shrink-0">
           <div className="flex items-center justify-between">
-            <label className="flex items-center gap-1.5 text-xs font-medium text-[#9CA3AF]">
+            <label className="flex items-center gap-1.5 text-xs font-medium text-text-muted">
               <MapPin size={12} style={{ color: accentColor }} />
               <span>Стартові локації ({passport.starting_locations.length})</span>
             </label>
           </div>
 
           <div className="flex gap-2">
-            <input
+            <Input
               type="text"
               value={newLocationInput}
               disabled={isFormDisabled}
@@ -280,7 +280,7 @@ export const WorldStepPassport: React.FC = () => {
                 }
               }}
               placeholder="Додати стартову локацію..."
-              className={`flex-1 text-xs px-3 py-2 ${STANDARD_FIELD_CLASS}`}
+              className="w-auto flex-1 text-xs px-3 py-2"
             />
             <Button
               type="button"
@@ -296,7 +296,7 @@ export const WorldStepPassport: React.FC = () => {
           </div>
 
           {passport.starting_locations.length === 0 ? (
-            <div className="text-[11px] text-[#6B7280] italic px-2 py-2 bg-[#161616]/60 border border-dashed border-[#2A2A2A] rounded-lg">
+            <div className="text-[11px] text-text-dim italic px-2 py-2 bg-bg-panel/60 border border-dashed border-border-strong rounded-lg">
               Поки немає стартових локацій — додайте вручну або згенеруйте за допомогою ШІ праворуч.
             </div>
           ) : (
@@ -304,22 +304,23 @@ export const WorldStepPassport: React.FC = () => {
               {passport.starting_locations.map((loc, idx) => (
                 <div
                   key={idx}
-                  className="flex items-center gap-2 bg-[#161616] border border-[#262626] rounded-lg px-2 py-1.5"
+                  className="flex items-center gap-2 bg-bg-panel border border-border-default rounded-lg px-2 py-1.5"
                 >
-                  <MapPin size={12} className="text-[#9CA3AF] shrink-0" />
-                  <input
+                  <MapPin size={12} className="text-text-muted shrink-0" />
+                  <Input
+                    variant="compact"
                     type="text"
                     value={loc}
                     disabled={isFormDisabled}
                     onChange={(e) => updateStartingLocation(idx, e.target.value)}
-                    className={`flex-1 min-w-0 text-xs px-2 py-1 ${COMPACT_FIELD_CLASS}`}
+                    className="w-auto flex-1 min-w-0"
                   />
                   <button
                     type="button"
                     disabled={isFormDisabled}
                     onClick={() => removeStartingLocation(idx)}
                     data-tooltip="Видалити локацію"
-                    className="w-6 h-6 rounded flex items-center justify-center text-[#9CA3AF] enabled:hover:text-[#EF4444] enabled:hover:bg-[#2A1418] transition-colors enabled:cursor-pointer disabled:opacity-40 disabled:cursor-default shrink-0"
+                    className="w-6 h-6 rounded flex items-center justify-center text-text-muted enabled:hover:text-danger enabled:hover:bg-accent-ruby-soft transition-colors enabled:cursor-pointer disabled:opacity-40 disabled:cursor-default shrink-0"
                   >
                     <Trash2 size={12} />
                   </button>
@@ -333,10 +334,10 @@ export const WorldStepPassport: React.FC = () => {
       {/* ПРАВА ПАНЕЛЬ: Швидка генерація з 1 опису + живий AI-чат опитування */}
       <div className="flex-1 flex flex-col gap-3 min-w-0 h-full overflow-hidden">
         {/* Блок One-Shot генерації */}
-        <div className="bg-[#111111] border border-[#262626] rounded-xl p-3.5 shrink-0 flex flex-col gap-2.5 shadow-md">
+        <div className="bg-bg-deep border border-border-default rounded-xl p-3.5 shrink-0 flex flex-col gap-2.5 shadow-md">
           <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-1.5 text-xs font-semibold text-[#F3F4F6]">
-              <Zap size={14} className="text-[#F59E0B]" />
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-text-bright">
+              <Zap size={14} className="text-warning" />
               <span>Швидке заповнення паспорта з одного опису</span>
             </div>
             <Button
@@ -354,7 +355,7 @@ export const WorldStepPassport: React.FC = () => {
             </Button>
           </div>
 
-          <textarea
+          <Textarea
             rows={4}
             value={oneShotDescription}
             disabled={isGeneratingPassport || isLoadingWorld || backendOffline}
@@ -364,12 +365,12 @@ export const WorldStepPassport: React.FC = () => {
                 ? 'Сервер офлайн — швидка ШІ-генерація недоступна до відновлення з’єднання...'
                 : 'Вставте один абзац із ідеєю світу (напр.: «Стім-панк мегаполіс на дні океану, де корпорації торгують киснем, а глибоководні мутанти погрожують куполам...»)'
             }
-            className={`w-full text-xs px-3 py-2 resize-none ${STANDARD_FIELD_CLASS}`}
+            className="py-2 resize-none"
           />
         </div>
 
         {/* Живий AI-діалог з Архітектором Світів */}
-        <div className="flex-1 flex flex-col min-h-0 bg-[#111111] border border-[#262626] rounded-xl p-4 pb-3 shadow-lg">
+        <div className="flex-1 flex flex-col min-h-0 bg-bg-deep border border-border-default rounded-xl p-4 pb-3 shadow-lg">
           <div
             ref={chatScrollRef}
             className="flex-1 overflow-y-auto mask-fade-vertical pr-2 space-y-4 mb-3 min-h-0"
@@ -392,7 +393,7 @@ export const WorldStepPassport: React.FC = () => {
                       {msg.sender}
                     </span>
                     {msg.timeText && (
-                      <span className="text-[#6B7280] text-[10px]">{msg.timeText}</span>
+                      <span className="text-text-dim text-[10px]">{msg.timeText}</span>
                     )}
                   </div>
 
@@ -400,8 +401,8 @@ export const WorldStepPassport: React.FC = () => {
                     data-context-copy={msg.text}
                     className={`rounded-xl px-4 py-3 text-sm leading-relaxed max-w-[85%] border shadow-sm ${
                       isPlayer
-                        ? 'bg-[#18202F] border-[#253248] text-[#F3F4F6]'
-                        : 'bg-[#161616] border-[#2A2A2A] text-[#E5E7EB]'
+                        ? 'bg-[#18202F] border-[#253248] text-text-bright'
+                        : 'bg-bg-panel border-border-strong text-text-primary'
                     }`}
                     style={{ minWidth: '140px' }}
                   >
@@ -439,7 +440,7 @@ export const WorldStepPassport: React.FC = () => {
                   ? 'Сервер офлайн • Очікування підключення...'
                   : 'Обговоріть сеттинг із Архітектором Світів або надиктуйте ідею голосом...'
               }
-              className={`w-full bg-transparent text-[#E5E7EB] text-sm placeholder-[#555555] focus:outline-none disabled:cursor-not-allowed resize-none leading-6 max-h-20 m-0 p-0 border-0 ${
+              className={`w-full bg-transparent text-text-primary text-sm placeholder-text-placeholder focus:outline-none disabled:cursor-not-allowed resize-none leading-6 max-h-20 m-0 p-0 border-0 ${
                 isInputOverflowing ? 'overflow-y-auto' : 'overflow-hidden'
               }`}
             />

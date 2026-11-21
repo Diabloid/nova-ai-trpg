@@ -2,8 +2,8 @@ import React from 'react';
 import { Plus, X } from 'lucide-react';
 import { isTechnicalFieldKey, localizeFieldKey } from '../../utils/characterBlockStyles';
 import { hexToRgba } from '../../utils/lucideIconMap';
-import { COMPACT_FIELD_CLASS } from '../ui/Input';
-import { DynamicLucideIcon } from './DynamicLucideIcon';
+import { Input } from '../ui/Input';
+import { SectionShell } from './SectionShell';
 import type { DynamicSectionProps } from './types';
 
 const TITLE_KEY_PRIORITY = ['name', 'title', 'location', 'label'];
@@ -114,11 +114,6 @@ export const CardListSection: React.FC<DynamicSectionProps<any[]>> = ({
   onChange,
 }) => {
   const items = Array.isArray(value) ? value : [];
-  const isColumnRead = mode === 'read' && variant === 'column';
-
-  const containerClasses = isColumnRead
-    ? 'bg-[#1C1C1C] border border-[#2A2A2A] rounded-lg p-3 flex flex-col h-full max-h-[340px]'
-    : 'bg-[#161616] border border-[#262626] rounded-lg p-3 flex flex-col gap-2';
 
   const cardBg = hexToRgba(color, 0.11);
   const cardBorder = hexToRgba(color, 0.34);
@@ -146,37 +141,29 @@ export const CardListSection: React.FC<DynamicSectionProps<any[]>> = ({
     onChange(updated);
   };
 
-  return (
-    <div className={containerClasses}>
-      <div
-        className="text-xs font-bold tracking-[0.5px] pb-2 border-b border-[#262626] mb-2 flex items-center justify-between gap-2 shrink-0"
-        style={{ color }}
-      >
-        <div className="flex items-center gap-1.5 min-w-0">
-          <DynamicLucideIcon icon={icon} size={13} className="shrink-0" />
-          <span className="truncate uppercase">{title}</span>
-        </div>
-        {mode === 'edit' && (
-          <button
-            type="button"
-            onClick={handleAddCard}
-            className="text-[11px] font-semibold px-2 py-0.5 rounded bg-[#1E1E1E] hover:bg-[#2A2A2A] border border-[#333333] text-[#E5E7EB] flex items-center gap-1 transition-colors cursor-pointer shrink-0"
-          >
-            <Plus size={11} />
-            <span>Додати</span>
-          </button>
-        )}
-      </div>
+  const addButton = mode === 'edit' && (
+    <button
+      type="button"
+      onClick={handleAddCard}
+      className="text-[11px] font-semibold px-2 py-0.5 rounded bg-bg-control hover:bg-bg-active border border-border-input text-text-primary flex items-center gap-1 transition-colors cursor-pointer shrink-0"
+    >
+      <Plus size={11} />
+      <span>Додати</span>
+    </button>
+  );
 
-      <div
-        className={
-          isColumnRead
-            ? 'flex-1 min-h-0 overflow-y-auto pr-1 flex flex-col gap-2'
-            : 'flex flex-col gap-2'
-        }
-      >
-        {items.length === 0 ? (
-          <span className="text-xs text-[#6B7280] italic py-1.5">{emptyText}</span>
+  return (
+    <SectionShell
+      title={title}
+      icon={icon}
+      color={color}
+      mode={mode}
+      variant={variant}
+      headerRight={addButton}
+      scrollableBody
+    >
+      {items.length === 0 ? (
+          <span className="text-xs text-text-dim italic py-1.5">{emptyText}</span>
         ) : mode === 'read' ? (
           items.map((item, idx) => {
             const parts = extractCardParts(item);
@@ -191,13 +178,13 @@ export const CardListSection: React.FC<DynamicSectionProps<any[]>> = ({
                 }}
               >
                 <div className="flex items-start justify-between gap-2">
-                  <span className="text-xs font-semibold text-[#F3F4F6] leading-snug">
+                  <span className="text-xs font-semibold text-text-bright leading-snug">
                     {parts.title || 'Без назви'}
                   </span>
                 </div>
 
                 {parts.desc && (
-                  <span className="text-[11px] text-[#D1D5DB] opacity-85 leading-relaxed">
+                  <span className="text-[11px] text-text-secondary opacity-85 leading-relaxed">
                     {parts.desc}
                   </span>
                 )}
@@ -207,7 +194,7 @@ export const CardListSection: React.FC<DynamicSectionProps<any[]>> = ({
                     {parts.extraEntries.map(([eKey, eVal]) => (
                       <span
                         key={eKey}
-                        className="text-[10px] px-1.5 py-0.5 rounded border text-[#E5E7EB]"
+                        className="text-[10px] px-1.5 py-0.5 rounded border text-text-primary"
                         style={{
                           backgroundColor: pillBg,
                           borderColor: cardBorder,
@@ -230,17 +217,17 @@ export const CardListSection: React.FC<DynamicSectionProps<any[]>> = ({
             return (
               <div
                 key={idx}
-                className="bg-[#121212] border border-[#2B2B2B] rounded-md p-2.5 flex flex-col gap-2"
+                className="bg-bg-app border border-border-compact rounded-md p-2.5 flex flex-col gap-2"
               >
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-[#6B7280]">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-text-dim">
                     Запис #{idx + 1}
                   </span>
                   <button
                     type="button"
                     onClick={() => handleRemoveCard(idx)}
                     aria-label="Видалити запис"
-                    className="w-5 h-5 rounded flex items-center justify-center text-[#6B7280] enabled:hover:text-[#EF4444] enabled:hover:bg-[#2A1418] transition-colors enabled:cursor-pointer"
+                    className="w-5 h-5 rounded flex items-center justify-center text-text-dim enabled:hover:text-danger enabled:hover:bg-accent-ruby-soft transition-colors enabled:cursor-pointer"
                   >
                     <X size={12} />
                   </button>
@@ -250,31 +237,30 @@ export const CardListSection: React.FC<DynamicSectionProps<any[]>> = ({
                   <div className="flex flex-col gap-1.5">
                     {recordEntries.map(([fieldKey, fieldVal]) => (
                       <div key={fieldKey} className="flex flex-col gap-0.5">
-                        <label className="text-[10px] text-[#9CA3AF]">{fieldKey}</label>
-                        <input
+                        <label className="text-[10px] text-text-muted">{fieldKey}</label>
+                        <Input
+                          variant="compact"
                           type="text"
                           value={String(fieldVal ?? '')}
                           onChange={(e) => handleUpdateField(idx, fieldKey, e.target.value)}
                           placeholder={`Введіть ${fieldKey}...`}
-                          className={`w-full px-2 py-1 text-xs ${COMPACT_FIELD_CLASS}`}
                         />
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <input
+                  <Input
+                    variant="compact"
                     type="text"
                     value={String(item ?? '')}
                     onChange={(e) => handleUpdateField(idx, null, e.target.value)}
                     placeholder="Введіть значення..."
-                    className={`w-full px-2 py-1 text-xs ${COMPACT_FIELD_CLASS}`}
                   />
                 )}
               </div>
             );
           })
         )}
-      </div>
-    </div>
+    </SectionShell>
   );
 };

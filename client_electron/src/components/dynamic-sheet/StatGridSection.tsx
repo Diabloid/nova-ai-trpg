@@ -7,8 +7,8 @@ import {
   localizeFieldKey,
   normalizeFieldKey,
 } from '../../utils/characterBlockStyles';
-import { COMPACT_FIELD_CLASS } from '../ui/Input';
-import { DynamicLucideIcon } from './DynamicLucideIcon';
+import { Input } from '../ui/Input';
+import { SectionShell } from './SectionShell';
 import type { DynamicSectionProps } from './types';
 
 function isPlainRecord(val: unknown): val is Record<string, any> {
@@ -74,12 +74,6 @@ export const StatGridSection: React.FC<DynamicSectionProps<Record<string, any>>>
   const [newKey, setNewKey] = useState('');
   const [newVal, setNewVal] = useState('');
 
-  const isColumnRead = mode === 'read' && variant === 'column';
-
-  const containerClasses = isColumnRead
-    ? 'bg-[#1C1C1C] border border-[#2A2A2A] rounded-lg p-3 flex flex-col h-full max-h-[340px]'
-    : 'bg-[#161616] border border-[#262626] rounded-lg p-3 flex flex-col gap-2';
-
   const handleRenameKey = (entryIdx: number, nextKeyRaw: string) => {
     if (!onChange) return;
     const nextObj: Record<string, any> = {};
@@ -129,24 +123,16 @@ export const StatGridSection: React.FC<DynamicSectionProps<Record<string, any>>>
   };
 
   return (
-    <div className={containerClasses}>
-      <div
-        className="text-xs font-bold tracking-[0.5px] pb-2 border-b border-[#262626] mb-2 flex items-center gap-1.5 shrink-0"
-        style={{ color }}
-      >
-        <DynamicLucideIcon icon={icon} size={13} className="shrink-0" />
-        <span className="truncate uppercase">{title}</span>
-      </div>
-
-      <div
-        className={
-          isColumnRead
-            ? 'flex-1 min-h-0 overflow-y-auto pr-1 flex flex-col gap-2'
-            : 'flex flex-col gap-2'
-        }
-      >
-        {readableEntries.length === 0 && mode === 'read' ? (
-          <span className="text-xs text-[#6B7280] italic py-1.5">{emptyText}</span>
+    <SectionShell
+      title={title}
+      icon={icon}
+      color={color}
+      mode={mode}
+      variant={variant}
+      scrollableBody
+    >
+      {readableEntries.length === 0 && mode === 'read' ? (
+          <span className="text-xs text-text-dim italic py-1.5">{emptyText}</span>
         ) : mode === 'read' ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
             {readableEntries.map(([k, v]) => {
@@ -164,32 +150,32 @@ export const StatGridSection: React.FC<DynamicSectionProps<Record<string, any>>>
               return (
                 <div
                   key={k}
-                  className={`rounded-md px-2.5 py-2 bg-[#121212] border border-[#262626] flex flex-col gap-1 min-w-0 ${
+                  className={`rounded-md px-2.5 py-2 bg-bg-app border border-border-default flex flex-col gap-1 min-w-0 ${
                     isVeryLongValue ? 'sm:col-span-2' : ''
                   }`}
                 >
                   {isLongPair ? (
                     <div className="flex flex-col gap-0.5 min-w-0">
-                      <span className="text-[11px] text-[#9CA3AF] whitespace-normal break-words leading-snug">
+                      <span className="text-[11px] text-text-muted whitespace-normal break-words leading-snug">
                         {displayLabel}
                       </span>
-                      <span className="text-xs font-semibold text-[#F3F4F6] whitespace-normal break-words leading-snug">
+                      <span className="text-xs font-semibold text-text-bright whitespace-normal break-words leading-snug">
                         {displayVal || '—'}
                       </span>
                     </div>
                   ) : (
                     <div className="flex items-baseline justify-between gap-2 min-w-0">
-                      <span className="text-[11px] text-[#9CA3AF] shrink-0">
+                      <span className="text-[11px] text-text-muted shrink-0">
                         {displayLabel}
                       </span>
-                      <span className="text-xs font-semibold text-[#F3F4F6] text-right whitespace-normal break-words leading-snug">
+                      <span className="text-xs font-semibold text-text-bright text-right whitespace-normal break-words leading-snug">
                         {displayVal || '—'}
                       </span>
                     </div>
                   )}
 
                   {progressPct !== null && (
-                    <div className="w-full h-1.5 rounded-full bg-[#111111] overflow-hidden">
+                    <div className="w-full h-1.5 rounded-full bg-bg-deep overflow-hidden">
                       <div
                         className="h-full rounded-full transition-all duration-300"
                         style={{
@@ -219,7 +205,8 @@ export const StatGridSection: React.FC<DynamicSectionProps<Record<string, any>>>
               return (
                 <div key={idx} className="flex flex-col gap-1">
                   <div className="grid grid-cols-[1fr_1fr_auto] gap-1.5 items-center">
-                    <input
+                    <Input
+                      variant="compact"
                       type="text"
                       value={k}
                       onChange={(e) => handleRenameKey(idx, e.target.value)}
@@ -230,20 +217,21 @@ export const StatGridSection: React.FC<DynamicSectionProps<Record<string, any>>>
                         }
                       }}
                       placeholder="Параметр"
-                      className={`min-w-0 px-2 py-1 text-xs text-[#D1D5DB] ${COMPACT_FIELD_CLASS}`}
+                      className="min-w-0 text-text-secondary"
                     />
-                    <input
+                    <Input
+                      variant="compact"
                       type="text"
                       value={String(v ?? '')}
                       onChange={(e) => handleUpdateValue(idx, e.target.value, typeof v === 'number')}
                       placeholder="Значення"
-                      className={`min-w-0 px-2 py-1 text-xs text-white ${COMPACT_FIELD_CLASS}`}
+                      className="min-w-0 text-white"
                     />
                     <button
                       type="button"
                       onClick={() => handleRemoveEntry(idx)}
                       aria-label="Видалити параметр"
-                      className="w-6 h-6 rounded flex items-center justify-center text-[#6B7280] enabled:hover:text-[#EF4444] enabled:hover:bg-[#2A1418] transition-colors enabled:cursor-pointer"
+                      className="w-6 h-6 rounded flex items-center justify-center text-text-dim enabled:hover:text-danger enabled:hover:bg-accent-ruby-soft transition-colors enabled:cursor-pointer"
                     >
                       <X size={12} />
                     </button>
@@ -251,15 +239,16 @@ export const StatGridSection: React.FC<DynamicSectionProps<Record<string, any>>>
 
                   {needsCustomLabelRow && (
                     <div className="flex items-center gap-1.5 pl-1 pr-7">
-                      <span className="text-[10px] text-[#6B7280] shrink-0">
+                      <span className="text-[10px] text-text-dim shrink-0">
                         Підпис:
                       </span>
-                      <input
+                      <Input
+                        variant="compact"
                         type="text"
                         value={customLabelVal}
                         onChange={(e) => onFieldLabelChange?.(k, e.target.value)}
                         placeholder={`Авто: ${fallbackLocalized}`}
-                        className={`flex-1 min-w-0 px-2 py-0.5 text-[11px] text-[#9CA3AF] focus:text-[#E5E7EB] ${COMPACT_FIELD_CLASS}`}
+                        className="w-auto flex-1 min-w-0 py-0.5 text-[11px] text-text-muted focus:text-text-primary"
                       />
                     </div>
                   )}
@@ -268,7 +257,8 @@ export const StatGridSection: React.FC<DynamicSectionProps<Record<string, any>>>
             })}
 
             <div className="grid grid-cols-[1fr_1fr_auto] gap-1.5 items-center pt-1">
-              <input
+              <Input
+                variant="compact"
                 type="text"
                 value={newKey}
                 onChange={(e) => setNewKey(e.target.value)}
@@ -279,9 +269,10 @@ export const StatGridSection: React.FC<DynamicSectionProps<Record<string, any>>>
                   }
                 }}
                 placeholder="Назва параметра (укр., напр. Радіація)..."
-                className={`min-w-0 px-2 py-1 text-xs ${COMPACT_FIELD_CLASS}`}
+                className="min-w-0"
               />
-              <input
+              <Input
+                variant="compact"
                 type="text"
                 value={newVal}
                 onChange={(e) => setNewVal(e.target.value)}
@@ -292,25 +283,24 @@ export const StatGridSection: React.FC<DynamicSectionProps<Record<string, any>>>
                   }
                 }}
                 placeholder="Значення..."
-                className={`min-w-0 px-2 py-1 text-xs ${COMPACT_FIELD_CLASS}`}
+                className="min-w-0"
               />
               <button
                 type="button"
                 onClick={handleAddEntry}
                 disabled={!newKey.trim()}
                 data-tooltip="Додати параметр"
-                className="h-7 px-2 rounded bg-[#1E1E1E] border border-[#333333] text-[#E5E7EB] text-[11px] font-medium flex items-center gap-1 transition-all duration-150 enabled:hover:bg-[#2A2A2A] enabled:hover:border-[#444444] enabled:active:scale-[0.98] enabled:cursor-pointer disabled:opacity-40 disabled:cursor-default"
+                className="h-7 px-2 rounded bg-bg-control border border-border-input text-text-primary text-[11px] font-medium flex items-center gap-1 transition-all duration-150 enabled:hover:bg-bg-active enabled:hover:border-border-focus enabled:active:scale-[0.98] enabled:cursor-pointer disabled:opacity-40 disabled:cursor-default"
               >
                 <Plus size={11} />
                 <span>Додати</span>
               </button>
             </div>
-            <p className="text-[10px] text-[#6B7280] leading-snug">
+            <p className="text-[10px] text-text-dim leading-snug">
               Вводьте назву українською (напр. Радіація, Кредити), щоб у шторці одразу відображався читабельний підпис.
             </p>
           </div>
         )}
-      </div>
-    </div>
+    </SectionShell>
   );
 };

@@ -14,7 +14,7 @@ import {
 } from '../../store/useWorldStudioStore';
 import type { WorldAiPrompts } from '../../types/api';
 import { Button } from '../ui/Button';
-import { STANDARD_FIELD_CLASS } from '../ui/Input';
+import { Input, Textarea } from '../ui/Input';
 
 interface PromptCardConfig {
   field: keyof WorldAiPrompts;
@@ -37,14 +37,14 @@ const PROMPT_CARDS: PromptCardConfig[] = [
     title: 'Правила ШІ Оповідача (narrator_rules)',
     hint: 'За що відповідає: закони фізики, магії або технологій, економіка та поведінка NPC у грі.',
     placeholder: 'Опишіть закони світу, бойовку, магію/імпланти, соціальну ієрархію...',
-    icon: <BookOpen size={14} className="text-[#F59E0B]" />,
+    icon: <BookOpen size={14} className="text-warning" />,
   },
   {
     field: 'analyzer_rules',
     title: 'Правила Аналізатора стану (analyzer_rules)',
     hint: 'За що відповідає: які ресурси, травми, імпланти, валюту або репутацію має фіксувати ШІ після кожного ходу.',
     placeholder: 'Напр.: Відстежуй набої, рівень кібер-навантаження, кредити та поранення...',
-    icon: <Activity size={14} className="text-[#34D399]" />,
+    icon: <Activity size={14} className="text-success-light" />,
   },
   {
     field: 'creator_rules',
@@ -82,10 +82,10 @@ export const WorldStepPrompts: React.FC = () => {
   return (
     <div className="flex-1 flex flex-col gap-4 min-h-0 overflow-hidden">
       {/* Верхня панель генератора промптів */}
-      <div className="bg-[#111111] border border-[#262626] rounded-xl p-4 flex flex-col gap-3 shrink-0 shadow-md">
+      <div className="bg-bg-deep border border-border-default rounded-xl p-4 flex flex-col gap-3 shrink-0 shadow-md">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-[#9CA3AF] mr-1">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-text-muted mr-1">
               Швидкі акценти:
             </span>
             {WORLD_TONE_CHIPS.map((chip) => {
@@ -98,8 +98,8 @@ export const WorldStepPrompts: React.FC = () => {
                   onClick={() => toggleToneChip(chip)}
                   className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors enabled:cursor-pointer disabled:opacity-50 disabled:cursor-default ${
                     isSelected
-                      ? 'bg-[#7E0018]/35 border-[#9E0020] text-white'
-                      : 'bg-[#161616] border-[#2C2C2C] text-[#9CA3AF] enabled:hover:border-[#444444] enabled:hover:text-[#E5E7EB]'
+                      ? 'bg-accent-ruby/35 border-accent-ruby-hover text-white'
+                      : 'bg-bg-panel border-[#2C2C2C] text-text-muted enabled:hover:border-border-focus enabled:hover:text-text-primary'
                   }`}
                 >
                   {chip}
@@ -139,13 +139,13 @@ export const WorldStepPrompts: React.FC = () => {
           </div>
         </div>
 
-        <input
+        <Input
           type="text"
           value={promptsCustomInstruction}
           disabled={isBusy}
           onChange={(e) => setPromptsCustomInstruction(e.target.value)}
           placeholder="Побажання для ШІ (необов'язково): наприклад, «Зроби магію смертельно небезпечною і без телепортації»..."
-          className={`w-full text-xs px-3 py-2 ${STANDARD_FIELD_CLASS}`}
+          className="text-xs px-3 py-2"
         />
       </div>
 
@@ -161,12 +161,12 @@ export const WorldStepPrompts: React.FC = () => {
             return (
               <div
                 key={card.field}
-                className="bg-[#111111] border border-[#262626] rounded-xl p-4 flex flex-col gap-2.5 shadow-md"
+                className="bg-bg-deep border border-border-default rounded-xl p-4 flex flex-col gap-2.5 shadow-md"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
                     {card.icon}
-                    <h3 className="text-xs font-bold text-[#F3F4F6] break-words">
+                    <h3 className="text-xs font-bold text-text-bright break-words">
                       {card.title}
                     </h3>
                   </div>
@@ -177,7 +177,7 @@ export const WorldStepPrompts: React.FC = () => {
                       disabled={isBusy}
                       onClick={() => resetPromptToAi(card.field)}
                       data-tooltip="Скинути це поле до версії ШІ"
-                      className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-[#161616] border border-[#2A2A2A] text-[11px] font-medium text-[#9CA3AF] transition-colors shrink-0 enabled:hover:text-white enabled:hover:bg-[#202020] enabled:hover:border-[#3A3A3A] enabled:cursor-pointer disabled:opacity-35 disabled:cursor-default"
+                      className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-bg-panel border border-border-strong text-[11px] font-medium text-text-muted transition-colors shrink-0 enabled:hover:text-white enabled:hover:bg-[#202020] enabled:hover:border-border-compact-hover enabled:cursor-pointer disabled:opacity-35 disabled:cursor-default"
                     >
                       <RotateCcw size={11} />
                       <span>Скинути до ШІ</span>
@@ -185,17 +185,17 @@ export const WorldStepPrompts: React.FC = () => {
                   )}
                 </div>
 
-                <p className="text-[11px] text-[#6B7280] leading-snug break-words">
+                <p className="text-[11px] text-text-dim leading-snug break-words">
                   {card.hint}
                 </p>
 
-                <textarea
+                <Textarea
                   rows={7}
                   value={value}
                   disabled={isBusy}
                   onChange={(e) => updateAiPromptField(card.field, e.target.value)}
                   placeholder={card.placeholder}
-                  className={`w-full text-xs leading-relaxed px-3 py-2.5 resize-y ${STANDARD_FIELD_CLASS}`}
+                  className="resize-y"
                 />
               </div>
             );

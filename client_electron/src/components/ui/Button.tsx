@@ -6,7 +6,7 @@ export type ButtonVariant = 'primary' | 'danger' | 'emerald' | 'secondary' | 'gh
 export type ButtonSize = 'sm' | 'md' | 'lg';
 
 export const RUBY_BUTTON_SURFACE_CLASS =
-  'bg-gradient-to-b from-[#4D101B] to-[#2B070E] enabled:hover:from-[#631422] enabled:hover:to-[#3A0A13] border border-[#7E0018] enabled:hover:border-[#9E0020] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_0_10px_rgba(126,0,24,0.22)]';
+  'bg-gradient-to-b from-ruby-grad-from to-ruby-grad-to enabled:hover:from-ruby-grad-hover-from enabled:hover:to-ruby-grad-hover-to border border-accent-ruby enabled:hover:border-accent-ruby-hover text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_0_10px_rgba(126,0,24,0.22)]';
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
@@ -28,12 +28,12 @@ export const Button: React.FC<ButtonProps> = ({
 
   const variantStyles: Record<ButtonVariant, string> = {
     primary: RUBY_BUTTON_SURFACE_CLASS,
-    danger: 'bg-[#EF4444] enabled:hover:bg-[#DC2626] text-white border border-transparent shadow-sm',
-    emerald: 'bg-[#10B981] enabled:hover:bg-[#059669] text-white border border-[#34D399]/30 shadow-sm',
+    danger: 'bg-danger enabled:hover:bg-danger-hover text-white border border-transparent shadow-sm',
+    emerald: 'bg-success enabled:hover:bg-success-hover text-white border border-success-light/30 shadow-sm',
     secondary:
-      'bg-[#1C1C1C] enabled:hover:bg-[#282828] text-[#E5E7EB] border border-[#2A2A2A]',
+      'bg-bg-surface enabled:hover:bg-bg-hover-strong text-text-primary border border-border-strong',
     ghost:
-      'bg-transparent enabled:hover:bg-white/10 text-[#9CA3AF] enabled:hover:text-[#E5E7EB] border border-transparent',
+      'bg-transparent enabled:hover:bg-white/10 text-text-muted enabled:hover:text-text-primary border border-transparent',
   };
 
   const sizeStyles: Record<ButtonSize, string> = {

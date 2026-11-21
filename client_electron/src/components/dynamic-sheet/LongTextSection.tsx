@@ -1,6 +1,6 @@
 import React, { useLayoutEffect, useRef } from 'react';
-import { COMPACT_FIELD_CLASS } from '../ui/Input';
-import { DynamicLucideIcon } from './DynamicLucideIcon';
+import { Textarea } from '../ui/Input';
+import { SectionShell } from './SectionShell';
 import type { DynamicSectionProps } from './types';
 
 function toDisplayString(val: unknown): string {
@@ -22,7 +22,6 @@ export const LongTextSection: React.FC<DynamicSectionProps<string | number | str
 }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const textValue = toDisplayString(value);
-  const isColumnRead = mode === 'read' && variant === 'column';
 
   useLayoutEffect(() => {
     const el = textareaRef.current;
@@ -31,38 +30,34 @@ export const LongTextSection: React.FC<DynamicSectionProps<string | number | str
     el.style.height = `${Math.max(el.scrollHeight, 68)}px`;
   }, [textValue, mode]);
 
-  const containerClasses = isColumnRead
-    ? 'bg-[#1C1C1C] border border-[#2A2A2A] rounded-lg p-3 flex flex-col h-full max-h-[340px]'
-    : 'bg-[#161616] border border-[#262626] rounded-lg p-3 flex flex-col gap-2';
-
   return (
-    <div className={containerClasses}>
-      <div
-        className="text-xs font-bold tracking-[0.5px] pb-2 border-b border-[#262626] mb-1.5 flex items-center gap-1.5 shrink-0"
-        style={{ color }}
-      >
-        <DynamicLucideIcon icon={icon} size={13} className="shrink-0" />
-        <span className="truncate uppercase">{title}</span>
-      </div>
-
+    <SectionShell
+      title={title}
+      icon={icon}
+      color={color}
+      mode={mode}
+      variant={variant}
+      headerClassName="mb-1.5"
+    >
       {mode === 'read' ? (
-        <div className="bg-[#111111] border border-[#222222] rounded-md p-2.5 text-[#D1D5DB] text-xs leading-relaxed whitespace-pre-wrap break-words">
+        <div className="bg-bg-deep border border-border-subtle rounded-md p-2.5 text-text-secondary text-xs leading-relaxed whitespace-pre-wrap break-words">
           {textValue.trim() ? (
             textValue
           ) : (
-            <span className="text-[#6B7280] italic">{emptyText}</span>
+            <span className="text-text-dim italic">{emptyText}</span>
           )}
         </div>
       ) : (
-        <textarea
+        <Textarea
           ref={textareaRef}
+          variant="compact"
           rows={3}
           value={textValue}
           onChange={(e) => onChange?.(e.target.value)}
           placeholder="Введіть текст..."
-          className={`w-full p-2.5 text-xs leading-relaxed resize-none overflow-hidden ${COMPACT_FIELD_CLASS}`}
+          className="resize-none overflow-hidden"
         />
       )}
-    </div>
+    </SectionShell>
   );
 };

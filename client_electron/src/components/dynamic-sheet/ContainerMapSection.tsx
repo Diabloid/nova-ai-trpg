@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { ChevronDown, Plus, Trash2, X } from 'lucide-react';
 import { isTechnicalFieldKey, localizeFieldKey } from '../../utils/characterBlockStyles';
 import { hexToRgba } from '../../utils/lucideIconMap';
-import { COMPACT_FIELD_CLASS } from '../ui/Input';
-import { DynamicLucideIcon } from './DynamicLucideIcon';
+import { Input } from '../ui/Input';
+import { SectionShell } from './SectionShell';
 import type { DynamicSectionProps } from './types';
 
 function isPlainRecord(val: unknown): val is Record<string, any> {
@@ -77,12 +77,6 @@ export const ContainerMapSection: React.FC<
   const [expandedMap, setExpandedMap] = useState<Record<string, boolean>>({});
   const [newContainerName, setNewContainerName] = useState('');
 
-  const isColumnRead = mode === 'read' && variant === 'column';
-
-  const containerClasses = isColumnRead
-    ? 'bg-[#1C1C1C] border border-[#2A2A2A] rounded-lg p-3 flex flex-col h-full max-h-[340px]'
-    : 'bg-[#161616] border border-[#262626] rounded-lg p-3 flex flex-col gap-2';
-
   const badgeBg = hexToRgba(color, 0.14);
   const badgeBorder = hexToRgba(color, 0.34);
   const itemBg = hexToRgba(color, 0.07);
@@ -148,24 +142,16 @@ export const ContainerMapSection: React.FC<
   };
 
   return (
-    <div className={containerClasses}>
-      <div
-        className="text-xs font-bold tracking-[0.5px] pb-2 border-b border-[#262626] mb-2 flex items-center gap-1.5 shrink-0"
-        style={{ color }}
-      >
-        <DynamicLucideIcon icon={icon} size={13} className="shrink-0" />
-        <span className="truncate uppercase">{title}</span>
-      </div>
-
-      <div
-        className={
-          isColumnRead
-            ? 'flex-1 min-h-0 overflow-y-auto pr-1 flex flex-col gap-2'
-            : 'flex flex-col gap-2'
-        }
-      >
-        {containerNames.length === 0 ? (
-          <span className="text-xs text-[#6B7280] italic py-1.5">{emptyText}</span>
+    <SectionShell
+      title={title}
+      icon={icon}
+      color={color}
+      mode={mode}
+      variant={variant}
+      scrollableBody
+    >
+      {containerNames.length === 0 ? (
+          <span className="text-xs text-text-dim italic py-1.5">{emptyText}</span>
         ) : (
           containerNames.map((cName) => {
             const items = Array.isArray(containers[cName]) ? containers[cName] : [];
@@ -174,14 +160,14 @@ export const ContainerMapSection: React.FC<
             return (
               <div
                 key={cName}
-                className="shrink-0 bg-[#141414] border border-[#252525] rounded-md overflow-hidden transition-all duration-150"
+                className="shrink-0 bg-bg-card border border-border-muted rounded-md overflow-hidden transition-all duration-150"
               >
                 {/* Заголовок контейнера */}
                 <div className="flex items-center justify-between gap-1 pr-1.5">
                   <button
                     type="button"
                     onClick={() => toggleContainer(cName)}
-                    className="flex-1 flex items-center justify-between p-2 text-left bg-transparent hover:bg-[#1A1A1A] transition-colors cursor-pointer min-w-0"
+                    className="flex-1 flex items-center justify-between p-2 text-left bg-transparent hover:bg-bg-inset transition-colors cursor-pointer min-w-0"
                   >
                     <div className="flex items-center gap-2 min-w-0">
                       <span
@@ -215,7 +201,7 @@ export const ContainerMapSection: React.FC<
                       type="button"
                       onClick={() => handleRemoveContainer(cName)}
                       data-tooltip={`Видалити контейнер «${cName}»`}
-                      className="w-6 h-6 rounded flex items-center justify-center text-[#6B7280] hover:text-[#EF4444] hover:bg-[#2A1418] transition-colors cursor-pointer shrink-0"
+                      className="w-6 h-6 rounded flex items-center justify-center text-text-dim hover:text-danger hover:bg-accent-ruby-soft transition-colors cursor-pointer shrink-0"
                     >
                       <Trash2 size={12} />
                     </button>
@@ -232,7 +218,7 @@ export const ContainerMapSection: React.FC<
                     }}
                   >
                     {items.length === 0 ? (
-                      <span className="text-[11px] text-[#6B7280] italic">Порожньо</span>
+                      <span className="text-[11px] text-text-dim italic">Порожньо</span>
                     ) : mode === 'read' ? (
                       items.map((item, idx) => {
                         const parts = getItemParts(item);
@@ -246,20 +232,20 @@ export const ContainerMapSection: React.FC<
                               borderColor: itemBorder,
                             }}
                           >
-                            <span className="text-[11px] font-semibold text-[#E5E7EB]">
+                            <span className="text-[11px] font-semibold text-text-primary">
                               • {parts.name || 'Предмет'}
                             </span>
                             {parts.desc && (
-                              <span className="text-[10px] text-[#9CA3AF] leading-tight pl-2">
+                              <span className="text-[10px] text-text-muted leading-tight pl-2">
                                 {parts.desc}
                               </span>
                             )}
                             {parts.extraEntries.length > 0 && (
                               <div className="flex flex-wrap gap-1 pl-2 pt-0.5">
                                 {parts.extraEntries.map(([eKey, eVal]) => (
-                                  <span key={eKey} className="text-[10px] text-[#9CA3AF]">
+                                  <span key={eKey} className="text-[10px] text-text-muted">
                                     {localizeFieldKey(eKey, fieldLabels)}:{' '}
-                                    <strong className="text-[#E5E7EB]">{String(eVal)}</strong>
+                                    <strong className="text-text-primary">{String(eVal)}</strong>
                                   </span>
                                 ))}
                               </div>
@@ -280,26 +266,27 @@ export const ContainerMapSection: React.FC<
                             className="bg-[#131716] border border-[#252B29] rounded p-2 flex flex-col gap-1.5"
                           >
                             <div className="flex items-center justify-between gap-2">
-                              <span className="text-[10px] text-[#6B7280]">Предмет #{idx + 1}</span>
+                              <span className="text-[10px] text-text-dim">Предмет #{idx + 1}</span>
                               <button
                                 type="button"
                                 onClick={() => handleRemoveItem(cName, idx)}
                                 aria-label="Видалити предмет"
-                                className="w-5 h-5 rounded flex items-center justify-center text-[#6B7280] enabled:hover:text-[#EF4444] enabled:hover:bg-[#2A1418] transition-colors enabled:cursor-pointer"
+                                className="w-5 h-5 rounded flex items-center justify-center text-text-dim enabled:hover:text-danger enabled:hover:bg-accent-ruby-soft transition-colors enabled:cursor-pointer"
                               >
                                 <X size={11} />
                               </button>
                             </div>
                             {entries.map(([fKey, fVal]) => (
-                              <input
+                              <Input
                                 key={fKey}
+                                variant="compact"
                                 type="text"
                                 value={String(fVal ?? '')}
                                 onChange={(e) =>
                                   handleUpdateItem(cName, idx, isRecord ? fKey : null, e.target.value)
                                 }
                                 placeholder={fKey === 'desc' ? 'Опис предмета...' : 'Назва предмета...'}
-                                className={`w-full px-2 py-1 text-[11px] ${COMPACT_FIELD_CLASS}`}
+                                className="text-[11px]"
                               />
                             ))}
                           </div>
@@ -311,7 +298,7 @@ export const ContainerMapSection: React.FC<
                       <button
                         type="button"
                         onClick={() => handleAddItem(cName)}
-                        className="mt-0.5 self-start text-[11px] font-medium text-[#D1D5DB] hover:text-white bg-[#1A1A1A] hover:bg-[#242424] border border-[#2F2F2F] rounded px-2 py-1 flex items-center gap-1 transition-colors cursor-pointer"
+                        className="mt-0.5 self-start text-[11px] font-medium text-text-secondary hover:text-white bg-bg-inset hover:bg-bg-hover border border-[#2F2F2F] rounded px-2 py-1 flex items-center gap-1 transition-colors cursor-pointer"
                       >
                         <Plus size={11} />
                         <span>Додати предмет</span>
@@ -326,7 +313,8 @@ export const ContainerMapSection: React.FC<
 
         {mode === 'edit' && (
           <div className="flex items-center gap-1.5 pt-1">
-            <input
+            <Input
+              variant="compact"
               type="text"
               value={newContainerName}
               onChange={(e) => setNewContainerName(e.target.value)}
@@ -337,20 +325,19 @@ export const ContainerMapSection: React.FC<
                 }
               }}
               placeholder="Назва нового контейнера..."
-              className={`flex-1 min-w-0 px-2 py-1 text-xs ${COMPACT_FIELD_CLASS}`}
+              className="w-auto flex-1 min-w-0"
             />
             <button
               type="button"
               onClick={handleAddContainer}
               disabled={!newContainerName.trim()}
-              className="text-[11px] font-semibold px-2.5 py-1 rounded bg-[#1E1E1E] border border-[#333333] text-[#E5E7EB] flex items-center gap-1 transition-all duration-150 shrink-0 enabled:hover:bg-[#2A2A2A] enabled:hover:border-[#444444] enabled:active:scale-[0.98] enabled:cursor-pointer disabled:opacity-40 disabled:cursor-default"
+              className="text-[11px] font-semibold px-2.5 py-1 rounded bg-bg-control border border-border-input text-text-primary flex items-center gap-1 transition-all duration-150 shrink-0 enabled:hover:bg-bg-active enabled:hover:border-border-focus enabled:active:scale-[0.98] enabled:cursor-pointer disabled:opacity-40 disabled:cursor-default"
             >
               <Plus size={11} />
               <span>Додати контейнер</span>
             </button>
           </div>
         )}
-      </div>
-    </div>
+    </SectionShell>
   );
 };

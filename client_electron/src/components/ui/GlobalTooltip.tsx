@@ -277,7 +277,7 @@ export const GlobalTooltip: React.FC = () => {
         left: coords.left,
         top: coords.top,
       }}
-      className={`fixed z-[150] pointer-events-none select-none max-w-[260px] bg-[#181818]/95 backdrop-blur-md border border-[#2E2E2E] text-[#E5E7EB] text-[11px] font-medium leading-snug px-2.5 py-1.5 rounded-md shadow-xl break-words ${
+      className={`fixed z-[150] pointer-events-none select-none max-w-[260px] bg-bg-tooltip/95 backdrop-blur-md border border-border-frame text-text-primary text-[11px] font-medium leading-snug px-2.5 py-1.5 rounded-md shadow-xl break-words ${
         coords.ready ? 'animate-fade-in' : 'opacity-0'
       }`}
     >
