@@ -295,7 +295,7 @@ const CharacterEditorContent: React.FC<{
   };
 
   const handleSave = async () => {
-    if (isBusy || !isNameValid) return;
+    if (isBusy || !isDirty || !isNameValid) return;
     try {
       setIsSaving(true);
       const finalState = serializeDynamicSheet(
@@ -682,7 +682,7 @@ const CharacterEditorContent: React.FC<{
             <Button
               type="button"
               variant="primary"
-              disabled={isBusy || !isNameValid}
+              disabled={isBusy || !isDirty || !isNameValid}
               isLoading={isSaving}
               onClick={handleSave}
               className="h-[34px] text-xs px-4 font-semibold"
