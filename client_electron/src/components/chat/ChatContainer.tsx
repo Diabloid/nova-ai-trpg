@@ -3,7 +3,7 @@ import { RefreshCw, Swords, WifiOff, Loader2, ArrowDown, Sparkles, MapPin } from
 import { useGameStore } from '../../store/useGameStore';
 import { useWizardStore } from '../../store/useWizardStore';
 import { hexToRgba } from '../../utils/lucideIconMap';
-import { DynamicLucideIcon } from '../dynamic-sheet';
+import { DynamicLucideIcon } from '../ui/DynamicLucideIcon';
 import { ChatBubble } from './ChatBubble';
 import { RollbackGhost } from './RollbackGhost';
 import { ChatInput } from '../input/ChatInput';

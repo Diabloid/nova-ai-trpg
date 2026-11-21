@@ -1,6 +1,6 @@
 import React from 'react';
 import { User } from 'lucide-react';
-import { DynamicLucideIcon } from '../dynamic-sheet';
+import { DynamicLucideIcon } from './DynamicLucideIcon';
 
 interface HeroAvatarProps {
   avatar?: string | null;

@@ -1,9 +1,9 @@
 import React, { useMemo } from 'react';
 import { WifiOff, Heart, ChevronDown, Sparkles } from 'lucide-react';
 import { useGameStore } from '../../store/useGameStore';
-import { extractHeaderAnchors } from '../../utils/dynamicSheetParser';
+import { extractHeaderAnchors } from '../../utils/dynamicSheet';
 import { hexToRgba } from '../../utils/lucideIconMap';
-import { DynamicLucideIcon } from '../dynamic-sheet';
+import { DynamicLucideIcon } from '../ui/DynamicLucideIcon';
 import { HeroAvatar } from '../ui/HeroAvatar';
 
 export const HeaderStatusBar: React.FC = () => {

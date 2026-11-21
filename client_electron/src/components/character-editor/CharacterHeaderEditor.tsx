@@ -2,7 +2,7 @@ import React, { useRef } from 'react';
 import { AlertCircle, Crop, ImagePlus, Loader2, RotateCcw } from 'lucide-react';
 import { HeroAvatar } from '../ui/HeroAvatar';
 import { Input } from '../ui/Input';
-import { IconPicker } from './IconPicker';
+import { IconPicker } from '../ui/IconPicker';
 
 export interface CharacterHeaderAnchors {
   name: string;

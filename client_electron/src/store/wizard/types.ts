@@ -6,7 +6,7 @@ import type {
   WorldSummary,
 } from '../../types/api';
 import type { ChatMessage } from '../../types/game';
-import type { HeaderPatch } from '../../utils/dynamicSheetParser';
+import type { HeaderPatch } from '../../utils/dynamicSheet';
 
 export type { HeaderPatch };
 

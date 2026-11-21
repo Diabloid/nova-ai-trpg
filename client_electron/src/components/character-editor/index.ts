@@ -1,4 +1,3 @@
-export { IconPicker } from './IconPicker';
 export { AddSectionDialog } from './AddSectionDialog';
 export { CharacterHeaderEditor } from './CharacterHeaderEditor';
 export { CharacterEditorToolbar } from './CharacterEditorToolbar';

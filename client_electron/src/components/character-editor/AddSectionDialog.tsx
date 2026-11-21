@@ -5,9 +5,9 @@ import { toAsciiSlug, type AddSectionInput } from '../../utils/schemaMergeUtils'
 import { Button } from '../ui/Button';
 import { ColorPickerPopover } from '../ui/ColorPickerPopover';
 import { CustomSelect, type CustomSelectOption } from '../ui/CustomSelect';
+import { IconPicker } from '../ui/IconPicker';
 import { Input } from '../ui/Input';
 import { Modal } from '../ui/Modal';
-import { IconPicker } from './IconPicker';
 
 interface AddSectionDialogProps {
   isOpen: boolean;

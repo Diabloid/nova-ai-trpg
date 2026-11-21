@@ -3,14 +3,14 @@ import { AppLayout } from './components/layout/AppLayout';
 import { HeaderStatusBar } from './components/character-drawer/HeaderStatusBar';
 import { DrawerSheet } from './components/character-drawer/DrawerSheet';
 import { ChatContainer } from './components/chat/ChatContainer';
-import { WizardScreen } from './components/wizard/WizardScreen';
+import { WizardScreen } from './components/character-wizard/WizardScreen';
 import { WorldStudioScreen } from './components/worlds/WorldStudioScreen';
 import {
   CharacterEditorModal,
   type CharacterEditorMode,
 } from './components/character-editor';
-import { NewCampaignModal } from './components/modals/NewCampaignModal';
-import { ConfirmModal } from './components/modals/ConfirmModal';
+import { NewCampaignModal } from './components/sidebar/NewCampaignModal';
+import { ConfirmModal } from './components/ui/ConfirmModal';
 import { CloneWorldModal } from './components/worlds/CloneWorldModal';
 import { GlobalContextMenu } from './components/ui/GlobalContextMenu';
 import { GlobalTooltip } from './components/ui/GlobalTooltip';
@@ -18,7 +18,7 @@ import { charactersApi } from './api/charactersApi';
 import { subscribeNetworkStatus } from './api/client';
 import { gameApi } from './api/gameApi';
 import { extractWorldDeleteConflict, worldsApi } from './api/worldsApi';
-import { DEFAULT_WORLD_ID } from './store/slices/worldSlice';
+import { DEFAULT_WORLD_ID } from './store/game/worldSlice';
 import { useGameStore } from './store/useGameStore';
 import { useWizardStore } from './store/useWizardStore';
 import { useWorldStudioStore } from './store/useWorldStudioStore';

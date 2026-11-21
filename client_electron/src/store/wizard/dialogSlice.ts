@@ -5,7 +5,7 @@ import {
   extractHeaderAnchors,
   parseDynamicSheet,
   serializeDynamicSheet,
-} from '../../utils/dynamicSheetParser';
+} from '../../utils/dynamicSheet';
 import { formatSystemTime } from '../../utils/formatTime';
 import { useGameStore } from '../useGameStore';
 import {

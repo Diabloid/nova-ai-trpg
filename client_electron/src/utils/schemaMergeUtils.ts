@@ -10,7 +10,7 @@ import {
   getByPath,
   inferArchetype,
   setByPath,
-} from './dynamicSheetParser';
+} from './dynamicSheet';
 import { normalizeLucideIconKey } from './lucideIconMap';
 
 const CYRILLIC_TRANSLIT_MAP: Record<string, string> = {

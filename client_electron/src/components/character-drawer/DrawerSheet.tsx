@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { Edit3, Heart } from 'lucide-react';
 import { useGameStore } from '../../store/useGameStore';
 import type { ParsedSheetSection } from '../../types/game';
-import { parseDynamicSheet } from '../../utils/dynamicSheetParser';
+import { parseDynamicSheet } from '../../utils/dynamicSheet';
 import { DynamicSectionRenderer } from '../dynamic-sheet';
 import { DrawerDetails } from './DrawerDetails';
 

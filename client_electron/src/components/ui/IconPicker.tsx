@@ -2,8 +2,8 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import { createPortal } from 'react-dom';
 import { ChevronDown, Search } from 'lucide-react';
 import { CANONICAL_LUCIDE_ICON_KEYS, normalizeLucideIconKey } from '../../utils/lucideIconMap';
-import { DynamicLucideIcon } from '../dynamic-sheet';
-import { COMPACT_FIELD_CLASS } from '../ui/Input';
+import { DynamicLucideIcon } from './DynamicLucideIcon';
+import { COMPACT_FIELD_CLASS } from './Input';
 
 interface IconPickerProps {
   value?: string;

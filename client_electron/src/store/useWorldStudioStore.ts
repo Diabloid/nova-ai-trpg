@@ -1,10 +1,10 @@
 import { create } from 'zustand';
-import { createLifecycleSlice } from './worldStudio/lifecycleSlice';
-import { createLoreSlice } from './worldStudio/loreSlice';
-import { createPassportSlice } from './worldStudio/passportSlice';
-import { createPromptsSlice } from './worldStudio/promptsSlice';
-import { createTemplateSlice } from './worldStudio/templateSlice';
-import type { WorldStudioStoreState } from './worldStudio/types';
+import { createLifecycleSlice } from './world-studio/lifecycleSlice';
+import { createLoreSlice } from './world-studio/loreSlice';
+import { createPassportSlice } from './world-studio/passportSlice';
+import { createPromptsSlice } from './world-studio/promptsSlice';
+import { createTemplateSlice } from './world-studio/templateSlice';
+import type { WorldStudioStoreState } from './world-studio/types';
 
 export {
   DEFAULT_PASSPORT_DRAFT,
@@ -14,8 +14,8 @@ export {
   type WorldStudioMode,
   type WorldStudioStep,
   type WorldStudioStoreState,
-} from './worldStudio/types';
-export { clearWorldStudioDraftStorage } from './worldStudio/helpers';
+} from './world-studio/types';
+export { clearWorldStudioDraftStorage } from './world-studio/helpers';
 
 export const useWorldStudioStore = create<WorldStudioStoreState>()((...a) => ({
   ...createLifecycleSlice(...a),

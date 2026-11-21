@@ -1,9 +1,9 @@
 import { create } from 'zustand';
-import type { GameState } from './slices/types';
-import { createUiSlice } from './slices/uiSlice';
-import { createEntitySlice } from './slices/entitySlice';
-import { createGameplaySlice } from './slices/gameplaySlice';
-import { createWorldSlice } from './slices/worldSlice';
+import type { GameState } from './game/types';
+import { createUiSlice } from './game/uiSlice';
+import { createEntitySlice } from './game/entitySlice';
+import { createGameplaySlice } from './game/gameplaySlice';
+import { createWorldSlice } from './game/worldSlice';
 
 export type { GameState };
 

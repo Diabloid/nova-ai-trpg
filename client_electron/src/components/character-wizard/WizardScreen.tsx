@@ -2,12 +2,12 @@ import React, { useMemo, useRef, useState } from 'react';
 import { Globe, LayoutTemplate, Upload, WifiOff, X } from 'lucide-react';
 import { useGameStore } from '../../store/useGameStore';
 import { useWizardStore } from '../../store/useWizardStore';
-import { DynamicLucideIcon } from '../dynamic-sheet';
+import { DynamicLucideIcon } from '../ui/DynamicLucideIcon';
 import { LivePreview } from './LivePreview';
 import { WizardChat } from './WizardChat';
 import { Button } from '../ui/Button';
 import { CustomSelect, type CustomSelectOption } from '../ui/CustomSelect';
-import { ConfirmModal } from '../modals/ConfirmModal';
+import { ConfirmModal } from '../ui/ConfirmModal';
 
 type PendingWizardAction =
   | { kind: 'cancel' }

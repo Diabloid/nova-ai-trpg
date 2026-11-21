@@ -3,7 +3,7 @@ import {
   serializeDynamicSheet,
   setByPath,
   type HeaderPatch,
-} from '../../utils/dynamicSheetParser';
+} from '../../utils/dynamicSheet';
 import { formatSystemTime } from '../../utils/formatTime';
 import {
   applyFieldLabelUpdate,

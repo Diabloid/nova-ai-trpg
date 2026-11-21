@@ -1,5 +1,5 @@
 import type { ChatMessage } from '../../types/game';
-import { getByPath, setByPath } from '../../utils/dynamicSheetParser';
+import { getByPath, setByPath } from '../../utils/dynamicSheet';
 import { formatSystemTime } from '../../utils/formatTime';
 import { useGameStore } from '../useGameStore';
 

@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { ArrowRight, Info, Loader2, RefreshCw } from 'lucide-react';
 import { useGameStore } from '../../store/useGameStore';
 import { useWizardStore } from '../../store/useWizardStore';
-import { parseDynamicSheet } from '../../utils/dynamicSheetParser';
+import { parseDynamicSheet } from '../../utils/dynamicSheet';
 import { DynamicSectionRenderer } from '../dynamic-sheet';
 import { Button } from '../ui/Button';
 import { COMPACT_FIELD_CLASS } from '../ui/Input';

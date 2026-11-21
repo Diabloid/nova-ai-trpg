@@ -1,7 +1,7 @@
 import React from 'react';
 import { Save, X } from 'lucide-react';
 import type { PlayerState } from '../../types/api';
-import { ConfirmModal } from '../modals/ConfirmModal';
+import { ConfirmModal } from '../ui/ConfirmModal';
 import { Button } from '../ui/Button';
 import { Modal } from '../ui/Modal';
 import { AddSectionDialog } from './AddSectionDialog';

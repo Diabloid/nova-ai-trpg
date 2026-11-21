@@ -1,6 +1,6 @@
 import React from 'react';
 import { twMerge } from 'tailwind-merge';
-import { DynamicLucideIcon } from './DynamicLucideIcon';
+import { DynamicLucideIcon } from '../ui/DynamicLucideIcon';
 import type { DynamicSectionMode, DynamicSectionVariant } from './types';
 
 interface SectionShellProps {

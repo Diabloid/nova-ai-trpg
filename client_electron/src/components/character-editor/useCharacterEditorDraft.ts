@@ -7,7 +7,7 @@ import {
   parseDynamicSheet,
   serializeDynamicSheet,
   setByPath,
-} from '../../utils/dynamicSheetParser';
+} from '../../utils/dynamicSheet';
 import {
   addCustomSectionToState,
   exportCharacterJson,

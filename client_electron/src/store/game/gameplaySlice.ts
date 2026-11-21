@@ -3,8 +3,12 @@ import { ApiError } from '../../api/client';
 import type { ChatMessage } from '../../types/game';
 import { campaignsApi } from '../../api/campaignsApi';
 import { gameApi } from '../../api/gameApi';
-import { parseIntents, cleanDisplayAction } from '../../utils/intentParser';
-import { buildDisplayTokens, type SyntaxSelectionRange } from '../../utils/novaSyntax';
+import {
+  buildDisplayTokens,
+  cleanDisplayAction,
+  parseIntents,
+  type SyntaxSelectionRange,
+} from '../../utils/novaSyntax';
 import { sanitizeStory } from '../../utils/textSanitizer';
 import { formatSystemTime } from '../../utils/formatTime';
 import type { GameState, GameplaySlice, RollbackGhostState } from './types';

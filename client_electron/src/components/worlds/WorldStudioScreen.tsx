@@ -15,7 +15,7 @@ import {
   useWorldStudioStore,
   type WorldStudioStep,
 } from '../../store/useWorldStudioStore';
-import { ConfirmModal } from '../modals/ConfirmModal';
+import { ConfirmModal } from '../ui/ConfirmModal';
 import { Button } from '../ui/Button';
 import { WorldStepLore } from './WorldStepLore';
 import { WorldStepPassport } from './WorldStepPassport';

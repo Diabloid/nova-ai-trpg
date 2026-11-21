@@ -1,6 +1,6 @@
 import React from 'react';
 import type { ParsedSheetSection } from '../../types/game';
-import { inferArchetype } from '../../utils/dynamicSheetParser';
+import { inferArchetype } from '../../utils/dynamicSheet';
 import { CardListSection } from './CardListSection';
 import { ContainerMapSection } from './ContainerMapSection';
 import { LongTextSection } from './LongTextSection';

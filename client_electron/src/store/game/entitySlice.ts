@@ -4,8 +4,7 @@ import type { ChatMessage } from '../../types/game';
 import { ApiError } from '../../api/client';
 import { charactersApi } from '../../api/charactersApi';
 import { campaignsApi } from '../../api/campaignsApi';
-import { cleanDisplayAction } from '../../utils/intentParser';
-import { buildDisplayTokens } from '../../utils/novaSyntax';
+import { buildDisplayTokens, cleanDisplayAction } from '../../utils/novaSyntax';
 import { sanitizeStory } from '../../utils/textSanitizer';
 import { formatSystemTime } from '../../utils/formatTime';
 import {

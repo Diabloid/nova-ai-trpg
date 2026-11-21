@@ -15,10 +15,11 @@ import {
 } from 'lucide-react';
 import { useGameStore } from '../../store/useGameStore';
 import { useWorldStudioStore } from '../../store/useWorldStudioStore';
-import { parseDynamicSheet } from '../../utils/dynamicSheetParser';
+import { parseDynamicSheet } from '../../utils/dynamicSheet';
 import { hexToRgba } from '../../utils/lucideIconMap';
 import { AddSectionDialog } from '../character-editor/AddSectionDialog';
-import { DynamicLucideIcon, DynamicSectionRenderer } from '../dynamic-sheet';
+import { DynamicSectionRenderer } from '../dynamic-sheet';
+import { DynamicLucideIcon } from '../ui/DynamicLucideIcon';
 import { Button } from '../ui/Button';
 import { Input, Textarea } from '../ui/Input';
 

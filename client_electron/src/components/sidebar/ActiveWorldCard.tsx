@@ -3,7 +3,7 @@ import { Copy, Edit3, RefreshCw, Trash2 } from 'lucide-react';
 import { useGameStore } from '../../store/useGameStore';
 import type { WorldSummary } from '../../types/api';
 import { hexToRgba } from '../../utils/lucideIconMap';
-import { DynamicLucideIcon } from '../dynamic-sheet';
+import { DynamicLucideIcon } from '../ui/DynamicLucideIcon';
 
 interface ActiveWorldCardProps {
   onEditWorld?: (world: WorldSummary) => void;
