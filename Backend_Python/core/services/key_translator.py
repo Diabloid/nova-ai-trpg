@@ -4,6 +4,8 @@ import re
 import sys
 from typing import Any, Dict, Iterable, List, Optional, Set
 
+from core.utils.llm_json import call_llm_json
+
 # Безпечне кодування консолі для Windows
 if sys.stdout and hasattr(sys.stdout, "reconfigure"):
     try:
@@ -86,7 +88,7 @@ BUILTIN_TRPG_KEY_TRANSLATIONS: Dict[str, str] = {
 
 class KeyTranslatorService:
     """
-    Гібридний перекладач не-кириличних TRPG-ключів анкет і секцій (v2.0.0+):
+    Гібридний перекладач не-кириличних TRPG-ключів анкет і секцій:
     1. Кириличні ключі повертає як є без жодних викликів LLM.
     2. Шукає переклад у вбудованому словнику та персистентному кеші data/config/key_translations.json.
     3. Для незнайомих англійських ключів виконує разовий легкий запит до швидкої state-моделі
@@ -97,11 +99,19 @@ class KeyTranslatorService:
         self,
         provider_service: Optional[Any] = None,
         cache_path: Optional[str] = None,
+        prompt_service: Optional[Any] = None,
     ):
         self.provider_service = provider_service
         self.cache_path = cache_path or DEFAULT_KEY_TRANSLATIONS_PATH
+        self.prompt_service = prompt_service
         self._cache_mtime: float = 0.0
         self._cache: Dict[str, str] = self._load_cache()
+
+    def _get_system_prompt(self) -> str:
+        if self.prompt_service is None:
+            from core.services.prompt_service import PromptService
+            self.prompt_service = PromptService(prompts_dir=os.path.join(BASE_DIR, "data", "prompts"))
+        return self.prompt_service.render_prompt("key_translator_system.txt")
 
     @staticmethod
     def has_cyrillic(text: Optional[str]) -> bool:
@@ -230,41 +240,20 @@ class KeyTranslatorService:
         return labels
 
     async def _translate_batch_via_llm(self, unknown_keys: List[str]) -> Dict[str, str]:
-        system_prompt = (
-            "Ти — перекладач термінів настільних рольових ігор (TRPG) англійською на лаконічну природну українську мову.\n"
-            "Для кожного вхідного технічного ключа поверни короткий український підпис поля інтерфейсу (1–3 слова, з великої літери).\n"
-            "Приклади:\n"
-            '- "style_rank": "Ранг стилю"\n'
-            '- "demonic_corruption": "Демонічне сквернення"\n'
-            '- "cyber_heat": "Кібер-нагрів"\n'
-            "Поверни ВИКЛЮЧНО валідний JSON-об'єкт виду {\"<original_key>\": \"<Український підпис>\"}."
-        )
+        system_prompt = self._get_system_prompt()
         user_prompt = json.dumps({"keys": unknown_keys}, ensure_ascii=False)
         try:
-            raw_json = await self.provider_service.execute_with_fallback(
-                provider_type="state",
-                messages=[
+            parsed = await call_llm_json(
+                self.provider_service,
+                [
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt},
                 ],
+                provider_type="state",
                 temperature=0.0,
                 max_tokens=500,
-                response_format={"type": "json_object"},
             )
-            cleaned = (raw_json or "").strip()
-            if cleaned.startswith("```json"):
-                cleaned = cleaned[7:]
-            if cleaned.startswith("```"):
-                cleaned = cleaned[3:]
-            if cleaned.endswith("```"):
-                cleaned = cleaned[:-3]
-            cleaned = cleaned.strip()
-            start = cleaned.find("{")
-            end = cleaned.rfind("}")
-            if start != -1 and end != -1:
-                parsed = json.loads(cleaned[start:end + 1])
-                if isinstance(parsed, dict):
-                    return {str(k): str(v) for k, v in parsed.items() if v}
+            return {str(k): str(v) for k, v in parsed.items() if v}
         except Exception as e:
             print(f"⚠️ [KeyTranslator] Не вдалося перекласти ключі {unknown_keys} через LLM: {e}")
         return {}

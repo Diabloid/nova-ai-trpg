@@ -47,7 +47,7 @@ async def lifespan(app: FastAPI):
     llm_controller.prompt_service.ensure_lore_loaded()
     logger.info("🔍 Динамічне опитування та евристичне ранжування ШІ-моделей Odirouter...")
     await llm_controller.refresh_ai_models()
-    logger.info("🚀 NOVA AI TRPG Engine API v2.0.0 успішно запущено та готовий до гри!")
+    logger.info(f"🚀 NOVA AI TRPG Engine API v{app.version} успішно запущено та готовий до гри!")
     yield
     logger.info("🛑 Зупинка NOVA AI TRPG Engine API...")
 
@@ -76,7 +76,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Реєстрація модульних роутерів (Фаза 4 + Етап 1/2A v2.0.0)
+# Реєстрація модульних роутерів
 app.include_router(worlds_router)
 app.include_router(characters_router)
 app.include_router(wizard_router)

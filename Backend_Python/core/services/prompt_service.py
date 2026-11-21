@@ -3,6 +3,7 @@ import json
 import os
 import sys
 from dataclasses import dataclass
+from string import Template
 from typing import Any, Dict, Optional, Union
 
 # Безпечне кодування консолі для Windows
@@ -26,7 +27,7 @@ class WorldLoreCache:
 
 class PromptService:
     """
-    Мульти-світовий сервіс промптів (v2.0.0):
+    Мульти-світовий сервіс промптів:
     - Шар 1: базові жанрово-нейтральні промпти в data/prompts/
     - Шар 2: сеттингові правила світу (ai_prompts) та лор світу з WorldManager
     - RAM-кешування лору по кожному world_id окремо
@@ -136,6 +137,14 @@ class PromptService:
             "state_system.txt",
             "summary_system.txt",
             "character_creator_system.txt",
+            "character_finalizer_system.txt",
+            "world_wizard_passport_system.txt",
+            "world_wizard_prompts_system.txt",
+            "world_wizard_lore_plan_system.txt",
+            "world_wizard_lore_article_system.txt",
+            "world_wizard_lore_expand_system.txt",
+            "world_wizard_template_system.txt",
+            "key_translator_system.txt",
         ]:
             self.get_prompt(name)
 
@@ -154,6 +163,16 @@ class PromptService:
             err = f"Помилка: Файл промпту {filename} не знайдено."
             print(f"⚠️ {err}")
             return err
+
+    def render_prompt(self, filename: str, **variables: Any) -> str:
+        """
+        Безпечно рендерить шаблон промпту через string.Template ($var / ${var}).
+        Фігурні дужки {...} у JSON-прикладах і в значеннях змінних (разом із $)
+        не спричиняють KeyError або ValueError.
+        """
+        template_text = self.get_prompt(filename)
+        str_vars = {k: "" if v is None else str(v) for k, v in variables.items()}
+        return Template(template_text).safe_substitute(str_vars)
 
     def reload_lore(self) -> None:
         """Зворотна сумісність: гаряче оновлення лору базового світу."""

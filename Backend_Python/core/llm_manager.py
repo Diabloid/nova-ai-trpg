@@ -83,12 +83,15 @@ class LLMController:
 
         # 2. Сервіси ядра
         self.provider_service = LLMProviderService(self.config)
-        self.key_translator = KeyTranslatorService(provider_service=self.provider_service)
-        self.world_manager.template_validator.key_translator = self.key_translator
         self.prompt_service = PromptService(
             self.prompts_dir,
             world_manager=self.world_manager,
         )
+        self.key_translator = KeyTranslatorService(
+            provider_service=self.provider_service,
+            prompt_service=self.prompt_service,
+        )
+        self.world_manager.template_validator.key_translator = self.key_translator
         self.analyzer_service = StateAnalyzerService(
             self.provider_service,
             self.prompt_service,
@@ -225,9 +228,7 @@ class LLMController:
         )
         return json_str
 
-    # =========================================================================
-    # 🧙‍♂️ Character Wizard (Створення персонажа з AI) — Делегування в CharacterWizardService
-    # =========================================================================
+    # Делегування операцій Character Wizard у CharacterWizardService
 
     async def dialog_with_creator(
         self,
@@ -239,7 +240,7 @@ class LLMController:
         world_id: Optional[str] = None,
         template_override: Optional[Dict[str, Any]] = None
     ) -> Tuple[str, Optional[Union[Dict[str, Any], PlayerState]], Optional[List[str]]]:
-        """Крок інтерактивного діалогу зі створення героя через Творця Долі (v2.0.0)."""
+        """Крок інтерактивного діалогу зі створення героя через Творця Долі."""
         return await self.character_wizard_service.dialog_with_creator(
             message=message,
             history=history,
@@ -273,16 +274,14 @@ class LLMController:
         world_id: Optional[str] = None,
         template_override: Optional[Dict[str, Any]] = None
     ) -> Union[Dict[str, Any], PlayerState]:
-        """Синхронізує та перераховує залежні поля після ручного редагування прев'ю (Live Sync, v2.0.0)."""
+        """Синхронізує та перераховує залежні поля після ручного редагування прев'ю (Live Sync)."""
         return await self.character_wizard_service.sync_character_draft(
             current_state,
             world_id=world_id,
             template_override=template_override
         )
 
-    # =========================================================================
-    # 🌍 4-Кроковий AI-Майстер Світів — Делегування в WorldWizardService
-    # =========================================================================
+    # Делегування 4-Крокового AI-Майстра Світів у WorldWizardService
 
     async def world_wizard_step_passport(self, request: WorldWizardStepRequest) -> WorldPassportDraftResponse:
         return await self.world_wizard_service.step_passport(request)

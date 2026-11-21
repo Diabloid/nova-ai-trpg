@@ -1,10 +1,12 @@
+import copy
+import json
 import os
 import re
-import sys
-import json
 import shutil
+import sys
 from datetime import datetime, timezone
-from typing import List, Optional, Dict, Any, Tuple, TYPE_CHECKING
+from functools import lru_cache
+from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 from fastapi import HTTPException, status
 
 # Безпечне кодування консолі для Windows
@@ -14,153 +16,67 @@ if sys.stdout and hasattr(sys.stdout, "reconfigure"):
     except Exception:
         pass
 
+from core import world_lore_store, world_migration
 from core.slugify import (
-    slugify_ascii,
     ensure_unique_slug,
-    sanitize_icon_key,
     is_strict_ascii_id,
-    merge_legacy_background_into_biography,
+    sanitize_icon_key,
+    slugify_ascii,
 )
+from core.world_lore_store import ALLOWED_LORE_EXTS, MAX_LORE_FILE_BYTES
 
 if TYPE_CHECKING:
     from core.services.template_validator import TemplateValidator
 from schemas.game_dto import (
-    WorldAiPrompts,
-    WorldSummary,
-    WorldLoreArticleInfo,
-    WorldDetailResponse,
-    WorldCreateRequest,
-    WorldUpdateRequest,
-    WorldCloneRequest,
-    WorldDeleteConflict,
     LoreArticleResponse,
+    WorldAiPrompts,
+    WorldCloneRequest,
+    WorldCreateRequest,
+    WorldDeleteConflict,
+    WorldDetailResponse,
+    WorldLoreArticleInfo,
+    WorldSummary,
+    WorldUpdateRequest,
 )
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WORLDS_DIR = os.path.join(BASE_DIR, "data", "worlds")
 CHARACTERS_DIR = os.path.join(BASE_DIR, "data", "characters")
 SAVES_DIR = os.path.join(BASE_DIR, "data", "saves")
+DEFAULTS_DIR = os.path.join(BASE_DIR, "data", "defaults")
 
 DEFAULT_WORLD_ID = "default_dark_fantasy"
-MAX_LORE_FILE_BYTES = 512 * 1024  # 512 KB ліміт на одну статтю лору
-ALLOWED_LORE_EXTS = (".md", ".txt")
 
 
 class WorldDeleteConflictError(Exception):
     """Доменна помилка конфлікту видалення світу (HTTP 409 з плоским WorldDeleteConflict)."""
+
     def __init__(self, conflict: WorldDeleteConflict):
         self.conflict = conflict
         super().__init__(conflict.detail)
 
 
+@lru_cache(maxsize=4)
+def _load_default_json(filename: str) -> Dict[str, Any]:
+    path = os.path.join(DEFAULTS_DIR, filename)
+    with open(path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    if not isinstance(data, dict):
+        raise ValueError(f"Дефолтний файл {path} має містити JSON-об'єкт.")
+    return data
+
+
 def _default_dark_fantasy_schema_meta() -> Dict[str, Any]:
-    """Повертає _schema_meta v2 для стандартного шаблону Крэтэрлсокії (виключно Lucide-ключі)."""
-    return {
-        "version": 2,
-        "sections": {
-            "anatomy_and_health.injuries": {
-                "title": "Травми та стани",
-                "icon": "heart-pulse",
-                "color": "#EF4444",
-                "archetype": "card_list",
-                "placement": "drawer_column",
-                "order": 1,
-            },
-            "storage_and_equipment.worn": {
-                "title": "Одяг та спорядження",
-                "icon": "shield",
-                "color": "#3B82F6",
-                "archetype": "card_list",
-                "placement": "drawer_column",
-                "order": 2,
-            },
-            "abilities": {
-                "title": "Здібності та магія",
-                "icon": "zap",
-                "color": "#A855F7",
-                "archetype": "card_list",
-                "placement": "drawer_column",
-                "order": 3,
-            },
-            "storage_and_equipment.containers": {
-                "title": "Інвентар та контейнери",
-                "icon": "backpack",
-                "color": "#F59E0B",
-                "archetype": "container_map",
-                "placement": "drawer_column",
-                "order": 4,
-            },
-            "meta.biography": {
-                "title": "Біографія",
-                "icon": "scroll-text",
-                "color": "#10B981",
-                "archetype": "long_text",
-                "placement": "details",
-                "order": 5,
-            },
-            "custom_blocks": {
-                "title": "Додаткові блоки",
-                "icon": "scroll-text",
-                "color": "#64748B",
-                "archetype": "stat_grid",
-                "placement": "details",
-                "order": 6,
-            },
-        },
-    }
+    """Повертає копію _schema_meta стандартного шаблону Крэтэрлсокії (виключно Lucide-ключі)."""
+    return copy.deepcopy(_load_default_json("default_dark_fantasy_schema_meta.json"))
 
 
 def _default_dark_fantasy_passport(now_iso: str) -> Dict[str, Any]:
-    """Формує паспорт базового світу Крэтэрлсокії з винесеними сеттинговими правилами."""
-    return {
-        "world_id": DEFAULT_WORLD_ID,
-        "title": "Крэтэрлсокія",
-        "genre": "Темне фентезі",
-        "description": (
-            "Похмурий світ, пошматований трисотлітніми війнами, магічними розломами, "
-            "смертю богів та точковими спалахами чуми. Землі Уессексу, Священної Імперії "
-            "та Раздроблених королівств."
-        ),
-        "author": "System",
-        "icon": "moon",
-        "accent_color": "#7E0018",
-        "starting_locations": [
-            "Вулиця покинутого селища",
-            "Околиці зачумленого селища",
-            "Занедбана каплиця",
-            "Трактир на роздоріжжі",
-            "Прикордонний тракт Уессексу",
-        ],
-        "ai_prompts": {
-            "world_tone": (
-                "Похмурий, напружений, реалістичний світ темного фентезі, де магія "
-                "виснажує Ефірне Ядро, а чума й нежить чатують за кожним рогом."
-            ),
-            "narrator_rules": (
-                "Світ темного фентезі Крэтэрлсокія: похмуре середньовіччя, Ефір, магічні розломи, "
-                "точкові спалахи чуми, гільдії, раси (люди, ельфи, дворфи, орки, звіролюди). "
-                "Дотримуйся суворого реалізму наслідків і похмурої атмосфери."
-            ),
-            "analyzer_rules": (
-                "МАГІЧНЕ ВИСНАЖЕННЯ (ПРОПОРЦІЙНІСТЬ): Оцінюй витрати Ефіру логічно, використовуючи "
-                "суху термінологію в new_overall_state.\n"
-                "- Магія 1-го кола (побут) — витрати мізерні (пиши \"Ефірне Ядро стабільне\" або \"Легке коливання Ефіру\").\n"
-                "- Магія 2-го кола — помірні витрати.\n"
-                "- Магія 3-го кола або Синергія — високе/критичне виснаження.\n"
-                "Уникай розмитих художніх слів на кшталт \"частково виснажене\". Тільки об'єктивні факти."
-            ),
-            "creator_rules": (
-                "Похмурий світ Крэтэрлсокії (темне фентезі, пошматоване війнами, магічними розломами та чумою).\n"
-                "Походження та раси: Людина з Раздроблених королівств, Уессексу або Священної Імперії; "
-                "Ельф, Дворф, Зверолюд, Орк тощо.\n"
-                "Архетипи та фах: найманець, маг одного з магічних кіл, мисливець за нежиттю, "
-                "жебрак-виживач, бродячий аптекар, утікач-каторжник.\n"
-                "Органічно вплітай елементи лору (смерть богів, старі війни, Ефір, гільдії, точкові спалахи мору)."
-            ),
-        },
-        "created_at": now_iso,
-        "updated_at": now_iso,
-    }
+    """Формує копію паспорта базового світу Крэтэрлсокії з актуальними мітками часу."""
+    passport = copy.deepcopy(_load_default_json("default_dark_fantasy_passport.json"))
+    passport["created_at"] = now_iso
+    passport["updated_at"] = now_iso
+    return passport
 
 
 class WorldManager:
@@ -169,7 +85,7 @@ class WorldManager:
     - world.json (паспорт світу + ai_prompts)
     - character_template.json (шаблон персонажа зі схемою _schema_meta)
     - lore/ (статті лору .md / .txt)
-    Забезпечує ідемпотентну авто-міграцію, CRUD світів, клонування, захищене видалення та CRUD лору.
+    Координує CRUD світів, клонування, захищене видалення, делегує міграцію та лор спеціалізованим модулям.
     """
 
     def __init__(
@@ -188,10 +104,6 @@ class WorldManager:
         else:
             self.template_validator = template_validator
         os.makedirs(self.worlds_dir, exist_ok=True)
-
-    # ------------------------------------------------------------------
-    # Допоміжні методи шляхів та читання
-    # ------------------------------------------------------------------
 
     def _sanitize_world_id_for_lookup(self, world_id: Optional[str]) -> str:
         if world_id is None or not str(world_id).strip():
@@ -216,7 +128,7 @@ class WorldManager:
         if not os.path.isfile(os.path.join(w_dir, "world.json")):
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Світ '{world_id}' не знайдено."
+                detail=f"Світ '{world_id}' не знайдено.",
             )
         return clean_id, w_dir
 
@@ -239,60 +151,16 @@ class WorldManager:
             json.dump(data, f, ensure_ascii=False, indent=4)
 
     def _read_text_safe(self, filepath: str) -> str:
-        """Безпечно читає текстовий файл (UTF-8-sig з fallback на cp1251) та перевіряє розмір."""
-        size = os.path.getsize(filepath)
-        if size > MAX_LORE_FILE_BYTES:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Файл занадто великий ({size} байт). Максимум: {MAX_LORE_FILE_BYTES} байт."
-            )
-        with open(filepath, "rb") as f:
-            raw = f.read()
-        try:
-            return raw.decode("utf-8-sig")
-        except UnicodeDecodeError:
-            return raw.decode("cp1251", errors="replace")
+        return world_lore_store.read_text_safe(filepath)
 
     def _validate_lore_filename(self, filename: str) -> str:
-        """Захист від path traversal та перевірка розширення .md/.txt."""
-        if not filename or not isinstance(filename, str):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Некоректне ім'я файлу статті лору."
-            )
-        cleaned = filename.strip()
-        if (
-            ".." in cleaned
-            or "/" in cleaned
-            or "\\" in cleaned
-            or "\x00" in cleaned
-            or cleaned.startswith(".")
-        ):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Заборонені символи в імені файлу (path traversal захист)."
-            )
-        ext = os.path.splitext(cleaned)[1].lower()
-        if ext not in ALLOWED_LORE_EXTS:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Дозволені лише формати {', '.join(ALLOWED_LORE_EXTS)}."
-            )
-        return cleaned
+        return world_lore_store.validate_lore_filename(filename)
 
     def _extract_article_title(self, filename: str, content: str) -> str:
-        for line in content.splitlines():
-            stripped = line.strip()
-            if stripped.startswith("#"):
-                title = stripped.lstrip("#").strip()
-                if title:
-                    return title
-        return os.path.splitext(filename)[0]
+        return world_lore_store.extract_article_title(filename, content)
 
     def _estimate_tokens(self, text: str) -> int:
-        if not text:
-            return 0
-        return max(1, len(text) // 4)
+        return world_lore_store.estimate_tokens(text)
 
     def _count_characters_by_world(self, character_manager=None) -> Dict[str, int]:
         counts: Dict[str, int] = {}
@@ -311,313 +179,35 @@ class WorldManager:
                     continue
         return counts
 
-    # ------------------------------------------------------------------
-    # Ідемпотентна авто-міграція при старті (B1.1)
-    # ------------------------------------------------------------------
-
     def _migrate_legacy_characters(self) -> Tuple[Dict[str, str], Dict[str, str]]:
-        """
-        Переводить не-ASCII файли персонажів у строгий ASCII-slug і гарантує meta.world_id.
-        Повертає (char_worlds, char_id_map).
-        """
-        char_worlds: Dict[str, str] = {}
-        char_id_map: Dict[str, str] = {}
-        if not os.path.exists(self.characters_dir):
-            return char_worlds, char_id_map
-
-        files = sorted(
-            f for f in os.listdir(self.characters_dir)
-            if f.endswith(".json") and not f.startswith("_")
+        return world_migration.migrate_legacy_characters(
+            characters_dir=self.characters_dir,
+            default_world_id=DEFAULT_WORLD_ID,
         )
-        existing_ascii_ids = {
-            f[:-5].lower() for f in files if is_strict_ascii_id(f[:-5])
-        }
-
-        migrated_worlds = 0
-        renamed_chars = 0
-        for fname in files:
-            old_char_id = fname[:-5]
-            fpath = os.path.join(self.characters_dir, fname)
-            try:
-                data = self._read_json(fpath)
-                needs_rename = not is_strict_ascii_id(old_char_id)
-                if needs_rename:
-                    new_char_id = ensure_unique_slug(
-                        slugify_ascii(old_char_id, default="hero"),
-                        existing_ascii_ids,
-                    )
-                    existing_ascii_ids.add(new_char_id.lower())
-                    char_id_map[old_char_id] = new_char_id
-                    char_id_map[old_char_id.lower()] = new_char_id
-                    changed = True
-                else:
-                    new_char_id = old_char_id
-                    changed = False
-
-                meta = data.setdefault("meta", {})
-                if not meta.get("world_id"):
-                    meta["world_id"] = DEFAULT_WORLD_ID
-                    changed = True
-                    migrated_worlds += 1
-                if merge_legacy_background_into_biography(meta):
-                    changed = True
-
-                if needs_rename:
-                    for key in ("char_id", "character_id"):
-                        if key in data:
-                            data[key] = new_char_id
-                        if key in meta:
-                            meta[key] = new_char_id
-
-                new_fpath = os.path.join(self.characters_dir, f"{new_char_id}.json")
-                if changed:
-                    self._write_json(new_fpath, data)
-                if needs_rename:
-                    if os.path.abspath(new_fpath) != os.path.abspath(fpath) and os.path.isfile(fpath):
-                        os.remove(fpath)
-                    renamed_chars += 1
-
-                char_worlds[new_char_id] = meta["world_id"]
-                char_worlds[new_char_id.lower()] = meta["world_id"]
-            except Exception as e:
-                print(f"⚠️ [WorldManager] Помилка міграції персонажа {fname}: {e}")
-
-        if renamed_chars > 0:
-            print(f"🌍 [WorldManager] Переведено {renamed_chars} не-ASCII персонажів у ASCII-slug.")
-        if migrated_worlds > 0:
-            print(f"🌍 [WorldManager] Проставлено world_id для {migrated_worlds} персонажів.")
-        return char_worlds, char_id_map
 
     def _migrate_legacy_campaigns(
         self,
         char_worlds: Dict[str, str],
         char_id_map: Dict[str, str],
     ) -> None:
-        """
-        Переводить не-ASCII папки кампаній у строгий ASCII-slug і синхронізує
-        metadata.json, savegame.json та savegame.prev.json без втрати історії й логів.
-        """
-        if not os.path.exists(self.saves_dir):
-            return
-
-        entries = sorted(
-            e for e in os.listdir(self.saves_dir)
-            if os.path.isdir(os.path.join(self.saves_dir, e))
+        world_migration.migrate_legacy_campaigns(
+            saves_dir=self.saves_dir,
+            char_worlds=char_worlds,
+            char_id_map=char_id_map,
+            default_world_id=DEFAULT_WORLD_ID,
         )
-        existing_ascii_dirs = {
-            e.lower() for e in entries if is_strict_ascii_id(e)
-        }
-
-        renamed_campaigns = 0
-        updated_meta_count = 0
-        for entry in entries:
-            c_dir = os.path.join(self.saves_dir, entry)
-            try:
-                needs_rename = not is_strict_ascii_id(entry)
-                if needs_rename:
-                    new_campaign_id = ensure_unique_slug(
-                        slugify_ascii(entry, default="campaign", max_length=96),
-                        existing_ascii_dirs,
-                    )
-                    existing_ascii_dirs.add(new_campaign_id.lower())
-                    new_c_dir = os.path.join(self.saves_dir, new_campaign_id)
-                    os.rename(c_dir, new_c_dir)
-                    c_dir = new_c_dir
-                    actual_campaign_id = new_campaign_id
-                    renamed_campaigns += 1
-                else:
-                    actual_campaign_id = entry
-
-                resolved_char_id = ""
-                resolved_world_id = DEFAULT_WORLD_ID
-
-                meta_path = os.path.join(c_dir, "metadata.json")
-                if os.path.isfile(meta_path):
-                    meta = self._read_json(meta_path)
-                    meta_changed = False
-
-                    if meta.get("campaign_id") != actual_campaign_id:
-                        meta["campaign_id"] = actual_campaign_id
-                        meta_changed = True
-
-                    old_char_id = str(meta.get("char_id") or "").strip()
-                    resolved_char_id = (
-                        char_id_map.get(old_char_id)
-                        or char_id_map.get(old_char_id.lower())
-                        or ""
-                    )
-                    if not resolved_char_id and old_char_id:
-                        resolved_char_id = (
-                            old_char_id
-                            if is_strict_ascii_id(old_char_id)
-                            else slugify_ascii(old_char_id, default="hero")
-                        )
-
-                    if resolved_char_id != old_char_id:
-                        meta["char_id"] = resolved_char_id
-                        meta_changed = True
-
-                    resolved_world_id = (
-                        meta.get("world_id")
-                        or char_worlds.get(resolved_char_id)
-                        or char_worlds.get(resolved_char_id.lower())
-                        or DEFAULT_WORLD_ID
-                    )
-                    if meta.get("world_id") != resolved_world_id:
-                        meta["world_id"] = resolved_world_id
-                        meta_changed = True
-
-                    if meta_changed:
-                        self._write_json(meta_path, meta)
-                        updated_meta_count += 1
-
-                for save_name in ("savegame.json", "savegame.prev.json"):
-                    save_path = os.path.join(c_dir, save_name)
-                    if not os.path.isfile(save_path):
-                        continue
-                    s_data = self._read_json(save_path)
-                    if not isinstance(s_data, dict):
-                        continue
-                    s_changed = False
-
-                    if "campaign_id" in s_data and s_data["campaign_id"] != actual_campaign_id:
-                        s_data["campaign_id"] = actual_campaign_id
-                        s_changed = True
-
-                    if resolved_char_id:
-                        for key in ("char_id", "character_id"):
-                            if key in s_data and s_data[key] != resolved_char_id:
-                                s_data[key] = resolved_char_id
-                                s_changed = True
-
-                    s_meta = s_data.get("meta")
-                    if isinstance(s_meta, dict):
-                        if not s_meta.get("world_id"):
-                            s_meta["world_id"] = resolved_world_id
-                            s_changed = True
-                        if merge_legacy_background_into_biography(s_meta):
-                            s_changed = True
-                        if resolved_char_id:
-                            for key in ("char_id", "character_id"):
-                                if key in s_meta and s_meta[key] != resolved_char_id:
-                                    s_meta[key] = resolved_char_id
-                                    s_changed = True
-
-                    if s_changed:
-                        self._write_json(save_path, s_data)
-            except Exception as e:
-                print(f"⚠️ [WorldManager] Помилка міграції кампанії {entry}: {e}")
-
-        if renamed_campaigns > 0:
-            print(f"🌍 [WorldManager] Переведено {renamed_campaigns} не-ASCII кампаній у ASCII-slug.")
-        if updated_meta_count > 0:
-            print(f"🌍 [WorldManager] Синхронізовано метадані для {updated_meta_count} кампаній.")
 
     def migrate_if_needed(self) -> None:
-        """
-        Ідемпотентна авто-ініціалізація та міграція платформи до структури Світів v2.0.0:
-        1. Гарантує наявність еталонного світу data/worlds/default_dark_fantasy/ (lore/, world.json, character_template.json).
-        2. Переводить не-ASCII файли персонажів у строгий ASCII-slug і проставляє meta.world_id.
-        3. Переводить не-ASCII папки кампаній у строгий ASCII-slug і синхронізує metadata/savegame/savegame.prev.
-        """
-        now_iso = datetime.now(timezone.utc).isoformat()
-        default_dir = os.path.join(self.worlds_dir, DEFAULT_WORLD_ID)
-        default_lore_dir = os.path.join(default_dir, "lore")
-        world_json_path = os.path.join(default_dir, "world.json")
-        template_json_path = os.path.join(default_dir, "character_template.json")
-
-        # 1.1 Гарантуємо наявність каталогу лору базового світу
-        os.makedirs(default_lore_dir, exist_ok=True)
-
-        # 1.2 Створюємо world.json для Крэтэрлсокії за його відсутності
-        if not os.path.exists(world_json_path):
-            self._write_json(world_json_path, _default_dark_fantasy_passport(now_iso))
-            print(f"🌍 [WorldManager] Створено паспорт базового світу '{DEFAULT_WORLD_ID}'")
-
-        # 1.3 Створюємо еталонний character_template.json із _schema_meta v2 за його відсутності
-        if not os.path.exists(template_json_path):
-            tpl_data = {
-                "meta": {
-                    "world_id": DEFAULT_WORLD_ID,
-                    "name": "",
-                    "first_name": "",
-                    "last_name": "",
-                    "patronymic": "",
-                    "titles": "",
-                    "age": "",
-                    "location": "Невідомий ліс",
-                    "appearance": "",
-                    "appearance_details": {
-                        "physique": "",
-                        "height": "",
-                        "eyes": "",
-                        "hair": "",
-                        "race_traits": "",
-                    },
-                    "biography": "",
-                },
-                "anatomy_and_health": {"overall_state": "Повний сил", "injuries": []},
-                "storage_and_equipment": {"worn": [], "containers": {}},
-                "abilities": [],
-                "custom_blocks": {},
-                "_schema_meta": _default_dark_fantasy_schema_meta(),
-            }
-            self._write_json(template_json_path, tpl_data)
-            print(f"🌍 [WorldManager] Створено character_template.json для '{DEFAULT_WORLD_ID}'")
-
-        # 1.4 Очищаємо й нормалізуємо шаблони локальних світів (прибираємо демо-предмети, id та background)
-        if os.path.exists(self.worlds_dir):
-            for entry in sorted(os.listdir(self.worlds_dir)):
-                w_dir = os.path.join(self.worlds_dir, entry)
-                w_tpl = os.path.join(w_dir, "character_template.json")
-                w_meta_path = os.path.join(w_dir, "world.json")
-                if os.path.isfile(w_tpl):
-                    try:
-                        tpl_json = self._read_json(w_tpl)
-                        if isinstance(tpl_json, dict):
-                            default_loc = "Стартова локація"
-                            if os.path.isfile(w_meta_path):
-                                try:
-                                    w_meta = self._read_json(w_meta_path)
-                                    locs = w_meta.get("starting_locations") or []
-                                    if locs:
-                                        default_loc = locs[0]
-                                except Exception:
-                                    pass
-                            if entry == DEFAULT_WORLD_ID:
-                                # Для еталонного світу прибираємо лише background без зміни авторської схеми
-                                if isinstance(tpl_json.get("meta"), dict) and merge_legacy_background_into_biography(tpl_json["meta"]):
-                                    self._write_json(w_tpl, tpl_json)
-                            else:
-                                normalized_tpl = self.template_validator.validate_and_normalize(
-                                    tpl_json,
-                                    world_id=entry,
-                                    default_location=default_loc,
-                                )
-                                if normalized_tpl != tpl_json:
-                                    self._write_json(w_tpl, normalized_tpl)
-                    except Exception as e:
-                        print(f"⚠️ [WorldManager] Помилка очищення шаблону світу {entry}: {e}")
-
-        legacy_sys_tpl = os.path.join(self.characters_dir, "_template.json")
-        if os.path.isfile(legacy_sys_tpl):
-            try:
-                sys_tpl = self._read_json(legacy_sys_tpl)
-                if isinstance(sys_tpl, dict) and isinstance(sys_tpl.get("meta"), dict):
-                    if merge_legacy_background_into_biography(sys_tpl["meta"]):
-                        self._write_json(legacy_sys_tpl, sys_tpl)
-            except Exception as e:
-                print(f"⚠️ [WorldManager] Помилка очищення _template.json: {e}")
-
-        # 2. Міграція персонажів (data/characters/*.json)
-        char_worlds, char_id_map = self._migrate_legacy_characters()
-
-        # 3. Міграція кампаній (data/saves/*/)
-        self._migrate_legacy_campaigns(char_worlds, char_id_map)
-
-    # ------------------------------------------------------------------
-    # Читання даних світу (для сервісів і API)
-    # ------------------------------------------------------------------
+        """Делегує ідемпотентну авто-ініціалізацію базового світу та legacy-міграцію."""
+        world_migration.migrate_if_needed(
+            worlds_dir=self.worlds_dir,
+            characters_dir=self.characters_dir,
+            saves_dir=self.saves_dir,
+            template_validator=self.template_validator,
+            default_world_id=DEFAULT_WORLD_ID,
+            passport_factory=_default_dark_fantasy_passport,
+            schema_meta_factory=_default_dark_fantasy_schema_meta,
+        )
 
     def get_world_passport(self, world_id: str) -> Dict[str, Any]:
         _, w_dir = self._require_world_dir(world_id)
@@ -633,10 +223,6 @@ class WorldManager:
     def get_world_lore_dir(self, world_id: str) -> str:
         _, w_dir = self._require_world_dir(world_id)
         return os.path.join(w_dir, "lore")
-
-    # ------------------------------------------------------------------
-    # CRUD операції Світів
-    # ------------------------------------------------------------------
 
     def list_worlds(self, character_manager=None) -> List[WorldSummary]:
         """Повертає список усіх світів із підрахунком персонажів та is_default."""
@@ -674,7 +260,7 @@ class WorldManager:
             except Exception as e:
                 print(f"⚠️ [WorldManager] Помилка читання світу {entry}: {e}")
 
-        # Базовий світ завжди перший, далі за датою оновлення (новіші вище)
+        # Базовий світ завжди перший, далі за назвою
         worlds.sort(key=lambda w: (not w.is_default, w.title.lower()))
         return worlds
 
@@ -686,31 +272,7 @@ class WorldManager:
         counts = self._count_characters_by_world(character_manager)
 
         lore_dir = os.path.join(w_dir, "lore")
-        articles: List[WorldLoreArticleInfo] = []
-        total_bytes = 0
-        total_tokens = 0
-
-        if os.path.exists(lore_dir):
-            for fname in sorted(os.listdir(lore_dir)):
-                if fname.lower().endswith(ALLOWED_LORE_EXTS):
-                    fpath = os.path.join(lore_dir, fname)
-                    if os.path.isfile(fpath):
-                        try:
-                            text = self._read_text_safe(fpath)
-                            size_b = os.path.getsize(fpath)
-                            tokens = self._estimate_tokens(text)
-                            articles.append(
-                                WorldLoreArticleInfo(
-                                    filename=fname,
-                                    title=self._extract_article_title(fname, text),
-                                    size_bytes=size_b,
-                                    est_tokens=tokens,
-                                )
-                            )
-                            total_bytes += size_b
-                            total_tokens += tokens
-                        except Exception as e:
-                            print(f"⚠️ [WorldManager] Помилка індексації статті {fname}: {e}")
+        articles, total_bytes, total_tokens = world_lore_store.list_lore_articles(lore_dir)
 
         mtime = os.path.getmtime(os.path.join(w_dir, "world.json"))
         iso_fallback = datetime.fromtimestamp(mtime, tz=timezone.utc).isoformat()
@@ -765,7 +327,6 @@ class WorldManager:
         }
         self._write_json(os.path.join(w_dir, "world.json"), passport)
 
-        # Шаблон персонажа (валідований через TemplateValidator)
         default_loc = request.starting_locations[0] if request.starting_locations else "Стартова локація"
         if request.character_template is not None:
             tpl_data = self.template_validator.validate_and_normalize(
@@ -871,13 +432,7 @@ class WorldManager:
         self._write_json(os.path.join(dst_dir, "character_template.json"), new_tpl)
 
         if request.include_lore:
-            src_lore_dir = os.path.join(src_dir, "lore")
-            if os.path.exists(src_lore_dir):
-                for fname in os.listdir(src_lore_dir):
-                    if fname.lower().endswith(ALLOWED_LORE_EXTS):
-                        src_file = os.path.join(src_lore_dir, fname)
-                        if os.path.isfile(src_file):
-                            shutil.copy2(src_file, os.path.join(dst_lore_dir, fname))
+            world_lore_store.copy_lore_files(os.path.join(src_dir, "lore"), dst_lore_dir)
 
         return WorldSummary(
             world_id=new_world_id,
@@ -931,16 +486,16 @@ class WorldManager:
         campaign_manager=None,
     ) -> Dict[str, Any]:
         """
-        Видаляє кастомний світ.
-        - Базовий світ default_dark_fantasy захищений (HTTP 403).
-        - Якщо cascade=False і є залежні персонажі або кампанії — повертає HTTP 409 Conflict (WorldDeleteConflict).
-        - Якщо cascade=True — каскадно видаляє кампанії, персонажів та папку світу.
+        Видаляє кастомний світ:
+        - базовий світ default_dark_fantasy захищений (HTTP 403);
+        - при наявності залежних сутностей без cascade=True кидає WorldDeleteConflictError (HTTP 409);
+        - при cascade=True видаляє залежні кампанії, персонажів та каталог світу.
         """
         clean_id, w_dir = self._require_world_dir(world_id)
         if clean_id == DEFAULT_WORLD_ID:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Базовий світ '{DEFAULT_WORLD_ID}' захищений від видалення."
+                detail=f"Базовий світ '{DEFAULT_WORLD_ID}' захищений від видалення.",
             )
 
         dep_chars, dep_campaigns = self._find_dependents(clean_id, character_manager=character_manager)
@@ -957,7 +512,6 @@ class WorldManager:
             raise WorldDeleteConflictError(conflict)
 
         if cascade:
-            # 1. Видаляємо залежні кампанії
             for camp_id in dep_campaigns:
                 if campaign_manager is not None:
                     try:
@@ -969,7 +523,6 @@ class WorldManager:
                 if os.path.exists(c_dir):
                     shutil.rmtree(c_dir, ignore_errors=True)
 
-            # 2. Видаляємо залежних персонажів
             char_dir = getattr(character_manager, "characters_dir", None) or self.characters_dir
             for char_id in dep_chars:
                 if character_manager is not None:
@@ -985,73 +538,24 @@ class WorldManager:
         shutil.rmtree(w_dir)
         return {"status": "deleted", "world_id": clean_id}
 
-    # ------------------------------------------------------------------
-    # CRUD статей Лору світу
-    # ------------------------------------------------------------------
-
     def get_lore_article(self, world_id: str, filename: str) -> LoreArticleResponse:
         clean_id, w_dir = self._require_world_dir(world_id)
-        safe_name = self._validate_lore_filename(filename)
-        fpath = os.path.join(w_dir, "lore", safe_name)
-
-        if not os.path.isfile(fpath):
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Статтю '{safe_name}' у світі '{clean_id}' не знайдено."
-            )
-
-        content = self._read_text_safe(fpath)
-        size_b = os.path.getsize(fpath)
-        return LoreArticleResponse(
-            world_id=clean_id,
-            filename=safe_name,
-            title=self._extract_article_title(safe_name, content),
-            content=content,
-            size_bytes=size_b,
-            est_tokens=self._estimate_tokens(content),
-        )
+        return world_lore_store.get_lore_article(clean_id, os.path.join(w_dir, "lore"), filename)
 
     def save_lore_article(self, world_id: str, filename: str, content: str) -> Dict[str, Any]:
         clean_id, w_dir = self._require_world_dir(world_id)
-        safe_name = self._validate_lore_filename(filename)
-        raw_bytes = content.encode("utf-8")
-        if len(raw_bytes) > MAX_LORE_FILE_BYTES:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Розмір статті перевищує ліміт {MAX_LORE_FILE_BYTES} байт."
-            )
-
-        lore_dir = os.path.join(w_dir, "lore")
-        os.makedirs(lore_dir, exist_ok=True)
-        fpath = os.path.join(lore_dir, safe_name)
-
-        with open(fpath, "wb") as f:
-            f.write(raw_bytes)
-
-        # Оновлюємо updated_at у world.json
+        result = world_lore_store.save_lore_article(os.path.join(w_dir, "lore"), filename, content)
         world_json_path = os.path.join(w_dir, "world.json")
         passport = self._read_json(world_json_path)
         passport["updated_at"] = datetime.now(timezone.utc).isoformat()
         self._write_json(world_json_path, passport)
-
-        return {"status": "saved", "filename": safe_name, "size_bytes": len(raw_bytes)}
+        return result
 
     def delete_lore_article(self, world_id: str, filename: str) -> Dict[str, Any]:
         clean_id, w_dir = self._require_world_dir(world_id)
-        safe_name = self._validate_lore_filename(filename)
-        fpath = os.path.join(w_dir, "lore", safe_name)
-
-        if not os.path.isfile(fpath):
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Статтю '{safe_name}' у світі '{clean_id}' не знайдено."
-            )
-
-        os.remove(fpath)
-
+        result = world_lore_store.delete_lore_article(clean_id, os.path.join(w_dir, "lore"), filename)
         world_json_path = os.path.join(w_dir, "world.json")
         passport = self._read_json(world_json_path)
         passport["updated_at"] = datetime.now(timezone.utc).isoformat()
         self._write_json(world_json_path, passport)
-
-        return {"status": "deleted", "filename": safe_name}
+        return result

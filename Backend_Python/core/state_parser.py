@@ -16,7 +16,7 @@ class InjuryChange(BaseModel):
 
 
 class DynamicListChange(BaseModel):
-    """Універсальна мутація довільної спискової секції чи контейнера (v2.0.0)."""
+    """Універсальна мутація довільної спискової секції чи контейнера."""
     section_path: str = Field(
         ...,
         description="Шлях до секції (напр.: 'abilities', 'cyberware', 'inventory_containers.Рюкзак', 'skills')"
@@ -31,7 +31,7 @@ class DynamicListChange(BaseModel):
 
 
 class NewSectionSpec(BaseModel):
-    """Специфікація нової динамічної секції, що виникає під час гри (v2.0.0+)."""
+    """Специфікація нової динамічної секції, що виникає під час гри."""
     path: str = Field(..., description="ASCII-slug шляху (напр. 'pets', 'companions', 'base_camp')")
     title: str = Field(..., description="Українська назва секції (напр. 'Пітомці та фамільяри')")
     icon: str = Field(default="sparkles", description="Ключ іконки lucide-react")
@@ -54,13 +54,13 @@ class StateDelta(BaseModel):
     injury_changes: List[InjuryChange] = Field(default_factory=list)
     new_sections: List[NewSectionSpec] = Field(
         default_factory=list,
-        description="Кероване створення нових постійних секцій під час гри (v2.0.0+)"
+        description="Кероване створення нових постійних секцій під час гри"
     )
     field_updates: Dict[str, Any] = Field(
         default_factory=dict,
-        description="Точкові скалярні оновлення за dot-шляхом (v2.0.0)"
+        description="Точкові скалярні оновлення за dot-шляхом"
     )
     section_changes: List[DynamicListChange] = Field(
         default_factory=list,
-        description="Універсальні мутації списків, карток, тегів та контейнерів (v2.0.0)"
+        description="Універсальні мутації списків, карток, тегів та контейнерів"
     )

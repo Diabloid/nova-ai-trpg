@@ -18,6 +18,7 @@ from core.services.template_validator import TemplateValidator
 from core.services.key_translator import KeyTranslatorService
 from core.slugify import sanitize_icon_key, slugify_ascii
 from core.template_presets import get_template_presets
+from core.utils.llm_json import call_llm_json, strip_markdown_fences
 from core.world_manager import WorldManager
 from schemas.game_dto import (
     CharacterTemplateDraftResponse,
@@ -44,7 +45,7 @@ CURATED_LUCIDE_ICONS = (
 
 class WorldWizardService:
     """
-    Сервіс 4-Крокового AI-Майстра Світів (v2.0.0):
+    Сервіс 4-Крокового AI-Майстра Світів:
     - Крок 1: step_passport (dialog / one_shot)
     - Крок 2: generate_prompts (narrator_rules, analyzer_rules, creator_rules, world_tone)
     - Крок 3: generate_lore (plan_topics -> 5 тем, generate_article, expand_article)
@@ -67,29 +68,6 @@ class WorldWizardService:
     # ------------------------------------------------------------------
     # Допоміжні утиліти парсингу та нормалізації
     # ------------------------------------------------------------------
-
-    @staticmethod
-    def _extract_json_dict(raw_text: str) -> Dict[str, Any]:
-        cleaned = (raw_text or "").strip()
-        if cleaned.startswith("```json"):
-            cleaned = cleaned[7:]
-        if cleaned.startswith("```"):
-            cleaned = cleaned[3:]
-        if cleaned.endswith("```"):
-            cleaned = cleaned[:-3]
-        cleaned = cleaned.strip()
-
-        start = cleaned.find("{")
-        end = cleaned.rfind("}")
-        if start == -1 or end == -1:
-            raise ValueError(f"ШІ не повернув JSON-об'єкт: {cleaned[:200]}")
-
-        parsed = json.loads(cleaned[start : end + 1])
-        if isinstance(parsed, dict) and "error" in parsed:
-            raise RuntimeError(f"ШІ-провайдер повернув помилку: {parsed['error']}")
-        if not isinstance(parsed, dict):
-            raise ValueError("Очікувався JSON-словник.")
-        return parsed
 
     @staticmethod
     def _normalize_lore_filename(raw_name: Optional[str], fallback_title: str, prefix: str = "") -> str:
@@ -179,27 +157,10 @@ class WorldWizardService:
                 "Одночасно онови 'passport_draft' усіма деталями, які вже відомі або доречні."
             )
 
-        system_prompt = (
-            "Ти — Архітектор Світів для текстової рольової гри (v2.0.0).\n"
-            f"{task_hint}\n\n"
-            "ПРАВИЛА:\n"
-            f"1. Поле 'icon' — ВИКЛЮЧНО ключ векторної іконки lucide-react зі списку: {CURATED_LUCIDE_ICONS}. Жодних Unicode-емодзі!\n"
-            "2. Поле 'accent_color' — валідний HEX-колір (#RRGGBB), що пасує атмосфері жанру.\n"
-            "3. Поле 'starting_locations' — список із 2–5 атмосферних стартових локацій.\n"
-            "4. Зберігай уже заповнені користувачем поля з current_passport, якщо він не просив їх змінити.\n"
-            "5. Мова усіх текстів — грамотна українська.\n\n"
-            "Поверни ВИКЛЮЧНО валідний JSON формату:\n"
-            "{\n"
-            '  "reply": "...",\n'
-            '  "passport_draft": {\n'
-            '    "title": "...",\n'
-            '    "genre": "...",\n'
-            '    "description": "...",\n'
-            '    "icon": "globe",\n'
-            '    "accent_color": "#38BDF8",\n'
-            '    "starting_locations": ["...", "..."]\n'
-            "  }\n"
-            "}"
+        system_prompt = self.prompt_service.render_prompt(
+            "world_wizard_passport_system.txt",
+            task_hint=task_hint,
+            curated_lucide_icons=CURATED_LUCIDE_ICONS,
         )
 
         messages: List[Dict[str, str]] = [{"role": "system", "content": system_prompt}]
@@ -215,16 +176,14 @@ class WorldWizardService:
         )
         messages.append({"role": "user", "content": user_payload})
 
-        raw_json = await self.provider_service.execute_with_fallback(
-            provider_type="state",
-            messages=messages,
-            temperature=0.5,
-            max_tokens=1200,
-            response_format={"type": "json_object"},
-        )
-
         try:
-            parsed = self._extract_json_dict(raw_json)
+            parsed = await call_llm_json(
+                self.provider_service,
+                messages,
+                provider_type="state",
+                temperature=0.5,
+                max_tokens=1200,
+            )
             reply = str(parsed.get("reply") or "Концепт світу оновлено!").strip()
             raw_draft = parsed.get("passport_draft")
             if not isinstance(raw_draft, dict):
@@ -283,15 +242,7 @@ class WorldWizardService:
         lore_ctx = (request.lore_digest or "").strip()[:5000] or "Не надано"
         template_ctx = self._summarize_template_for_prompts(request.character_template)
 
-        system_prompt = (
-            "Ти — головний гейм-дизайнер правил рольового ШІ-рушія NOVA TRPG.\n"
-            "Сформуй чіткі, практичні інструкції (Шар 2 промптів) українською мовою для конкретного світу:\n"
-            "1. 'world_tone': концентрований опис атмосфери, стилю оповіді та емоційного тону світу (2-4 речення).\n"
-            "2. 'narrator_rules': правила для Майстра Гри (Оповідача) — фізика/магія/технології світу, лексика, канон із лору, типові загрози та стиль описів.\n"
-            "3. 'analyzer_rules': правила для Аналізатора Стану — які конкретні ресурси/показники й секції з наданої структури анкети (точні dot-шляхи для field_updates та секції для section_changes) змінюються при типових діях у цьому світі, строгий об'єктивізм.\n"
-            "4. 'creator_rules': правила для Творця Долі при створенні нового героя — доступні фракції, архетипи/професії, стартові ресурси та заповнення секцій наданої анкети.\n\n"
-            "Поверни ВИКЛЮЧНО валідний JSON з цими 4 ключами: world_tone, narrator_rules, analyzer_rules, creator_rules."
-        )
+        system_prompt = self.prompt_service.render_prompt("world_wizard_prompts_system.txt")
 
         user_prompt = (
             f"ПАСПОРТ СВІТУ:\n{passport.model_dump_json(indent=2)}\n\n"
@@ -302,18 +253,16 @@ class WorldWizardService:
             f"ПОТОЧНІ ПРОМПТИ (якщо потрібно уточнити/оновити):\n{current_str}"
         )
 
-        raw_json = await self.provider_service.execute_with_fallback(
-            provider_type="state",
-            messages=[
+        parsed = await call_llm_json(
+            self.provider_service,
+            [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
             ],
+            provider_type="state",
             temperature=0.4,
             max_tokens=1600,
-            response_format={"type": "json_object"},
         )
-
-        parsed = self._extract_json_dict(raw_json)
         return WorldAiPrompts(
             world_tone=(parsed.get("world_tone") or f"Атмосферний світ жанру «{passport.genre}» — {passport.title}.").strip(),
             narrator_rules=(parsed.get("narrator_rules") or f"Дотримуйся логіки та канону світу «{passport.title}».").strip(),
@@ -350,17 +299,7 @@ class WorldWizardService:
         prompts_ctx = request.ai_prompts.model_dump_json(indent=2) if request.ai_prompts else "{}"
         existing_str = ", ".join(request.existing_titles or []) or "Немає"
 
-        system_prompt = (
-            "Ти — редактор бази знань (лору) текстової рольової гри.\n"
-            "Сплануй РІВНО 5 різнопланових стартових статей лору для нового світу (наприклад: 1. Світобудова/Географія, "
-            "2. Історія та ключовий конфлікт, 3. Фракції та сили, 4. Магія/Технології/Закони, 5. Мешканці/Загрози).\n"
-            "Кожен елемент повинен мати:\n"
-            "- 'filename': коротке ASCII ім'я файлу (тільки a-z0-9_ та .md), з префіксом 01_ .. 05_;\n"
-            "- 'title': яскравий заголовок українською;\n"
-            "- 'brief': 1–2 речення про те, що буде розкрито у статті.\n\n"
-            "Поверни ВИКЛЮЧНО валідний JSON:\n"
-            '{"topics": [{"filename": "01_svitobudova.md", "title": "...", "brief": "..."}]}'
-        )
+        system_prompt = self.prompt_service.render_prompt("world_wizard_lore_plan_system.txt")
 
         user_prompt = (
             f"ПАСПОРТ СВІТУ:\n{passport.model_dump_json(indent=2)}\n\n"
@@ -368,18 +307,16 @@ class WorldWizardService:
             f"УЖЕ НАЯВНІ ЗАГОЛОВКИ (не дублювати): {existing_str}"
         )
 
-        raw_json = await self.provider_service.execute_with_fallback(
-            provider_type="state",
-            messages=[
+        parsed = await call_llm_json(
+            self.provider_service,
+            [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
             ],
+            provider_type="state",
             temperature=0.5,
             max_tokens=1200,
-            response_format={"type": "json_object"},
         )
-
-        parsed = self._extract_json_dict(raw_json)
         raw_topics = parsed.get("topics") or []
         topics: List[WorldLoreTopicItem] = []
         used_filenames = set()
@@ -423,15 +360,7 @@ class WorldWizardService:
         prompts_ctx = request.ai_prompts.model_dump_json(indent=2) if request.ai_prompts else "{}"
         existing_str = ", ".join(request.existing_titles or []) or "Немає"
 
-        system_prompt = (
-            "Ти — письменник-енциклопедист і творець лору для текстової рольової гри.\n"
-            "Напиши змістовну, атмосферну та структуровану статтю лору в форматі Markdown українською мовою.\n"
-            "Правила:\n"
-            "1. Почни статтю із заголовка першого рівня: `# Назва статті`.\n"
-            "2. Розбий текст на 2–4 логічні підрозділи (`## ...`) із конкретними деталями, назвами, традиціями чи зачіпками для гри.\n"
-            "3. Обсяг: приблизно 250–450 слів — інформативно, без води.\n"
-            "4. Не супереч уже існуючим заголовкам і дотримуйся тону світу."
-        )
+        system_prompt = self.prompt_service.render_prompt("world_wizard_lore_article_system.txt")
 
         user_prompt = (
             f"СВІТ: {passport.title} ({passport.genre})\n"
@@ -452,15 +381,7 @@ class WorldWizardService:
             max_tokens=1600,
         )
 
-        content = (raw_md or "").strip()
-        if content.startswith("```markdown"):
-            content = content[11:].strip()
-        elif content.startswith("```md"):
-            content = content[5:].strip()
-        elif content.startswith("```"):
-            content = content[3:].strip()
-        if content.endswith("```"):
-            content = content[:-3].strip()
+        content = strip_markdown_fences(raw_md)
 
         title = self._extract_markdown_title(content, fallback=topic)
         if not content.startswith("#"):
@@ -474,13 +395,7 @@ class WorldWizardService:
         existing = (request.existing_content or "").strip()
         instruction = (request.instruction or "Розшир статтю новими деталями, назвами локацій та ігровими гачками.").strip()
 
-        system_prompt = (
-            "Ти — редактор лору текстової рольової гри.\n"
-            "Твоє завдання — розширити, поглибити або переробити існуючу статтю Markdown відповідно до інструкції автора.\n"
-            "Правила:\n"
-            "1. Зберігай узгодженість із паспортом і тоном світу.\n"
-            "2. Починай відповідь із `# Заголовок` і поверни ПОВНИЙ оновлений Markdown-текст статті без зайвих коментарів поза текстом."
-        )
+        system_prompt = self.prompt_service.render_prompt("world_wizard_lore_expand_system.txt")
 
         user_prompt = (
             f"СВІТ: {passport.title} ({passport.genre})\n"
@@ -498,15 +413,7 @@ class WorldWizardService:
             max_tokens=2000,
         )
 
-        content = (raw_md or "").strip()
-        if content.startswith("```markdown"):
-            content = content[11:].strip()
-        elif content.startswith("```md"):
-            content = content[5:].strip()
-        elif content.startswith("```"):
-            content = content[3:].strip()
-        if content.endswith("```"):
-            content = content[:-3].strip()
+        content = strip_markdown_fences(raw_md)
 
         fallback_title = request.topic or (os.path.splitext(request.filename)[0] if request.filename else "Оновлена стаття")
         title = self._extract_markdown_title(content, fallback=fallback_title)
@@ -549,31 +456,9 @@ class WorldWizardService:
         )
         lore_ctx = (request.lore_digest or "").strip()[:6000] or "Не надано"
 
-        system_prompt = (
-            "Ти — архітектор динамічних рольових анкет системи NOVA TRPG (Schema v2).\n"
-            "Створи JSON-об'єкт відповіді із ключами: 'character_template' (СТРОГО ПОРОЖНІЙ еталонний скелет), "
-            "'demo_state' (реалістично заповнений приклад персонажа цього світу для прев'ю) та 'summary_note' (1–2 речення).\n\n"
-            "ОБОВ'ЯЗКОВІ ВИМОГИ ДО 'character_template':\n"
-            "1. Обов'язковий блок 'meta': {'name': '', 'location': '...', 'overall_state': '...', 'appearance': '', 'biography': ''} "
-            "(ЗАБОРОНЕНО додавати 'background' — уся історія персонажа пишеться в 'meta.biography').\n"
-            "2. Додай 3–6 тематичних секцій саме під цей сеттинг (НЕ копіюй сліпо фентезі-ключі, якщо це інший жанр). "
-            "У `placement: 'drawer_column'` повинно бути 2–4 головні колонки.\n"
-            "3. Секцію здібностей/магії/вмінь створюй як `archetype: 'card_list'` (`[{'name': '...', 'desc': '...'}]`), а не сухий `tag_list`.\n"
-            "4. ЗАБОРОНЕНО:\n"
-            "   - додавати технічні ключі `id`, `uid`, `uuid` у картки, предмети чи елементи списків;\n"
-            "   - створювати дублюючі біографічні секції на кшталт `biography_notes` (уже є `meta.biography`);\n"
-            "   - використовувати англомовні технічні ключі у `stat_grid` / `header_badge` чи додаткових полях на кшталт `Style_Rank`, `Demonic_Corruption`, `quantity`, `weight` — усі видимі ключі пиши ОДРАЗУ українською (`Ранг стилю`, `Скверна`, `Кількість`, `Вага`, `Тип`, `Вартість`).\n"
-            "5. Обов'язковий блок '_schema_meta' {'version': 2, 'sections': {...}}, де кожна секція має:\n"
-            "   - 'title': коротка українська назва;\n"
-            f"   - 'icon': ВИКЛЮЧНО ключ іконки lucide-react зі списку: {CURATED_LUCIDE_ICONS} (Жодних емодзі!);\n"
-            "   - 'color': HEX-колір (#RRGGBB);\n"
-            "   - 'archetype': суворо один із 5: 'card_list' (масив об'єктів), 'container_map' (словник контейнерів із масивами), 'stat_grid' (словник скалярних ключ-значень, не масив!), 'long_text' (рядок), 'tag_list' (масив простих рядків List[str], не об'єктів!);\n"
-            "   - 'placement': суворо один із 3: 'drawer_column' | 'details' | 'header_badge';\n"
-            "   - 'order': число (1, 2, 3...).\n"
-            "6. У 'character_template' усі списки (`card_list`, `tag_list`, контейнери в `container_map`) та тексти (`long_text`, `meta.name`, `meta.appearance`, `meta.biography`) мають бути ПОРОЖНІМИ (`[]`, `\"\"`); стартові значення допустимі лише для `stat_grid` / `header_badge` і порожніх ключів контейнерів у `container_map`.\n"
-            "7. У 'demo_state' заповни ті ж самі ключі реалістичними прикладами (2–3 картки без `id`, 2–3 стати, 2–3 плоскі рядки-теги, предмети з українськими додатковими ключами за потреби, ім'я та біографія демо-героя).\n\n"
-            "Поверни ВИКЛЮЧНО валідний JSON формату:\n"
-            '{"character_template": {...}, "demo_state": {...}, "summary_note": "..."}'
+        system_prompt = self.prompt_service.render_prompt(
+            "world_wizard_template_system.txt",
+            curated_lucide_icons=CURATED_LUCIDE_ICONS,
         )
 
         user_prompt = (
@@ -584,22 +469,20 @@ class WorldWizardService:
             f"ПОБАЖАННЯ КОРИСТУВАЧА: {request.custom_instruction or 'Оптимальна збалансована анкета під сеттинг.'}"
         )
 
-        raw_json = await self.provider_service.execute_with_fallback(
-            provider_type="state",
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            temperature=0.3,
-            max_tokens=2400,
-            response_format={"type": "json_object"},
-        )
-
         passport_dict = passport.model_dump()
         passport_dict["world_id"] = temp_world_id
 
         try:
-            parsed = self._extract_json_dict(raw_json)
+            parsed = await call_llm_json(
+                self.provider_service,
+                [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                provider_type="state",
+                temperature=0.3,
+                max_tokens=2400,
+            )
             raw_tpl = parsed.get("character_template")
             if not isinstance(raw_tpl, dict) or not raw_tpl:
                 raw_tpl = request.current_template or self._pick_genre_fallback_template(passport.genre)

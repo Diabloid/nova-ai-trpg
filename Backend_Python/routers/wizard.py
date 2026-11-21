@@ -66,11 +66,11 @@ async def character_wizard_dialog(request: CharacterDialogRequest):
 @router.post(
     "/sync-draft",
     response_model=Dict[str, Any],
-    summary="Синхронізувати та перерахувати залежні поля після ручного редагування прев'ю (Live Sync, v2.0.0)"
+    summary="Синхронізувати та перерахувати залежні поля після ручного редагування прев'ю (Live Sync)"
 )
 async def character_wizard_sync_draft(request: CharacterSyncRequest):
     """
-    Приймає суворо типізований CharacterSyncRequest (v2.0.0)
+    Приймає суворо типізований CharacterSyncRequest
     та перераховує взаємозалежні атрибути без втрати ручних правок.
     """
     draft_dict = request.draft_state

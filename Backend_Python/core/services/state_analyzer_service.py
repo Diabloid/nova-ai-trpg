@@ -28,7 +28,10 @@ class StateAnalyzerService:
     ):
         self.provider_service = provider_service
         self.prompt_service = prompt_service
-        self.key_translator = key_translator or KeyTranslatorService(provider_service=provider_service)
+        self.key_translator = key_translator or KeyTranslatorService(
+            provider_service=provider_service,
+            prompt_service=prompt_service,
+        )
 
     async def analyze_state_changes(
         self,

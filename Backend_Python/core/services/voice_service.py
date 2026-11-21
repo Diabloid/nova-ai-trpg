@@ -15,7 +15,7 @@ if sys.stdout and hasattr(sys.stdout, "reconfigure"):
 
 class VoiceService:
     """
-    Сервіс голосового розпізнавання (Voice-to-Text, v1.5.2):
+    Сервіс голосового розпізнавання (Voice-to-Text):
     Підтримує каскадну транскрипцію:
     1. Надшвидкий Groq Whisper STT (whisper-large-v3-turbo, ~0.3–0.5 с), якщо задано GROQ_API_KEY.
     2. Оптимізована мультимодальна транскрипція через Odirouter (free-gemini-3.1-flash-lite).

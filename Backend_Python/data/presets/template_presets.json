@@ -1,0 +1,327 @@
+[
+  {
+    "id": "dark_fantasy",
+    "title": "Темне фентезі",
+    "genre": "Темне фентезі",
+    "description": "Класична 4-колонкова анкета: травми, спорядження, здібності та контейнери.",
+    "icon": "moon",
+    "template": {
+      "meta": {
+        "name": "",
+        "first_name": "",
+        "last_name": "",
+        "titles": "",
+        "age": "",
+        "location": "Трактир на роздоріжжі",
+        "appearance": "",
+        "biography": ""
+      },
+      "anatomy_and_health": {
+        "overall_state": "Повний сил",
+        "injuries": []
+      },
+      "storage_and_equipment": {
+        "worn": [],
+        "containers": {
+          "Кишені": [],
+          "Рюкзак": []
+        }
+      },
+      "abilities": [],
+      "custom_blocks": {},
+      "_schema_meta": {
+        "version": 2,
+        "sections": {
+          "anatomy_and_health.injuries": {
+            "title": "Травми та стани",
+            "icon": "heart-pulse",
+            "color": "#EF4444",
+            "archetype": "card_list",
+            "placement": "drawer_column",
+            "order": 1
+          },
+          "storage_and_equipment.worn": {
+            "title": "Одяг та спорядження",
+            "icon": "shield",
+            "color": "#3B82F6",
+            "archetype": "card_list",
+            "placement": "drawer_column",
+            "order": 2
+          },
+          "abilities": {
+            "title": "Здібності та магія",
+            "icon": "zap",
+            "color": "#A855F7",
+            "archetype": "card_list",
+            "placement": "drawer_column",
+            "order": 3
+          },
+          "storage_and_equipment.containers": {
+            "title": "Інвентар та контейнери",
+            "icon": "backpack",
+            "color": "#F59E0B",
+            "archetype": "container_map",
+            "placement": "drawer_column",
+            "order": 4
+          },
+          "meta.biography": {
+            "title": "Біографія",
+            "icon": "scroll-text",
+            "color": "#10B981",
+            "archetype": "long_text",
+            "placement": "details",
+            "order": 5
+          },
+          "custom_blocks": {
+            "title": "Додаткові блоки",
+            "icon": "scroll-text",
+            "color": "#64748B",
+            "archetype": "stat_grid",
+            "placement": "details",
+            "order": 6
+          }
+        }
+      }
+    }
+  },
+  {
+    "id": "cyberpunk_scifi",
+    "title": "Кіберпанк / Sci-Fi",
+    "genre": "Кіберпанк",
+    "description": "Імпланти (cyberware), вітальні ресурси й кредити, навички-теги, контейнери та репутація.",
+    "icon": "cpu",
+    "template": {
+      "meta": {
+        "name": "",
+        "alias": "",
+        "age": "",
+        "location": "Нижній рівень мегаполіса",
+        "overall_state": "Системи в нормі",
+        "appearance": "",
+        "biography": ""
+      },
+      "vitals_and_resources": {
+        "Здоров'я": "100/100",
+        "Нейростабільність": "100%",
+        "Кредити": 1000
+      },
+      "cyberware": [],
+      "skills": [],
+      "inventory_containers": {
+        "Кишені куртки": [],
+        "Слот чіпів": []
+      },
+      "reputation": {
+        "Корпорації": "Нейтральна",
+        "Вулиці": "Невідомий"
+      },
+      "_schema_meta": {
+        "version": 2,
+        "sections": {
+          "vitals_and_resources": {
+            "title": "Ресурси та біометрія",
+            "icon": "activity",
+            "color": "#06B6D4",
+            "archetype": "stat_grid",
+            "placement": "header_badge",
+            "order": 1
+          },
+          "cyberware": {
+            "title": "Кіберімпланти",
+            "icon": "cpu",
+            "color": "#38BDF8",
+            "archetype": "card_list",
+            "placement": "drawer_column",
+            "order": 2
+          },
+          "skills": {
+            "title": "Навички та протоколи",
+            "icon": "terminal",
+            "color": "#A855F7",
+            "archetype": "tag_list",
+            "placement": "drawer_column",
+            "order": 3
+          },
+          "inventory_containers": {
+            "title": "Спорядження та чіпи",
+            "icon": "backpack",
+            "color": "#F59E0B",
+            "archetype": "container_map",
+            "placement": "drawer_column",
+            "order": 4
+          },
+          "reputation": {
+            "title": "Репутація у фракціях",
+            "icon": "landmark",
+            "color": "#10B981",
+            "archetype": "stat_grid",
+            "placement": "details",
+            "order": 5
+          },
+          "meta.biography": {
+            "title": "Досьє",
+            "icon": "scroll-text",
+            "color": "#64748B",
+            "archetype": "long_text",
+            "placement": "details",
+            "order": 6
+          }
+        }
+      }
+    }
+  },
+  {
+    "id": "detective_noir",
+    "title": "Детектив / Містика 1920-х",
+    "genre": "Детектив",
+    "description": "Здоров'я та Розсудок у шапці, докази й риси, навички, портфель і контакти інформаторів.",
+    "icon": "search",
+    "template": {
+      "meta": {
+        "name": "",
+        "age": "",
+        "location": "Дощова вулиця біля порту",
+        "overall_state": "Тверезий і зосереджений",
+        "appearance": "",
+        "biography": ""
+      },
+      "vitals_and_resources": {
+        "Здоров'я": "100/100",
+        "Розсудок": "100%"
+      },
+      "clues_and_traits": [],
+      "skills": [],
+      "inventory": {
+        "Кишені пальта": [],
+        "Портфель": []
+      },
+      "contacts": [],
+      "_schema_meta": {
+        "version": 2,
+        "sections": {
+          "vitals_and_resources": {
+            "title": "Стан і розсудок",
+            "icon": "brain",
+            "color": "#8B5CF6",
+            "archetype": "stat_grid",
+            "placement": "header_badge",
+            "order": 1
+          },
+          "clues_and_traits": {
+            "title": "Зачіпки та риси",
+            "icon": "search",
+            "color": "#F59E0B",
+            "archetype": "card_list",
+            "placement": "drawer_column",
+            "order": 2
+          },
+          "skills": {
+            "title": "Вміння слідчого",
+            "icon": "sparkles",
+            "color": "#3B82F6",
+            "archetype": "tag_list",
+            "placement": "drawer_column",
+            "order": 3
+          },
+          "inventory": {
+            "title": "Речі та документи",
+            "icon": "briefcase",
+            "color": "#10B981",
+            "archetype": "container_map",
+            "placement": "drawer_column",
+            "order": 4
+          },
+          "contacts": {
+            "title": "Контакти й інформатори",
+            "icon": "users",
+            "color": "#EC4899",
+            "archetype": "card_list",
+            "placement": "details",
+            "order": 5
+          },
+          "meta.biography": {
+            "title": "Особиста справа",
+            "icon": "scroll-text",
+            "color": "#64748B",
+            "archetype": "long_text",
+            "placement": "details",
+            "order": 6
+          }
+        }
+      }
+    }
+  },
+  {
+    "id": "post_apocalypse",
+    "title": "Постапокаліпсис / Виживання",
+    "genre": "Постапокаліпсис",
+    "description": "HP, Радіація, Спрага в шапці, рани й мутації, розвантаження/рюкзак і перки виживання.",
+    "icon": "skull",
+    "template": {
+      "meta": {
+        "name": "",
+        "age": "",
+        "location": "Околиці зруйнованого шосе",
+        "overall_state": "Боєздатний",
+        "appearance": "",
+        "biography": ""
+      },
+      "vitals_and_resources": {
+        "HP": "100/100",
+        "Радіація": "0%",
+        "Спрага": "100%"
+      },
+      "wounds_and_mutations": [],
+      "gear_and_containers": {
+        "Розвантаження": [],
+        "Рюкзак": []
+      },
+      "perks": [],
+      "_schema_meta": {
+        "version": 2,
+        "sections": {
+          "vitals_and_resources": {
+            "title": "Виживання",
+            "icon": "flame",
+            "color": "#F97316",
+            "archetype": "stat_grid",
+            "placement": "header_badge",
+            "order": 1
+          },
+          "wounds_and_mutations": {
+            "title": "Рани та мутації",
+            "icon": "radiation",
+            "color": "#EF4444",
+            "archetype": "card_list",
+            "placement": "drawer_column",
+            "order": 2
+          },
+          "gear_and_containers": {
+            "title": "Спорядження та припаси",
+            "icon": "backpack",
+            "color": "#EAB308",
+            "archetype": "container_map",
+            "placement": "drawer_column",
+            "order": 3
+          },
+          "perks": {
+            "title": "Перки пустки",
+            "icon": "zap",
+            "color": "#22C55E",
+            "archetype": "tag_list",
+            "placement": "drawer_column",
+            "order": 4
+          },
+          "meta.biography": {
+            "title": "Хроніка виживання",
+            "icon": "scroll-text",
+            "color": "#64748B",
+            "archetype": "long_text",
+            "placement": "details",
+            "order": 5
+          }
+        }
+      }
+    }
+  }
+]

@@ -1,0 +1,53 @@
+{
+  "version": 2,
+  "sections": {
+    "anatomy_and_health.injuries": {
+      "title": "Травми та стани",
+      "icon": "heart-pulse",
+      "color": "#EF4444",
+      "archetype": "card_list",
+      "placement": "drawer_column",
+      "order": 1
+    },
+    "storage_and_equipment.worn": {
+      "title": "Одяг та спорядження",
+      "icon": "shield",
+      "color": "#3B82F6",
+      "archetype": "card_list",
+      "placement": "drawer_column",
+      "order": 2
+    },
+    "abilities": {
+      "title": "Здібності та магія",
+      "icon": "zap",
+      "color": "#A855F7",
+      "archetype": "card_list",
+      "placement": "drawer_column",
+      "order": 3
+    },
+    "storage_and_equipment.containers": {
+      "title": "Інвентар та контейнери",
+      "icon": "backpack",
+      "color": "#F59E0B",
+      "archetype": "container_map",
+      "placement": "drawer_column",
+      "order": 4
+    },
+    "meta.biography": {
+      "title": "Біографія",
+      "icon": "scroll-text",
+      "color": "#10B981",
+      "archetype": "long_text",
+      "placement": "details",
+      "order": 5
+    },
+    "custom_blocks": {
+      "title": "Додаткові блоки",
+      "icon": "scroll-text",
+      "color": "#64748B",
+      "archetype": "stat_grid",
+      "placement": "details",
+      "order": 6
+    }
+  }
+}

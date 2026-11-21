@@ -36,7 +36,7 @@ ARCHETYPE_DEFAULTS: Dict[str, Any] = {
 
 class GameState:
     """
-    Керує станом персонажа, персистентністю та schema-aware застосуванням змін (v2.0.0).
+    Керує станом персонажа, персистентністю та schema-aware застосуванням змін.
     Підтримує як класичні фентезі-секції (anatomy_and_health, storage_and_equipment),
     так і довільні динамічні шаблони світів (field_updates, section_changes).
     """
@@ -135,7 +135,7 @@ class GameState:
 
     def replace_state(self, new_state: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Повністю замінює живий стан кампанії (Режим B — «Редагувати лист», v2.0.0):
+        Повністю замінює живий стан кампанії (Режим B — «Редагувати лист»):
         1. Створює резерв у savegame.manual_prev.json (не чіпаючи стек відкату ходів turn_snapshots.json);
         2. Очищає верхньорівневі None-ключі та гарантує meta як словник;
         3. Страхує meta.world_id і created_at, оновлює updated_at;
@@ -164,7 +164,7 @@ class GameState:
         return self.get_current_state()
 
     # ------------------------------------------------------------------
-    # Schema-aware хелпери для довільних шаблонів v2.0.0
+    # Schema-aware хелпери для довільних шаблонів
     # ------------------------------------------------------------------
 
     def _get_sections_meta(self) -> Dict[str, Any]:

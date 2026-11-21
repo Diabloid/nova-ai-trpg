@@ -379,7 +379,7 @@ class CampaignManager:
 
     def update_campaign_state(self, campaign_id: str, new_state: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Ручне оновлення живого стану сейву кампанії (Режим B, v2.0.0):
+        Ручне оновлення живого стану сейву кампанії (Режим B):
         - Перевіряє існування кампанії (404, якщо не існує);
         - Синхронно оновлює кеш _state_cache та savegame.json через replace_state (зі snapshot);
         - Синхронізує current_location і last_played у metadata.json.

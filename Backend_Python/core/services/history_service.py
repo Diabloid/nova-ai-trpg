@@ -59,9 +59,7 @@ class HistoryService:
         self.recent_messages = [{"role": "assistant", "content": intro_text}]
         self.save()
 
-    # ==========================================
     # Транзакційний механізм (Stage / Commit / Rollback)
-    # ==========================================
 
     def stage_turn(self, user_content: str, assistant_content: str):
         """Тимчасово фіксує хід у буфері оперативної пам'яті."""
