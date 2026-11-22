@@ -166,7 +166,7 @@ class HistoryService:
 
             try:
                 new_summary = await llm_provider.execute_with_fallback(
-                    "story",
+                    "fast",
                     messages,
                     temperature=0.3,
                     max_tokens=600

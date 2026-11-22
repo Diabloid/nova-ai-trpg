@@ -249,7 +249,7 @@ class KeyTranslatorService:
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt},
                 ],
-                provider_type="state",
+                provider_type="fast",
                 temperature=0.0,
                 max_tokens=500,
             )

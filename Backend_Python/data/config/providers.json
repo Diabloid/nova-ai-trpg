@@ -11,9 +11,58 @@
         "free-qwen3.5-flash",
         "free-claude-haiku-4.5"
       ]
+    },
+    {
+      "name": "Google AI Studio",
+      "url": "https://generativelanguage.googleapis.com/v1beta/openai/",
+      "env_key": "GEMINI_API_KEY",
+      "models": [
+        "models/gemini-3.8-flash",
+        "models/gemini-4-hydrogen",
+        "models/gemma-4-31b-it"
+      ]
+    },
+    {
+      "name": "OpenRouter",
+      "url": "https://openrouter.ai/api/v1",
+      "env_key": "OPENROUTER_API_KEY",
+      "models": [
+        "openrouter/free",
+        "nvidia/nemotron-3.5-lightning:free",
+        "google/gemma-4-31b-it:free",
+        "nvidia/nemotron-3-ultra-550b-a55b:free"
+      ]
+    },
+    {
+      "name": "Groq",
+      "url": "https://api.groq.com/openai/v1",
+      "env_key": "GROQ_API_KEY",
+      "models": [
+        "openai/gpt-oss-120b",
+        "qwen/qwen3.8-27b"
+      ]
+    },
+    {
+      "name": "Experiential Labs (Emergency)",
+      "url": "https://api.experientiallabs.ai/v1",
+      "env_key": "EXPERIENTIAL_API_KEY",
+      "models": [
+        "gpt-6-luna",
+        "deepseek-v4-flash"
+      ]
     }
   ],
   "state": [
+    {
+      "name": "Google AI Studio",
+      "url": "https://generativelanguage.googleapis.com/v1beta/openai/",
+      "env_key": "GEMINI_API_KEY",
+      "models": [
+        "models/gemini-3.1-flash-lite-preview",
+        "models/gemini-3.8-flash",
+        "models/gemini-4-hydrogen"
+      ]
+    },
     {
       "name": "Odirouter",
       "url": "https://api.odirouter.ai/v1",
@@ -23,6 +72,81 @@
         "free-gemini-3-flash-preview",
         "free-qwen3.5-flash",
         "free-qwen3.5-plus"
+      ]
+    },
+    {
+      "name": "OpenRouter",
+      "url": "https://openrouter.ai/api/v1",
+      "env_key": "OPENROUTER_API_KEY",
+      "models": [
+        "nvidia/nemotron-3.5-lightning:free",
+        "openrouter/free"
+      ]
+    },
+    {
+      "name": "Groq",
+      "url": "https://api.groq.com/openai/v1",
+      "env_key": "GROQ_API_KEY",
+      "models": [
+        "qwen/qwen3.8-27b",
+        "openai/gpt-oss-20b"
+      ]
+    },
+    {
+      "name": "Experiential Labs (Emergency)",
+      "url": "https://api.experientiallabs.ai/v1",
+      "env_key": "EXPERIENTIAL_API_KEY",
+      "models": [
+        "deepseek-v4-flash",
+        "gpt-6-luna"
+      ]
+    }
+  ],
+  "fast": [
+    {
+      "name": "Groq",
+      "url": "https://api.groq.com/openai/v1",
+      "env_key": "GROQ_API_KEY",
+      "models": [
+        "qwen/qwen3.8-27b",
+        "openai/gpt-oss-20b"
+      ]
+    },
+    {
+      "name": "Google AI Studio",
+      "url": "https://generativelanguage.googleapis.com/v1beta/openai/",
+      "env_key": "GEMINI_API_KEY",
+      "models": [
+        "models/gemini-3.1-flash-lite-preview",
+        "models/gemma-4-31b-it"
+      ]
+    },
+    {
+      "name": "OpenRouter",
+      "url": "https://openrouter.ai/api/v1",
+      "env_key": "OPENROUTER_API_KEY",
+      "models": [
+        "nvidia/nemotron-3.5-lightning:free",
+        "openrouter/free"
+      ]
+    },
+    {
+      "name": "Odirouter",
+      "url": "https://api.odirouter.ai/v1",
+      "env_key": "ODIROUTER_API_KEY",
+      "models": [
+        "free-gemini-3.1-flash-lite",
+        "free-qwen3.5-flash",
+        "free-gemini-3-flash-preview"
+      ]
+    },
+    {
+      "name": "Experiential Labs (Emergency)",
+      "url": "https://api.experientiallabs.ai/v1",
+      "env_key": "EXPERIENTIAL_API_KEY",
+      "models": [
+        "gemma-3-4b-it",
+        "gpt-6-luna"
       ]
     }
   ]

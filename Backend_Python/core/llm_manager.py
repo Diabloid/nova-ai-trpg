@@ -53,7 +53,7 @@ class LLMController:
                 self.config = json.load(f)
         except FileNotFoundError:
             print(f"❌ КРИТИЧНА ПОМИЛКА: Файл {config_path} не знайдено!")
-            self.config = {"story": [], "state": []}
+            self.config = {"story": [], "state": [], "fast": []}
 
         # 1. Менеджери сутностей та світів (Персонажі, Світи, Кампанії)
         self.character_manager = CharacterManager(os.path.join(self.base_dir, "data", "characters"))
