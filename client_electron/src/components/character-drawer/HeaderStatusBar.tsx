@@ -39,13 +39,20 @@ export const HeaderStatusBar: React.FC = () => {
   const worldColor = activeWorld?.accent_color || '#7E0018';
   const isBarDisabled = backendOffline || isWorldEmpty;
 
+  const handleToggleDrawer = (e: React.MouseEvent<HTMLButtonElement>) => {
+    if (e.detail > 0) {
+      e.currentTarget.blur();
+    }
+    toggleCharacterDrawer();
+  };
+
   return (
     <div className="w-full select-none">
       {/* Клікабельна плашка персонажа (відкриває/закриває детальну шторку) */}
       <button
         type="button"
         disabled={isBarDisabled}
-        onClick={toggleCharacterDrawer}
+        onClick={handleToggleDrawer}
         data-tooltip={
           backendOffline
             ? 'Очікування підключення до сервера гри'

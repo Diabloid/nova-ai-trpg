@@ -39,6 +39,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const { isSidebarOpen, toggleSidebar, backendOffline } = useGameStore();
 
+  const handleToggleSidebar = (e: React.MouseEvent<HTMLButtonElement>) => {
+    if (e.detail > 0) {
+      e.currentTarget.blur();
+    }
+    toggleSidebar();
+  };
+
   return (
     <aside className="relative flex h-full z-40 select-none shrink-0">
       {/* Основна панель меню (290px) */}
@@ -128,7 +135,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Фірмова крайова кнопка-вкладка меню (Edge Docked Tab) */}
       <button
         type="button"
-        onClick={toggleSidebar}
+        onClick={handleToggleSidebar}
         data-tooltip={isSidebarOpen ? 'Згорнути бічне меню' : 'Розгорнути бічне меню'}
         className="absolute top-[17px] -right-7 z-50 group flex items-center justify-center cursor-pointer outline-none"
         style={{ width: '28px', height: '56px' }}

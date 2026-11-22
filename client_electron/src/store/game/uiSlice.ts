@@ -5,6 +5,10 @@ import type { GameState, UiSlice } from './types';
 let alertTimer: ReturnType<typeof setTimeout> | null = null;
 let alertHideTimer: ReturnType<typeof setTimeout> | null = null;
 
+const TOGGLE_COOLDOWN_MS = 200;
+let lastDrawerToggleAt = 0;
+let lastSidebarToggleAt = 0;
+
 function loadInitialExpandedContainers(): Record<string, boolean> {
   try {
     if (typeof localStorage !== 'undefined') {
@@ -82,9 +86,22 @@ export const createUiSlice: StateCreator<GameState, [], [], UiSlice> = (set) => 
   setBackendOffline: (offline: boolean) => set({ backendOffline: offline }),
 
   // --- UI TOGGLES ---
-  toggleCharacterDrawer: () =>
-    set((state) => ({ isCharacterDrawerOpen: !state.isCharacterDrawerOpen })),
-  toggleSidebar: () => set((state) => ({ isSidebarOpen: !state.isSidebarOpen })),
+  toggleCharacterDrawer: () => {
+    const now = Date.now();
+    if (now - lastDrawerToggleAt < TOGGLE_COOLDOWN_MS) {
+      return;
+    }
+    lastDrawerToggleAt = now;
+    set((state) => ({ isCharacterDrawerOpen: !state.isCharacterDrawerOpen }));
+  },
+  toggleSidebar: () => {
+    const now = Date.now();
+    if (now - lastSidebarToggleAt < TOGGLE_COOLDOWN_MS) {
+      return;
+    }
+    lastSidebarToggleAt = now;
+    set((state) => ({ isSidebarOpen: !state.isSidebarOpen }));
+  },
   toggleHeroSelector: () => set((state) => ({ isHeroSelectorOpen: !state.isHeroSelectorOpen })),
   setActiveDrawerTab: (tab: DrawerTab) => set({ activeDrawerTab: tab }),
 

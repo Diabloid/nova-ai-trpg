@@ -33,7 +33,7 @@ export const SyntaxHelpTooltip: React.FC = () => {
           <span className="text-[#D1D5DB]">— позаігрове звернення до ШІ</span>
         </div>
         <div className="pt-1 text-[10px] text-[#6B7280] italic">
-          * За замовчуванням текст та голос сприймаються як дія.
+          * Синтаксис опціональний: пишіть природним текстом або голосом — ШІ сам усе зрозуміє.
         </div>
       </div>
     </div>
