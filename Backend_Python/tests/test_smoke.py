@@ -56,8 +56,9 @@ class BackendSmokeTests(unittest.TestCase):
         r_openapi = self.client.get("/openapi.json")
         self.assertEqual(r_openapi.status_code, 200)
         spec = r_openapi.json()
-        self.assertEqual(len(spec.get("paths", {})), 28)
-        self.assertGreaterEqual(len(spec.get("components", {}).get("schemas", {})), 48)
+        self.assertEqual(len(spec.get("paths", {})), 29)
+        self.assertIn("/api/v1/campaigns/{campaign_id}/messages/last-narrator", spec.get("paths", {}))
+        self.assertGreaterEqual(len(spec.get("components", {}).get("schemas", {})), 50)
 
     def test_worlds_characters_and_presets(self) -> None:
         r_worlds = self.client.get("/api/v1/worlds")

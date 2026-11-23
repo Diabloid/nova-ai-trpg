@@ -143,6 +143,15 @@ class HistoryService:
 
         return last_user_text
 
+    def replace_last_assistant_text(self, new_text: str) -> bool:
+        """Оновлює вміст останньої репліки assistant у робочому буфері history.json."""
+        for msg in reversed(self.recent_messages):
+            if msg.get("role") == "assistant":
+                msg["content"] = new_text
+                self.save()
+                return True
+        return False
+
     async def _compress_history_if_needed(self, llm_provider, prompt_service):
         """Архіватор історії: стискає перші 6 робочих повідомлень при перевищенні 20."""
         MAX_MESSAGES = 20

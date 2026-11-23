@@ -49,6 +49,26 @@ class RollbackResponse(FlexibleDTO):
     rollback_depth: Optional[int] = Field(default=None, description="Скільки кроків відкату залишилось")
 
 
+class EditLastNarratorRequest(FlexibleDTO):
+    """Запит на редагування тексту останньої відповіді Оповідача."""
+
+    new_text: str = Field(..., description="Оновлений текст останнього повідомлення Оповідача")
+    recalculate_state: bool = Field(
+        default=True,
+        description="Чи перераховувати стан персонажа через StateAnalyzerService на базі pre-turn знімка",
+    )
+
+
+class EditLastNarratorResponse(FlexibleDTO):
+    """Відповідь після редагування останньої відповіді Оповідача."""
+
+    story: str = Field(..., description="Збережений оновлений текст Оповідача")
+    player_state: Union[Dict[str, Any], PlayerState] = Field(..., description="Актуальний стан персонажа")
+    state_recalculated: bool = Field(..., description="Чи виконувався перерахунок стану через Аналізатор")
+    can_rollback: Optional[bool] = Field(default=None, description="Чи доступний відкат поточного ходу")
+    rollback_depth: Optional[int] = Field(default=None, description="Поточна глибина доступного відкату")
+
+
 class VoiceTranscriptionResponse(FlexibleDTO):
     """Відповідь на розпізнавання голосу."""
 

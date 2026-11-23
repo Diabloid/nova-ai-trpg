@@ -4,6 +4,8 @@ from schemas.game_dto import (
     CampaignSummary,
     CampaignCreateRequest,
     CampaignPinRequest,
+    EditLastNarratorRequest,
+    EditLastNarratorResponse,
     HistoryMessage,
     RollbackResponse,
     PlayerState
@@ -86,6 +88,33 @@ async def rollback_campaign_turn(campaign_id: str = Path(..., description="ID к
         message="Хід успішно відкочено на 1 крок назад",
         can_rollback=remaining_depth > 0,
         rollback_depth=remaining_depth
+    )
+
+
+@router.patch(
+    "/campaigns/{campaign_id}/messages/last-narrator",
+    response_model=EditLastNarratorResponse,
+    response_model_exclude_none=True,
+    summary="Редагувати текст останньої відповіді Оповідача (з опціональним перерахунком стану)"
+)
+async def edit_last_narrator_message(
+    campaign_id: str = Path(..., description="ID кампанії"),
+    request: EditLastNarratorRequest = ...,
+):
+    async def analyze_edited_state(intents, story_text: str, player_state: str, world_id: str):
+        return await llm_controller.generate_state_json(
+            intents=intents,
+            story_text=story_text,
+            player_state=player_state,
+            session_id=campaign_id,
+            world_id=world_id,
+        )
+
+    return await llm_controller.campaign_manager.edit_last_narrator_message(
+        campaign_id=campaign_id,
+        new_text=request.new_text,
+        recalculate_state=request.recalculate_state,
+        state_analyzer=analyze_edited_state,
     )
 
 

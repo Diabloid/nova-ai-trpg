@@ -4,7 +4,7 @@ import sys
 import json
 import shutil
 from datetime import datetime, timezone
-from typing import List, Optional, Dict, Any, Tuple
+from typing import Any, Awaitable, Callable, Dict, List, Optional, Tuple
 from fastapi import HTTPException, status
 
 # Безпечне кодування консолі для Windows
@@ -14,7 +14,14 @@ if sys.stdout and hasattr(sys.stdout, "reconfigure"):
     except Exception:
         pass
 
-from schemas.game_dto import CampaignSummary, HistoryMessage, PlayerState
+from schemas.game_dto import (
+    CampaignSummary,
+    EditLastNarratorResponse,
+    HistoryMessage,
+    IntentItem,
+    PlayerState,
+)
+from schemas.state_delta import StateDelta
 from core.managers.character_manager import CharacterManager
 from core.managers.state_manager import GameState
 from core.managers.world_manager import DEFAULT_WORLD_ID, WorldManager
@@ -574,3 +581,179 @@ class CampaignManager:
         self.touch_campaign_played(clean_id, new_loc)
 
         return prev_user_input, state.get_current_state(), remaining_depth
+
+    def _resolve_pre_turn_snapshot(
+        self,
+        c_dir: str,
+    ) -> Tuple[Dict[str, Any], Optional[Dict[str, Any]]]:
+        """Читає верхній pre-turn знімок без видалення зі стеку turn_snapshots.json (або legacy savegame.prev.json)."""
+        snapshots = self._load_turn_snapshots(c_dir)
+        if snapshots:
+            top_snapshot = snapshots[-1]
+            raw_state = top_snapshot.get("state")
+            if not isinstance(raw_state, dict):
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Пошкоджений pre-turn знімок стану для перерахунку.",
+                )
+            raw_hist = top_snapshot.get("history")
+            return (
+                copy.deepcopy(raw_state),
+                copy.deepcopy(raw_hist) if isinstance(raw_hist, dict) else None,
+            )
+
+        if snapshots is None:
+            prev_path = os.path.join(c_dir, "savegame.prev.json")
+            if os.path.isfile(prev_path):
+                try:
+                    with open(prev_path, "r", encoding="utf-8") as f:
+                        legacy_state = json.load(f)
+                    if isinstance(legacy_state, dict):
+                        return legacy_state, None
+                except Exception:
+                    pass
+
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "Відсутній pre-turn знімок для перерахунку стану. "
+                "Вимкніть перерахунок стану або скористайтеся ручним редагуванням листа."
+            ),
+        )
+
+    @staticmethod
+    def _validate_analyzer_json(state_json_str: Any) -> None:
+        """Перевіряє відповідь Аналізатора до будь-якого запису на диск."""
+        if not isinstance(state_json_str, str) or not state_json_str.strip() or '{"error"' in state_json_str:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="ШІ-Аналізатор повернув помилку під час перерахунку стану.",
+            )
+        try:
+            parsed = json.loads(state_json_str)
+            if not isinstance(parsed, dict) or "error" in parsed:
+                raise ValueError("Analyzer returned error payload")
+            StateDelta.model_validate_json(state_json_str)
+        except Exception as exc:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=f"Некоректний JSON від ШІ-Аналізатора: {exc}",
+            ) from exc
+
+    async def edit_last_narrator_message(
+        self,
+        campaign_id: str,
+        new_text: str,
+        recalculate_state: bool = True,
+        state_analyzer: Optional[Callable[..., Awaitable[str]]] = None,
+    ) -> EditLastNarratorResponse:
+        """
+        Редагує текст останнього повідомлення Оповідача:
+        - для вступного посту (хід №0) або recalculate_state=False оновлює лише chat_log.json та history.json;
+        - для звичайного ходу з recalculate_state=True читає turn_snapshots[-1] без pop(),
+          викликає StateAnalyzerService до мутації і транзакційно перераховує savegame/history/chat_log.
+        """
+        cleaned_text = (new_text or "").strip()
+        if not cleaned_text:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Текст повідомлення не може бути порожнім.",
+            )
+
+        clean_id = self._sanitize_id(campaign_id)
+        c_dir = self.get_campaign_dir(clean_id)
+        has_meta = os.path.isfile(os.path.join(c_dir, "metadata.json"))
+        has_save = os.path.isfile(os.path.join(c_dir, "savegame.json"))
+        if not (os.path.isdir(c_dir) and (has_meta or has_save)):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Кампанію '{campaign_id}' не знайдено.",
+            )
+
+        state, hist, chat_log = self.get_campaign_session(clean_id)
+        is_narrator, last_player_text = chat_log.get_last_player_and_narrator_check()
+        if not is_narrator:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Можна редагувати лише останнє повідомлення з роллю 'narrator'.",
+            )
+
+        is_intro_turn = chat_log.count_player_turns() <= 0
+        if is_intro_turn or not recalculate_state:
+            chat_log.replace_last_narrator_text(cleaned_text)
+            hist.replace_last_assistant_text(cleaned_text)
+            self.touch_campaign_played(clean_id)
+            depth = self.get_rollback_depth(clean_id, chat_log_service=chat_log)
+            return EditLastNarratorResponse(
+                story=cleaned_text,
+                player_state=state.get_current_state(),
+                state_recalculated=False,
+                can_rollback=depth > 0,
+                rollback_depth=depth,
+            )
+
+        base_state_dict, base_history_snap = self._resolve_pre_turn_snapshot(c_dir)
+        if state_analyzer is None:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Сервіс Аналізатора стану недоступний.",
+            )
+
+        intents = [IntentItem(type="action", content=last_player_text)] if last_player_text.strip() else []
+        world_id = self.get_campaign_world_id(clean_id)
+        base_state_json = json.dumps(base_state_dict, ensure_ascii=False)
+
+        try:
+            state_json_str = await state_analyzer(
+                intents=intents,
+                story_text=cleaned_text,
+                player_state=base_state_json,
+                world_id=world_id,
+            )
+        except HTTPException:
+            raise
+        except Exception as exc:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"Збій ШІ-Аналізатора при перерахунку стану: {exc}",
+            ) from exc
+
+        self._validate_analyzer_json(state_json_str)
+
+        prev_state_backup = state.capture_snapshot_dict()
+        prev_hist_backup = hist.capture_snapshot()
+        try:
+            state.data = copy.deepcopy(base_state_dict)
+            new_state = state.update_from_llm(state_json_str)
+
+            if base_history_snap is not None:
+                hist.summary = str(base_history_snap.get("summary") or "")
+                recent = base_history_snap.get("recent_messages")
+                hist.recent_messages = copy.deepcopy(recent) if isinstance(recent, list) else []
+                if last_player_text:
+                    hist.recent_messages.append({"role": "user", "content": last_player_text})
+                hist.recent_messages.append({"role": "assistant", "content": cleaned_text})
+                hist._staged_turn = None
+                hist.save()
+            else:
+                hist.replace_last_assistant_text(cleaned_text)
+
+            chat_log.replace_last_narrator_text(cleaned_text)
+            new_loc = (new_state.get("meta") or {}).get("location")
+            self.touch_campaign_played(clean_id, new_loc)
+        except Exception as exc:
+            state.restore_state_dict(prev_state_backup)
+            hist.restore_snapshot(prev_hist_backup)
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=f"Помилка транзакційного оновлення після перерахунку: {exc}",
+            ) from exc
+
+        depth = self.get_rollback_depth(clean_id, chat_log_service=chat_log)
+        return EditLastNarratorResponse(
+            story=cleaned_text,
+            player_state=new_state,
+            state_recalculated=True,
+            can_rollback=depth > 0,
+            rollback_depth=depth,
+        )

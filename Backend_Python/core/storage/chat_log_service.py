@@ -2,7 +2,7 @@ import os
 import sys
 import json
 from datetime import datetime, timezone
-from typing import List, Dict, Optional, Any
+from typing import Any, Dict, List, Optional, Tuple
 
 # Безпечне кодування консолі для Windows
 if sys.stdout and hasattr(sys.stdout, "reconfigure"):
@@ -134,6 +134,36 @@ class ChatLogService:
     def count_player_turns(self) -> int:
         """Рахує кількість завершених кроків гравця після вступного посту."""
         return sum(1 for m in self.messages if m.get("role") == "player")
+
+    def get_last_player_and_narrator_check(self) -> Tuple[bool, str]:
+        """
+        Перевіряє без зміни диска, що останнє повідомлення має роль 'narrator',
+        та повертає (is_last_narrator, previous_player_text).
+        """
+        if not self.messages or self.messages[-1].get("role") != "narrator":
+            return False, ""
+
+        for msg in reversed(self.messages[:-1]):
+            role = msg.get("role")
+            if role == "player":
+                return True, msg.get("text") or msg.get("content", "") or ""
+            if role == "narrator":
+                break
+        return True, ""
+
+    def replace_last_narrator_text(self, new_text: str) -> Optional[str]:
+        """
+        Оновлює текст останнього повідомлення Оповідача в chat_log.json.
+        Повертає текст попереднього повідомлення гравця (або '' для вступного посту),
+        або None, якщо останнє повідомлення не має ролі 'narrator'.
+        """
+        is_narrator, prev_player_text = self.get_last_player_and_narrator_check()
+        if not is_narrator:
+            return None
+
+        self.messages[-1]["text"] = new_text
+        self.save()
+        return prev_player_text
 
     def rollback_last_turn(self) -> Optional[str]:
         """
