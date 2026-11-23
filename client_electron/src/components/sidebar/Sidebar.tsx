@@ -142,7 +142,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       >
         {/* Фонова плашка, що плавно розширюється на hover */}
         <div
-          className="absolute left-0 w-7 h-[46px] rounded-r-lg border-y border-r border-[#2A2A2A] bg-[#181818] transition-all duration-150 ease-out group-hover:h-[54px] group-hover:bg-[#202020] group-hover:border-[#383838]"
+          className="absolute left-0 w-7 h-[46px] rounded-r-lg border-y border-r border-[#2C2C2C] bg-gradient-to-r from-[#161616] to-[#1B1B1B] shadow-[2px_0_10px_rgba(0,0,0,0.45)] transition-all duration-150 ease-out group-hover:h-[54px] group-hover:from-[#1D1D1D] group-hover:to-[#242424] group-hover:border-[#5A1220]"
         />
         {/* Шеврон, що обертається на 180° */}
         <ChevronRight

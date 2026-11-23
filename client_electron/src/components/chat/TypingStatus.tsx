@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Sparkles } from 'lucide-react';
 import { useGameStore } from '../../store/useGameStore';
 
 interface TypingStatusProps {
@@ -31,12 +32,15 @@ export const TypingStatus: React.FC<TypingStatusProps> = ({ hasText = false }) =
 
   return (
     <div
-      className={`italic text-[#9CA3AF] animate-pulse select-none ${
-        hasText ? 'mt-2 text-xs' : 'text-[14px] leading-[24px]'
+      className={`flex items-center gap-2 italic text-[#9CA3AF] select-none ${
+        hasText ? 'mt-3 pt-2.5 border-t border-[#222222]/80 text-xs' : 'text-[14px] leading-[24px]'
       }`}
     >
-      <span>{displayStatus}</span>
-      <span className="inline-block w-4 text-left">{dots}</span>
+      <Sparkles size={13} className="text-[#EAB308] animate-pulse shrink-0" />
+      <span className="animate-pulse">
+        {displayStatus}
+        <span className="inline-block w-4 text-left not-italic">{dots}</span>
+      </span>
     </div>
   );
 };

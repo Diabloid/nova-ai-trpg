@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { WifiOff, Heart, ChevronDown, Sparkles } from 'lucide-react';
+import { WifiOff, Heart, ChevronDown, Sparkles, MapPin } from 'lucide-react';
 import { useGameStore } from '../../store/useGameStore';
 import { extractHeaderAnchors } from '../../utils/dynamicSheet';
 import { hexToRgba } from '../../utils/lucideIconMap';
@@ -62,10 +62,10 @@ export const HeaderStatusBar: React.FC = () => {
                 ? 'Згорнути детальну шторку'
                 : 'Розгорнути детальну шторку листа персонажа'
         }
-        className={`w-full bg-[#1A1A1A] border border-[#2A2A2A] rounded-[10px] px-5 py-2.5 transition-all duration-180 flex items-center justify-between gap-3 shadow-md group ${
+        className={`w-full bg-gradient-to-b from-[#1A1A1A] to-[#151515] border border-[#2A2A2A] rounded-xl px-4 py-2.5 transition-all duration-180 flex items-center justify-between gap-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_8px_24px_-8px_rgba(0,0,0,0.65)] group ${
           isBarDisabled
             ? 'opacity-90 disabled:cursor-default'
-            : 'enabled:hover:bg-[#1E1E1E] enabled:active:bg-[#161616] enabled:hover:border-[#4A1218] enabled:active:border-[#5A0010] enabled:active:translate-y-[2px] enabled:active:scale-[0.985] enabled:cursor-pointer'
+            : 'enabled:hover:from-[#1D1D1D] enabled:hover:to-[#171717] enabled:active:from-[#161616] enabled:active:to-[#131313] enabled:hover:border-[#5A1220] enabled:active:border-[#7E0018] enabled:active:translate-y-[1px] enabled:active:scale-[0.992] enabled:cursor-pointer'
         }`}
       >
         {backendOffline ? (
@@ -121,20 +121,20 @@ export const HeaderStatusBar: React.FC = () => {
               <HeroAvatar
                 avatar={avatar}
                 name={heroName}
-                iconSize={15}
+                iconSize={17}
                 iconClassName="text-[#9CA3AF] group-hover:text-white transition-colors"
-                containerClassName="w-7 h-7 rounded-lg bg-[#222222] border border-[#2E2E2E] transition-colors"
+                containerClassName="w-9 h-9 rounded-lg bg-[#1E1E1E] border border-[#323232] group-enabled:group-hover:border-[#5A1220] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] transition-colors"
               />
 
               <div className="flex flex-col text-left min-w-0">
                 <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-[15px] font-bold text-[#F3F4F6] truncate leading-tight group-hover:text-white transition-colors">
+                  <span className="text-[15px] font-bold text-[#F3F4F6] tracking-tight truncate leading-tight group-hover:text-white transition-colors">
                     {heroName}
                   </span>
                   {activeCampaign?.title && (
                     <span
                       data-tooltip={`Активна кампанія: ${activeCampaign.title}`}
-                      className={`px-2 py-0.5 rounded-md bg-[#222222] border border-[#2F2F2F] text-[10px] font-medium text-[#D1D5DB] truncate max-w-[160px] shrink-0 transition-opacity ${
+                      className={`px-2 py-0.5 rounded-md bg-[#202020] border border-[#303030] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] text-[10.5px] font-medium text-[#D1D5DB] truncate max-w-[170px] shrink-0 transition-opacity ${
                         isSidebarOpen ? 'hidden md:inline-block opacity-75' : 'inline-block opacity-100'
                       }`}
                     >
@@ -142,9 +142,12 @@ export const HeaderStatusBar: React.FC = () => {
                     </span>
                   )}
                 </div>
-                <span className="text-[12px] text-[#9CA3AF] truncate leading-tight mt-0.5">
-                  {location}
-                </span>
+                <div className="flex items-center gap-1.5 min-w-0 mt-0.5">
+                  <MapPin size={11} className="text-[#6B7280] shrink-0" />
+                  <span className="text-[12px] text-[#9CA3AF] truncate leading-tight">
+                    {location}
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -180,19 +183,19 @@ export const HeaderStatusBar: React.FC = () => {
               {state && overallState && (
                 <div
                   data-tooltip={overallState}
-                  className="flex items-center gap-2 px-3 py-1 rounded-full bg-[#2A1414]/60 border border-[#4A1818]/80 max-w-[180px] sm:max-w-[240px] min-w-0 shrink-0"
+                  className="flex items-center gap-2 px-3 py-1 rounded-full bg-gradient-to-b from-[#2E1418]/85 to-[#200E11]/85 border border-[#5C1A24]/80 shadow-[inset_0_1px_0_rgba(252,165,165,0.08)] max-w-[180px] sm:max-w-[240px] min-w-0 shrink-0"
                 >
                   <Heart size={13} className="text-[#EF4444] fill-[#EF4444]/40 shrink-0" />
-                  <span className="text-[13px] font-semibold text-[#FCA5A5] leading-none truncate">
+                  <span className="text-[12.5px] font-semibold text-[#FCA5A5] leading-none truncate">
                     {overallState}
                   </span>
                 </div>
               )}
 
               {/* Індикатор шторки */}
-              <div className="flex items-center gap-2 text-[#9CA3AF] group-hover:text-white transition-colors shrink-0 ml-1">
+              <div className="w-6 h-6 rounded-lg bg-[#202020]/70 border border-[#2D2D2D] group-enabled:group-hover:border-[#5A1220] group-enabled:group-hover:bg-[#261418] flex items-center justify-center text-[#9CA3AF] group-hover:text-white transition-all shrink-0 ml-0.5">
                 <ChevronDown
-                  size={15}
+                  size={14}
                   className={`transition-transform duration-200 ${
                     isCharacterDrawerOpen ? 'rotate-180 text-[#EF4444]' : 'rotate-0'
                   }`}

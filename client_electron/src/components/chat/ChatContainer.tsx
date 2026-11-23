@@ -19,6 +19,7 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ onNewCampaign }) =
     isLoading,
     isStreaming,
     isRollingBack,
+    isEditingNarrator,
     activeCampaignRollbackDepth,
     backendOffline,
     activeCampaignId,
@@ -275,11 +276,16 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ onNewCampaign }) =
   };
 
   return (
-    <div className="relative flex-1 bg-[#111111] border border-[#262626] rounded-xl p-4 pb-3 overflow-hidden flex flex-col shadow-lg">
+    <div className="relative flex-1 bg-[#111111] border border-[#262626] rounded-xl p-4 pb-3 overflow-hidden flex flex-col shadow-[inset_0_1px_0_rgba(255,255,255,0.03),0_10px_30px_-10px_rgba(0,0,0,0.7)]">
+      {/* Тонке атмосферне підсвічування зверху полотна чату */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-[radial-gradient(ellipse_at_top,rgba(126,0,24,0.06),transparent_70%)]"
+      />
       <div className="relative flex-1 min-h-0 flex flex-col">
         {/* Нейтральний індикатор завантаження при перемиканні кампаній поверх існуючого логу */}
         {isLoading && !isStreaming && messages.length > 0 && (
-          <div className="absolute top-1 right-3 z-20 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#181818]/90 border border-[#2A2A2A] text-[11px] text-[#9CA3AF] shadow-md select-none">
+          <div className="absolute top-1 right-3 z-20 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#161616]/90 backdrop-blur-md border border-[#2A2A2A] text-[11px] text-[#9CA3AF] shadow-md select-none">
             <Loader2 size={12} className="animate-spin text-[#9CA3AF]" />
             <span>Завантаження історії...</span>
           </div>
@@ -291,7 +297,7 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ onNewCampaign }) =
           onScroll={handleScroll}
           className="flex-1 overflow-y-auto pr-2 mask-fade-vertical"
         >
-          <div className="flex flex-col min-h-full justify-end pt-[18px]">
+          <div className="w-full max-w-[920px] mx-auto flex flex-col min-h-full justify-end pt-[18px]">
             {messages.length === 0
               ? renderEmptyOrOfflineState()
               : messages.map((msg, idx) => {
@@ -302,12 +308,23 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ onNewCampaign }) =
                     msg.canRollback !== false &&
                     !isLoading &&
                     !isStreaming &&
-                    !isRollingBack;
+                    !isRollingBack &&
+                    !isEditingNarrator;
+                  const canEdit =
+                    idx === lastNarratorIndex &&
+                    !isLoading &&
+                    !isStreaming &&
+                    !isRollingBack &&
+                    !isEditingNarrator &&
+                    !backendOffline &&
+                    !msg.isStreaming;
                   return (
                     <ChatBubble
                       key={msg.id || idx}
                       message={msg}
                       canRollback={canRollback}
+                      canEdit={canEdit}
+                      hasPlayerTurns={idx > 0}
                     />
                   );
                 })}
@@ -323,14 +340,14 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({ onNewCampaign }) =
             onClick={() => scrollToBottom('smooth')}
             tabIndex={!isNearBottom ? 0 : -1}
             aria-hidden={isNearBottom}
-            className={`absolute bottom-3 right-4 z-20 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border shadow-lg transition-[opacity,translate,background-color,border-color,color] duration-200 ease-in-out enabled:cursor-pointer select-none ${
+            className={`absolute bottom-3 right-4 z-20 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border backdrop-blur-md shadow-xl transition-[opacity,translate,background-color,border-color,color] duration-200 ease-in-out enabled:cursor-pointer select-none ${
               !isNearBottom
                 ? 'opacity-100 translate-y-0 pointer-events-auto'
                 : 'opacity-0 translate-y-2 pointer-events-none'
             } ${
               isStreaming
-                ? 'bg-[#2A1418] border-[#EAB308]/60 text-[#FDE047] enabled:hover:bg-[#3A181F]'
-                : 'bg-[#181818] border-[#333333] text-[#E5E7EB] enabled:hover:bg-[#222222] enabled:hover:border-[#5A0010]'
+                ? 'bg-[#2A1418]/90 border-[#EAB308]/55 text-[#FDE047] enabled:hover:bg-[#3A181F]'
+                : 'bg-[#181818]/90 border-[#333333] text-[#E5E7EB] enabled:hover:bg-[#222222] enabled:hover:border-[#5A0010]'
             }`}
           >
             <ArrowDown

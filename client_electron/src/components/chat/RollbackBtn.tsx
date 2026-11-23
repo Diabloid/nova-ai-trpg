@@ -12,7 +12,7 @@ export const RollbackBtn: React.FC = () => {
       onClick={() => rollbackLastTurn()}
       disabled={isLoading || isStreaming || isRollingBack || backendOffline}
       data-tooltip="Відкотити цей хід і повернути дію в поле вводу"
-      className="group flex items-start justify-center h-[23px] enabled:hover:h-[28px] px-2.5 pt-[3px] rounded-[6px] enabled:hover:rounded-b-none bg-[#1A1A1A] enabled:hover:bg-[#2A1418] border border-[#2D2D2D] border-b-[#2D2D2D] enabled:hover:border-[#7E0018] enabled:hover:border-b-transparent text-[#9CA3AF] enabled:hover:text-[#EF4444] text-[11px] font-semibold transition-all duration-150 enabled:cursor-pointer shadow-sm disabled:opacity-50 disabled:cursor-default select-none"
+      className="group flex items-start justify-center h-[23px] enabled:hover:h-[28px] px-2.5 pt-[3px] rounded-[6px] enabled:hover:rounded-b-none bg-[#181818] enabled:hover:bg-[#2A1116] border border-[#2C2C2C] border-b-[#2C2C2C] enabled:hover:border-[#7E0018] enabled:hover:border-b-transparent text-[#9CA3AF] enabled:hover:text-[#FCA5A5] text-[11px] font-semibold transition-all duration-150 enabled:cursor-pointer shadow-sm disabled:opacity-50 disabled:cursor-default select-none"
     >
       <span className="inline-flex items-center gap-1.5 leading-[15px]">
         <RotateCcw

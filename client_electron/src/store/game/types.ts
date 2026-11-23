@@ -74,6 +74,7 @@ export interface GameplaySlice {
   userInput: string;
   suppressedSpans: SyntaxSelectionRange[];
   isRollingBack: boolean;
+  isEditingNarrator: boolean;
   activeCampaignRollbackDepth: number;
   rollbackInputSignal: number;
   rollbackGhost: RollbackGhostState | null;
@@ -81,6 +82,7 @@ export interface GameplaySlice {
   sendPlayerAction: (rawText: string) => Promise<void>;
   retryFailedAction: (messageId: string) => Promise<void>;
   rollbackLastTurn: () => Promise<void>;
+  editLastNarratorMessage: (newText: string, recalculateState: boolean) => Promise<boolean>;
 
   setUserInput: (text: string) => void;
   setSuppressedSpans: (spans: SyntaxSelectionRange[]) => void;

@@ -196,6 +196,7 @@ export const createGameplaySlice: StateCreator<GameState, [], [], GameplaySlice>
   userInput: '',
   suppressedSpans: [],
   isRollingBack: false,
+  isEditingNarrator: false,
   activeCampaignRollbackDepth: 0,
   rollbackInputSignal: 0,
   rollbackGhost: null,
@@ -377,6 +378,109 @@ export const createGameplaySlice: StateCreator<GameState, [], [], GameplaySlice>
       get().setSystemAlert(`Помилка відкату: ${errMsg}`, 'error');
     } finally {
       set({ isRollingBack: false, rollbackGhost: null });
+    }
+  },
+
+  // --- ІНЛАЙН-РЕДАГУВАННЯ ОСТАННЬОЇ ВІДПОВІДІ ОПОВІДАЧА ---
+  editLastNarratorMessage: async (newText: string, recalculateState: boolean): Promise<boolean> => {
+    const trimmed = newText.trim();
+    const {
+      activeCampaignId,
+      isLoading,
+      isStreaming,
+      isRollingBack,
+      isEditingNarrator,
+      backendOffline,
+    } = get();
+
+    if (
+      !activeCampaignId ||
+      isLoading ||
+      isStreaming ||
+      isRollingBack ||
+      isEditingNarrator ||
+      backendOffline ||
+      !trimmed
+    ) {
+      return false;
+    }
+
+    try {
+      set({
+        isEditingNarrator: true,
+        ...(recalculateState ? { statusText: 'Оновлюю лист персонажа...' } : {}),
+      });
+
+      const res = await campaignsApi.editLastNarrator(activeCampaignId, {
+        new_text: newText,
+        recalculate_state: recalculateState,
+      });
+
+      const nextLocation = res.player_state?.meta?.location;
+
+      set((state) => {
+        const nextDepth =
+          typeof res.rollback_depth === 'number'
+            ? Math.max(0, res.rollback_depth)
+            : res.can_rollback === false
+              ? 0
+              : state.activeCampaignRollbackDepth;
+
+        let lastNarratorIdx = -1;
+        for (let i = state.messages.length - 1; i >= 0; i--) {
+          const msg = state.messages[i];
+          if (!msg.isPlayer && msg.role !== 'system') {
+            lastNarratorIdx = i;
+            break;
+          }
+        }
+
+        return {
+          playerState: res.player_state,
+          activeCampaignRollbackDepth: nextDepth,
+          activeCampaign:
+            state.activeCampaign && state.activeCampaign.campaign_id === activeCampaignId
+              ? {
+                  ...state.activeCampaign,
+                  ...(nextLocation ? { current_location: nextLocation } : {}),
+                  rollback_depth: nextDepth,
+                }
+              : state.activeCampaign,
+          campaigns: state.campaigns.map((c) =>
+            c.campaign_id === activeCampaignId
+              ? {
+                  ...c,
+                  ...(nextLocation ? { current_location: nextLocation } : {}),
+                  rollback_depth: nextDepth,
+                }
+              : c
+          ),
+          messages:
+            lastNarratorIdx !== -1
+              ? state.messages.map((m, idx) =>
+                  idx === lastNarratorIdx ? { ...m, text: res.story } : m
+                )
+              : state.messages,
+        };
+      });
+
+      get().setSystemAlert(
+        res.state_recalculated
+          ? 'Відповідь оновлено, лист персонажа перераховано.'
+          : 'Текст відповіді оновлено.',
+        'success'
+      );
+      return true;
+    } catch (err: unknown) {
+      const isNetworkFailure = !(err instanceof ApiError) || err.status === 0;
+      if (isNetworkFailure) {
+        set({ backendOffline: true });
+      }
+      const errMsg = err instanceof Error ? err.message : 'Невідома помилка редагування';
+      get().setSystemAlert(errMsg, 'error');
+      return false;
+    } finally {
+      set({ isEditingNarrator: false, statusText: '' });
     }
   },
 

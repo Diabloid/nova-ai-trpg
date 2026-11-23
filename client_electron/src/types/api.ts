@@ -163,6 +163,19 @@ export interface RollbackResponse {
   rollback_depth?: number;
 }
 
+export interface EditLastNarratorRequest {
+  new_text: string;
+  recalculate_state?: boolean;
+}
+
+export interface EditLastNarratorResponse {
+  story: string;
+  player_state: PlayerState;
+  state_recalculated: boolean;
+  can_rollback?: boolean;
+  rollback_depth?: number;
+}
+
 export interface CharacterDialogHistoryItem {
   role: 'player' | 'narrator' | 'user' | 'assistant' | string;
   content: string;

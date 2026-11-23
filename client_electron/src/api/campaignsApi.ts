@@ -5,6 +5,8 @@ import type {
   CampaignPinRequest,
   HistoryMessage,
   RollbackResponse,
+  EditLastNarratorRequest,
+  EditLastNarratorResponse,
   PlayerState,
 } from '../types/api';
 
@@ -39,6 +41,19 @@ export const campaignsApi = {
   /** Відкат на 1 крок назад (Undo) */
   rollbackCampaign: (campaignId: string, options?: RequestInit): Promise<RollbackResponse> => {
     return apiClient.post<RollbackResponse>(`/campaigns/${encodeURIComponent(campaignId)}/rollback`, {}, options);
+  },
+
+  /** Редагувати текст останньої відповіді Оповідача (з опціональним перерахунком листа) */
+  editLastNarrator: (
+    campaignId: string,
+    req: EditLastNarratorRequest,
+    options?: RequestInit
+  ): Promise<EditLastNarratorResponse> => {
+    return apiClient.patch<EditLastNarratorResponse>(
+      `/campaigns/${encodeURIComponent(campaignId)}/messages/last-narrator`,
+      req,
+      options
+    );
   },
 
   /** Отримати поточний живий стан героя в кампанії */
